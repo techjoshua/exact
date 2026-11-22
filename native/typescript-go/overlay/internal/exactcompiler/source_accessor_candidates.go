@@ -158,6 +158,30 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 			return result
 		}
 	}
+	// A fresh literal has no own map member before the original callee Get.
+	// The captured-const key is proven at this occurrence. Its evaluation and
+	// the map's callback effects still belong to their original owners.
+	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsElementAccessExpression(member) &&
+		member.Parent != nil && ast.IsCallExpression(member.Parent) && member.Parent.Expression() == member &&
+		(mode == accessorRead && receiver == member.Expression() || mode == accessorAcquire && name == "" && receiver == member) &&
+		directDenseArrayMap(member.Parent, query.owner.checker) != nil {
+		result := accessorCandidates{sourceOwned: true}
+		if mode == accessorAcquire {
+			result.values = []sourceValue{{node: query.owner.checker.GetResolvedSignature(member.Parent).Declaration()}}
+		}
+		return result
+	}
+	// A successful direct map creates a fresh array. Immediate dense index and
+	// length Gets have no authored accessor. The map still owns callback effects.
+	if query.dependenciesOnly && len(path) == 0 && mode == accessorRead && member != nil && ast.IsAccessExpression(member) && member.Expression() == receiver {
+		if literal := directDenseArrayMap(unwrapSourceCallableReference(receiver), query.owner.checker); literal != nil {
+			index, positional := sourceArrayIndex(name)
+			if name == "length" || (positional && index < uint64(len(literal.AsArrayLiteralExpression().Elements.Nodes))) ||
+				directMappedArrayJoin(member, query.owner.checker) {
+				return accessorCandidates{sourceOwned: true}
+			}
+		}
+	}
 	// A read of the private facade's method is a data Get. The call and
 	// producer retain their own effects, and no returned value is inferred.
 	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsPropertyAccessExpression(member) &&
@@ -192,7 +216,7 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	var reference *sourceGetReference
 	if query.dependenciesOnly {
 		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
-		if reference != nil && mode == accessorRead && reference.selectLocalGetKey(query.owner.checker) {
+		if reference != nil && mode == accessorRead && reference.selectConstGetKey(query.owner.checker, false) {
 			name = reference.key.name
 		}
 	}

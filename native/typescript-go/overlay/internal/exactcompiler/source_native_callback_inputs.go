@@ -43,11 +43,24 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 			entryPattern, freshPrivateEntries = query.owner.directEntriesMapReturnPair(node, actuals[0])
 		}
 	}
+	literal := directDenseArrayMap(node, query.owner.checker)
+	var items []*ast.Node
+	if literal != nil {
+		items = literal.AsArrayLiteralExpression().Elements.Nodes
+	}
+	// A fresh singleton's only indexed Get occurs before any callback can
+	// mutate its array argument. Keep non-primitive inputs with the existing
+	// member visitor, which owns their identity and possible accessor work.
+	accountedInput := literal != nil && len(items) == 0
+	primitiveSingleton := len(items) == 1 && checkedPrimitiveOperand(items[0], query.owner.checker)
 	part := accessorCandidates{}
 	query.withActiveInvocation(node, func() {
 		// This is the real native argument vector, acquired before callback
 		// installation. A callback never borrows map's argument positions.
 		native := query.bindInputs(declaration, node, bindings, &part)
+		if accountedInput {
+			return
+		}
 		callbackSymbol := query.owner.checker.GetSymbolAtLocation(declaration.Parameters()[0].Name())
 		if callbackSymbol == nil {
 			return
@@ -77,6 +90,11 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 		var elements []sourceValue
 		frozenKeys := false
 		for _, receiver := range native.bindings[0] {
+			if primitiveSingleton && len(native.bindings[0]) == 1 && receiver.node == literal && len(receiver.path) == 0 && receiver.normal == nil && receiver.native == nil && receiver.acquired == nil {
+				accountedInput = true
+				elements = append(elements, sourceValue{node: items[0], capture: receiver.capture})
+				break
+			}
 			if freshPrivateEntries {
 				break
 			}
@@ -204,6 +222,15 @@ func (query *sourceValueQuery) nativeCallbackInputEffects(node *ast.Node, bindin
 				}
 			}
 		}
+		query.adoptSourceMayEffects(node, part, result)
+	} else if accountedInput {
+		// Keep callback effects and unresolved input alternatives independent
+		// of the intentionally unmodeled map result.
+		result.valueIncomplete = true
+		result.opaque = result.opaque || part.opaque || part.receiverIncomplete || part.fieldReceiverIncomplete
+		result.fieldFallbacks = append(result.fieldFallbacks, part.fieldFallbacks...)
+		result.callFallbacks = append(result.callFallbacks, part.callFallbacks...)
+		result.descriptorFallbacks = append(result.descriptorFallbacks, part.descriptorFallbacks...)
 		query.adoptSourceMayEffects(node, part, result)
 	} else {
 		query.adoptConstructionMayEffects(node, part, result)

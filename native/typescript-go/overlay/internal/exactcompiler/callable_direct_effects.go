@@ -540,6 +540,9 @@ func collectDirectCallableEffects(
 
 		appendPublicOperationEffects(fact, facts, node, targetSymbol, sourceFile, owner, nodeTargets, symbolTargets, importBindings)
 		if (eagerCallbackCall(call.Expression, typeChecker) || reactiveComputationOperation(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
+			if literal := directDenseArrayMap(node, typeChecker); literal != nil && len(literal.AsArrayLiteralExpression().Elements.Nodes) == 0 {
+				return true // Original operand evaluation remains on the ordinary walk.
+			}
 			for argumentIndex, argument := range call.Arguments.Nodes {
 				if !invokedCallbackArgument(node, argumentIndex, typeChecker) {
 					continue

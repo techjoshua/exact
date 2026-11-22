@@ -2841,6 +2841,18 @@ The update ran the producer again without a second client Get. For browser
 selection, SSR omitted the child output and hydration activated it with the
 browser effect.
 
+For the direct native map cases at `68d5ee51e`, discarding the map result still
+left opaque callback-input effects. Indexing the result or joining it added a
+separate member residual. The imported mapper already linked its source and
+retained any browser dependency. A freshly evaluated primitive singleton has
+one data index to read before the callback can change the array. The existing
+callback owner can use that input and retain unresolved alternatives without
+requiring a concrete map output. Immediate in-range index and length reads
+use the new array's data properties. An immediate join uses that array's
+standard method and the checked primitive element types. These rules keep
+ordinary operand evaluation and callback receivers in emitted JavaScript.
+The empty literal evaluates its arguments and has no callback invocation.
+
 At `b1450195a`, the single-target JSX fixture's generated default export rendered
 `<p>Hello</p>` against its source-matched provider. Swapping only the provider to
 the older build selected by the checkout's dependency symlink reproduced the

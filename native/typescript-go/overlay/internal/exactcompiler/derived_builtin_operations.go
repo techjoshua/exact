@@ -74,6 +74,49 @@ func (owner *sourceValueOwner) directArrayEntriesLiteral(node *ast.Node) *ast.No
 	return literal
 }
 
+// directDenseArrayMap proves the standard method on a fresh dense array. The
+// actual receiver, key, and arguments keep their original evaluation owners.
+func directDenseArrayMap(node *ast.Node, c *checker.Checker) *ast.Node {
+	if node == nil || !ast.IsCallExpression(node) || ast.IsOptionalChain(node) {
+		return nil
+	}
+	callee := unwrapSourceCallableReference(node.Expression())
+	if callee == nil || !ast.IsAccessExpression(callee) {
+		return nil
+	}
+	receiver, name := accessorReceiver(callee)
+	if receiver == nil {
+		return nil
+	}
+	if name == "" && ast.IsElementAccessExpression(callee) {
+		if reference := sourceGetReferenceFor(callee, receiver, nil, name, accessorRead); reference != nil && reference.selectConstGetKey(c, true) {
+			name = reference.key.name
+		}
+	}
+	literal := unwrapSourceCallableReference(receiver)
+	if name != "map" || literal == nil || !ast.IsArrayLiteralExpression(literal) || !denseArrayElements(literal.AsArrayLiteralExpression().Elements.Nodes) ||
+		standardLibraryCallOwner(node.AsCallExpression(), c) != "Array" || !nativeReceiverMemberDeclarations(callee, c) {
+		return nil
+	}
+	for _, argument := range restrictedInvocationArguments(node.AsCallExpression()) {
+		if ast.IsSpreadElement(argument) {
+			return nil
+		}
+	}
+	return literal
+}
+
+// directMappedArrayJoin has only primitive values to coerce. The map and
+// argument expressions still retain all of their own effects.
+func directMappedArrayJoin(member *ast.Node, c *checker.Checker) bool {
+	if member == nil || !ast.IsPropertyAccessExpression(member) || member.Name().Text() != "join" ||
+		directDenseArrayMap(unwrapSourceCallableReference(member.Expression()), c) == nil ||
+		!nativeReceiverMemberDeclarations(member, c) {
+		return false
+	}
+	return checkedPrimitiveType(c.GetElementTypeOfArrayType(c.GetTypeAtLocation(member.Expression())))
+}
+
 // directEntriesMap identifies the standard inherited map on the immediate
 // result of Object.entries. A successful entries call creates a fresh array.
 // Its input enumeration and the map callback keep their original effect owners.

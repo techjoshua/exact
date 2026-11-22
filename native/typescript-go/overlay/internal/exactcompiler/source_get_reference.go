@@ -40,9 +40,9 @@ func sourceGetReferenceFor(operation, receiver *ast.Node, path []string, name st
 	return &sourceGetReference{operation: operation, receiver: receiver, key: key}
 }
 
-// selectLocalGetKey carries an authored const initializer to this original Get.
+// selectConstGetKey carries an authored const initializer to this original Get.
 // A checked literal type alone does not identify the runtime key producer.
-func (reference *sourceGetReference) selectLocalGetKey(c *checker.Checker) bool {
+func (reference *sourceGetReference) selectConstGetKey(c *checker.Checker, allowCaptured bool) bool {
 	if reference.key.resolved || !ast.IsElementAccessExpression(reference.operation) {
 		return false
 	}
@@ -55,9 +55,14 @@ func (reference *sourceGetReference) selectLocalGetKey(c *checker.Checker) bool 
 		return false
 	}
 	declaration := symbol.ValueDeclaration
-	if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(declaration) != enclosingCallableNode(reference.operation) || declaration.End() > operand.Pos() {
+	if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(operand) || declaration.End() > operand.Pos() {
 		return false
 	}
+	if !allowCaptured && enclosingCallableNode(declaration) != enclosingCallableNode(reference.operation) {
+		return false
+	}
+	// A captured const selects the same literal after initialization. If the
+	// closure runs earlier, reading the key throws before the Get.
 	key := unwrapSourceCallableReference(declaration.Initializer())
 	if key == nil || !ast.IsStringLiteral(key) {
 		return false

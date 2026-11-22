@@ -157,6 +157,14 @@ export function CompilerTourPage(this: Component<{}>) {
 					that point.
 				</p>
 				<p>
+					A reactive calculation can map a fresh array containing one primitive and read the
+					result on either target if its mapper and arguments work there. An ordinary mapper
+					function receives the evaluated <code>thisArg</code>. An arrow uses the enclosing
+					<code>this</code>. A getter read through the ordinary mapper&apos;s receiver can
+					make the calculation browser-only. An empty array still evaluates the arguments
+					and skips the mapper body.
+				</p>
+				<p>
 					<code>subarray()</code> can read an authored <code>Symbol.species</code> getter to choose
 					a result constructor. That getter, the selected constructor and its instance field
 					initializers run on the same target as the method call.

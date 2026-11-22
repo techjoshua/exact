@@ -256,7 +256,8 @@ func standardNumberPredicate(expression *ast.Node, c *checker.Checker) bool {
 // coercion, callback or protocol method supplied by an argument. Consumers of
 // the returned value still select it through their original operation.
 func checkedPrimitiveMemberInvocation(call *ast.CallExpression, c *checker.Checker) bool {
-	if !checkedPrimitiveMemberRead(unwrapSourceCallableReference(call.Expression), c) {
+	member := unwrapSourceCallableReference(call.Expression)
+	if !checkedPrimitiveMemberRead(member, c) && !directMappedArrayJoin(member, c) {
 		return false
 	}
 	if call.Arguments != nil {

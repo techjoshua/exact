@@ -955,7 +955,7 @@ Examples:
 
 - A `document.title` read has a browser dependency even when its actual string is unknown. No reconstructed DOM object, native allocation or executed getter receipt is necessary to record that dependency.
 - A supported Promise operation uses its specified scheduling and callback/settlement contract. The compiler need not establish the concrete Promise implementation or solve the eventual fulfillment value merely to represent or emit it.
-- A supported array operation uses the modeled callback and access behavior. A readonly annotation does not prove immutable elements, native method identity or absence of getters and Proxy behavior.
+- A supported array operation uses the modeled callback and access behavior. A readonly annotation does not prove immutable elements, native method identity or absence of getters and Proxy behavior. For a direct native `Array.map()` over an empty or primitive singleton literal, callback effects and immediate array result reads can inform placement without evaluating the callback result. Argument evaluation stays with its source expressions. An ordinary callback can read through the selected `thisArg`, while an arrow retains lexical `this`.
 
 Async return settlement keeps source Get-effect coverage separate from normal fulfillment
 observations. A request-local source query reuses selected dependency edges, original Call
