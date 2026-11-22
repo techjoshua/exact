@@ -865,10 +865,6 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			_, components[index].Lists = componentListOwners[components[index].Name]
 		}
 	}
-	if request.Target == TargetClient && len(boundTaskSetup) != 0 {
-		ast.SetParentInChildren(sourceFile.AsNode())
-		transformed = pruneClientBoundTaskSetup(transformed, sourceFile, emitContext, generation.checker, boundTaskSetup)
-	}
 	transformed, targetImportUses := lowerComponentContracts(
 		transformed,
 		emitContext,
@@ -899,6 +895,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		emitContext.Factory,
 		secretQualifications,
 	)
+	if request.Target == TargetClient && len(boundTaskSetup) != 0 {
+		ast.SetParentInChildren(sourceFile.AsNode())
+		transformed = pruneClientBoundTaskSetup(transformed, sourceFile, emitContext, generation.checker, boundTaskSetup)
+	}
 	response.Timings.LoweringMicroseconds = time.Since(
 		loweringStarted,
 	).Microseconds()

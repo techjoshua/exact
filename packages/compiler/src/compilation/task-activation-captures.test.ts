@@ -56,6 +56,14 @@ it.each([
 		value: 'result',
 		mode: 'bind-setup-library'
 	},
+	...['application', 'library'].flatMap((packageType) =>
+		['mixed', 'portable'].map((consumer) => ({
+			name: `stored bind length read (${consumer}, ${packageType})`,
+			statement: 'return result;',
+			value: 'result',
+			mode: `bind-${consumer}-${packageType}`
+		}))
+	),
 	{
 		name: 'stored server bind with a same-name export',
 		statement: 'return result;',
@@ -173,6 +181,8 @@ it.each([
 		const nullableMode = mode.startsWith('nullable-');
 		const root = await createCompilerTestWorkspace('.exact-activation-captures-', process.cwd());
 		const bindMode = mode.startsWith('bind-');
+		const portableBind = mode.startsWith('bind-portable-');
+		const readsBindLength = portableBind || mode.startsWith('bind-mixed-');
 		const entry = path.join(root, 'page.tsx');
 		let source = await readFile(
 			repositoryPath(
@@ -241,28 +251,45 @@ it.each([
 		if (bindMode) {
 			const bind = 'const publish = publishBound.bind(this);';
 			source =
-				`import { existsSync } from 'node:fs';
-type CaptureOwner = Component<{ revision: number; draft: number; result: number }>;
-function publishBound(this: CaptureOwner, input: number, next: number): number {
-	const offset = existsSync('.') ? 7 : 0;
-	const result = input + next + this.state.revision + offset;
+				`${portableBind ? '' : "import { existsSync } from 'node:fs';\n"}type CaptureOwner = Component<{ revision: number; draft: number; result: number }>;
+function publishBound(this: CaptureOwner, input: number, next${readsBindLength ? '?: number, extra = 0, ...rest: number[]' : ': number'}): number {
+	const offset = ${portableBind ? '7' : "existsSync('.') ? 7 : 0"};
+	const result = input + ${readsBindLength ? '(next ?? 0)' : 'next'} + this.state.revision + offset;
 	this.setContext(CaptureStatus, { value: result });
 	return result;
 }
 ` +
 				source
 					.replace('const read = () => this.state.revision;', mode === 'bind-run' ? '' : bind)
-					.replace('TaskContext.server().blocking()', 'TaskContext.blocking()')
+					.replace(
+						'TaskContext.server().blocking()',
+						portableBind ? 'TaskContext.server().blocking()' : 'TaskContext.blocking()'
+					)
 					.replace(
 						'const privateValue = this.getContext(CapturePrivate);',
 						mode === 'bind-run' ? bind : ''
 					)
 					.replace(
 						'const result = value + next + read() + shared + privateValue;',
-						'const result = publish(value + shared, next);'
+						portableBind
+							? 'const result = publishBound.call(this, value + shared, next);'
+							: 'const result = publish(value + shared, next);'
 					)
 					.replace('this.setContext(CaptureStatus, { value: result });', '')
 					.replace('void run();', '');
+			if (readsBindLength) {
+				source = source
+					.replace(
+						'onClick={() => this.state.draft++}',
+						'onClick={() => (this.state.draft += publish.length)}'
+					)
+					.replace(
+						'<output data-result>',
+						'<output data-draft>{this.state.draft}</output><output data-result>'
+					);
+				expect(source).toContain('this.state.draft += publish.length');
+				expect(source).toContain('<output data-draft>');
+			}
 			if (mode === 'bind-shadow') {
 				source += `
 export function publish(label: string) { return label; }
@@ -276,7 +303,7 @@ export function readLabel(label: string) { return publish(label); }
 				type CaptureOwner = Component<{ revision: number; draft: number; result: number }>;
 				function publishBound(this: CaptureOwner, input: number, next: number) {
 					const offset = existsSync('.') ? 7 : 0;
-				const result = input + next + this.state.revision + offset;
+				const result = input + ${readsBindLength ? '(next ?? 0)' : 'next'} + this.state.revision + offset;
 					${directContextWrite ? '' : 'this.setContext(CaptureStatus, { value: result });'}
 					return result;
 				}
@@ -465,7 +492,10 @@ export function readLabel(label: string) { return publish(label); }
 			const clientSource = emitted.get('client');
 			expect(typeof clientSource).toBe('string');
 			expect(clientSource).not.toMatch(/['"]node:fs['"]/);
-			expect(clientSource).not.toMatch(/\bpublishBound\b/);
+			if (!portableBind) expect(clientSource).not.toMatch(/\bpublishBound\b/);
+			if (readsBindLength && !portableBind)
+				expect(clientSource).toMatch(/\bconst publish: number = 2;/);
+			if (portableBind) expect(clientSource).toMatch(/\bpublishBound\.bind\(/);
 			if (mode === 'bind-shadow') {
 				expect(clientSource).toMatch(/\bfunction\s+publish\s*\(label\b/);
 				expect(clientSource).toMatch(/\breturn\s+publish\s*\(label\)/);
@@ -598,6 +628,8 @@ export function readLabel(label: string) { return publish(label); }
 		);
 		const result = host.querySelector('[data-result]');
 		const status = host.querySelector('[data-status]');
+		const draft = readsBindLength ? host.querySelector('[data-draft]') : null;
+		if (readsBindLength) expect(draft?.textContent).toBe('2');
 		const run = host.querySelector<HTMLButtonElement>('[data-run]')!;
 		await view.settle();
 		expect(reports).toEqual([]);
@@ -611,16 +643,20 @@ export function readLabel(label: string) { return publish(label); }
 			);
 		expect(status?.textContent).toBe(String(initial));
 		expect(reports).toEqual([]);
-		for (const expected of [String(resultAfterFirstCall + 2), String(resultAfterFirstCall + 4)]) {
+		const draftStep = readsBindLength ? 2 : 1;
+		for (const changeCount of [1, 2]) {
+			const expected = String(resultAfterFirstCall + changeCount * draftStep * 2);
 			const before = requests;
 			await view.action(() =>
 				host.querySelector<HTMLButtonElement>('[data-capture-only]')!.click()
 			);
 			await view.settle();
 			expect(requests).toBe(before);
-			expect(result?.textContent).toBe(String(Number(expected) - 2));
+			if (readsBindLength) expect(draft?.textContent).toBe(String(2 + changeCount * draftStep));
+			expect(result?.textContent).toBe(String(Number(expected) - draftStep * 2));
 			await view.action(() => run.click());
-			expect(requests).toBeGreaterThan(before);
+			if (readsBindLength) expect(requests).toBe(before + 1);
+			else expect(requests).toBeGreaterThan(before);
 			await expect.poll(() => result?.textContent).toBe(expected);
 			expect(status?.textContent).toBe(String(Number(expected) - (directReceiverRead ? 1 : 0)));
 			expect(reports).toEqual([]);
@@ -632,7 +668,7 @@ export function readLabel(label: string) { return publish(label); }
 		await view.action(() => run.click());
 		await expect
 			.poll(() => result?.textContent)
-			.toBe(String(resultAfterFirstCall + (mode === 'helper-props' ? 7 : 6)));
+			.toBe(String(resultAfterFirstCall + draftStep * 4 + (mode === 'helper-props' ? 3 : 2)));
 		expect(host.querySelector('[data-result]')).toBe(result);
 		expect(reports).toEqual([]);
 		await view.action(() => host.querySelector<HTMLButtonElement>('[data-next]')!.click());
@@ -643,7 +679,7 @@ export function readLabel(label: string) { return publish(label); }
 			['helper-props', 'helper-derived', 'helper-derived-object'].includes(mode)
 				? 8
 				: 7;
-		const nextResult = String(resultAfterFirstCall + nextStep);
+		const nextResult = String(resultAfterFirstCall + (draftStep - 1) * 4 + nextStep);
 		await expect.poll(() => result?.textContent).toBe(nextResult);
 		expect(status?.textContent).toBe(String(Number(nextResult) - (directReceiverRead ? 2 : 0)));
 		if (mode === 'nullable-absent' || mode === 'nullable-null')

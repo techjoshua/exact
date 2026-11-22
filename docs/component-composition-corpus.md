@@ -216,7 +216,10 @@ on each invocation, and context published only by that helper updates the retain
 Separate controls put either the read or publication in the task body. The stored-bind variant
 places a private server-only helper’s receiver-only bind in setup. The client artifact excludes
 the helper and its server import, and request dispatch reads the current revision and publishes
-context across repeated calls. The task-local bind uses the same observable checks.
+context across repeated calls. The application and library mixed-use variants also update a local
+draft using the bound function’s JavaScript argument count without dispatching a request. A
+portable helper variant observes the same count from an ordinary bound function. The task-local
+bind uses the same dispatch checks.
 Adapter checks compile both targets and reject direct
 private-context defaults and protected helper inputs. The same adapter fixtures compile awaited annotated factories, guarded nullable collections,
 adjacent reactive setup assignments, and reject erased collection publication and known object Map keys.

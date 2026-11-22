@@ -1,19 +1,24 @@
 package exactcompiler
 
 import (
+	"strconv"
+
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 type boundTaskSetupBinding struct {
-	symbol *ast.Symbol
-	tasks  map[string]bool
+	symbol      *ast.Symbol
+	tasks       map[string]bool
+	lengthReads map[*ast.Node]bool
+	arity       int
 }
 
-// planBoundTaskSetup identifies standalone setup declarations called only
-// by server task bodies. The helper must be server-only. Its sole private reference
-// rules out authored changes to its standard bind property.
+// planBoundTaskSetup proves a private receiver-only bind can be reconstructed
+// for its server tasks. Outside task work the bound value may be observed only
+// by exact length reads. The private use inventory rules out descriptor changes
+// and escapes of the helper and the bound value.
 func planBoundTaskSetup(source *ast.SourceFile, components []componentCandidate, tasks []Task, callables callableAnalysis, availability *moduleValueAvailability) map[*ast.Node]boundTaskSetupBinding {
 	if callables.owner == nil || callables.owner.values == nil || !ast.IsExternalModule(source) {
 		return nil
@@ -94,43 +99,107 @@ func planBoundTaskSetup(source *ast.SourceFile, components []componentCandidate,
 			if len(uses) == 0 {
 				continue
 			}
-			taskOnly := len(pop.unresolved[name.Text()]) == 0
+			valid := len(pop.unresolved[name.Text()]) == 0
 			taskIDs := make(map[string]bool)
+			var lengthReads map[*ast.Node]bool
 			for _, use := range uses {
-				call, scope := use.node.Parent, use.region
-				if call == nil || !ast.IsCallExpression(call) || call.Expression() != use.node || scope == nil || scope == component.node {
-					taskOnly = false
+				parent, scope := use.node.Parent, use.region
+				if boundSetupLengthRead(use.node, component.node, workTargets) {
+					if lengthReads == nil {
+						lengthReads = make(map[*ast.Node]bool)
+					}
+					lengthReads[parent] = true
+					continue
+				}
+				if parent == nil || !ast.IsCallExpression(parent) || parent.Expression() != use.node || scope == nil || scope == component.node {
+					valid = false
 					break
 				}
 				targets := workTargets[nodeSourceSpan(scope)]
-				taskOnly = taskOnly && len(targets) != 0
+				valid = valid && len(targets) != 0
 				for _, task := range targets {
-					taskOnly = taskOnly && task.Placement == "server"
+					valid = valid && task.Placement == "server"
 					taskIDs[task.ID] = true
 				}
 			}
-			if taskOnly {
+			// An explicit annotation can give length a different authored type,
+			// even though the runtime property still contains the argument count.
+			if valid && len(taskIDs) != 0 && (len(lengthReads) == 0 || declaration.Type() == nil) {
 				if result == nil {
 					result = make(map[*ast.Node]boundTaskSetupBinding)
 				}
-				result[statement] = boundTaskSetupBinding{symbol: binding, tasks: taskIDs}
+				bindingPlan := boundTaskSetupBinding{symbol: binding, tasks: taskIDs, lengthReads: lengthReads}
+				if len(lengthReads) != 0 {
+					bindingPlan.arity = receiverOnlyBindArity(fn)
+				}
+				result[statement] = bindingPlan
 			}
 		}
 	}
 	return result
 }
 
-// pruneClientBoundTaskSetup checks that lowering removed all emitted uses before
-// discarding the setup bind. The caller has restored the authored checker parents.
+// boundSetupLengthRead admits property reads outside task work. A descriptor
+// operation on the function itself appears as another use of the binding.
+func boundSetupLengthRead(reference, component *ast.Node, workTargets map[SourceSpan][]Task) bool {
+	member := reference.Parent
+	if member == nil || !ast.IsPropertyAccessExpression(member) || member.Expression() != reference ||
+		member.Name().Text() != "length" || ast.IsOptionalChain(member) {
+		return false
+	}
+	value := member
+	for parent := value.Parent; parent != nil && ast.IsOuterExpression(parent, ast.OEKAll) && parent.Expression() == value; parent = value.Parent {
+		value = parent
+	}
+	if value.Parent == nil || ast.IsDeleteExpression(value.Parent) || ast.IsAssignmentTarget(value) {
+		return false
+	}
+	for scope := member.Parent; scope != nil; scope = scope.Parent {
+		if scope == component {
+			return true
+		}
+		if len(workTargets[nodeSourceSpan(scope)]) != 0 {
+			return false
+		}
+	}
+	return false
+}
+
+// receiverOnlyBindArity is the ECMAScript expected argument count for a
+// function declaration. Binding only this leaves that count intact.
+func receiverOnlyBindArity(fn *ast.Node) int {
+	count := 0
+	for _, parameter := range fn.Parameters() {
+		name := parameter.Name()
+		if name != nil && ast.IsIdentifier(name) && name.Text() == "this" {
+			continue
+		}
+		if parameter.Initializer() != nil || parameter.AsParameterDeclaration().DotDotDotToken != nil {
+			break
+		}
+		count++
+	}
+	return count
+}
+
+// pruneClientBoundTaskSetup checks emitted references before projecting a bind.
+// When length remains observable, keep the numeric value at the original
+// declaration so reads still respect its lexical initialization. An unresolved
+// generated reference vetoes the whole projection.
 func pruneClientBoundTaskSetup(file, source *ast.SourceFile, emit *printer.EmitContext, c *checker.Checker, candidates map[*ast.Node]boundTaskSetupBinding) *ast.SourceFile {
 	if len(candidates) == 0 {
 		return file
 	}
 	names := make(map[string]bool, len(candidates))
+	lengthReads := make(map[*ast.Node]*ast.Symbol)
 	for _, binding := range candidates {
 		names[ast.SymbolName(binding.symbol)] = false
+		for member := range binding.lengthReads {
+			lengthReads[member] = binding.symbol
+		}
 	}
 	used := make(map[*ast.Symbol]bool)
+	projected := make(map[*ast.Symbol][]*ast.Node)
 	var declarations []*ast.Node
 	var visit func(*ast.Node, *ast.Node)
 	visit = func(node, parent *ast.Node) {
@@ -148,6 +217,15 @@ func pruneClientBoundTaskSetup(file, source *ast.SourceFile, emit *printer.EmitC
 					ast.IsBindingElement(parent) && parent.AsBindingElement().PropertyName == node)
 				if declaration || property {
 					return
+				}
+				if parent != nil && ast.IsPropertyAccessExpression(parent) && parent.Expression() == node &&
+					parent.Name().Text() == "length" && !ast.IsOptionalChain(parent) {
+					original := emit.MostOriginal(parent)
+					if proved := lengthReads[original]; proved != nil &&
+						emit.MostOriginal(node) == original.Expression() {
+						projected[proved] = append(projected[proved], parent)
+						return
+					}
 				}
 				var symbol *ast.Symbol
 				// Generated identifiers have no dependable lexical identity. An
@@ -175,7 +253,8 @@ func pruneClientBoundTaskSetup(file, source *ast.SourceFile, emit *printer.EmitC
 	if len(declarations) == 0 {
 		return file
 	}
-	remove := make(map[*ast.Node]bool, len(declarations))
+	replacements := make(map[*ast.Node]*ast.Node, len(declarations))
+	factory := emit.Factory
 	for _, declaration := range declarations {
 		original := emit.MostOriginal(declaration)
 		binding := candidates[original]
@@ -188,14 +267,29 @@ func pruneClientBoundTaskSetup(file, source *ast.SourceFile, emit *printer.EmitC
 		if !sameBind || names[name] || used[binding.symbol] {
 			continue
 		}
-		remove[declaration] = true
+		members := projected[binding.symbol]
+		if len(members) == 0 {
+			replacements[declaration] = nil
+			continue
+		}
+		for _, member := range members {
+			replacements[member] = member.Expression()
+		}
+		local := list.Declarations.Nodes[0]
+		arity := factory.NewNumericLiteral(strconv.Itoa(binding.arity), ast.TokenFlagsNone)
+		value := factory.UpdateVariableDeclaration(local.AsVariableDeclaration(), local.Name(), nil, factory.NewKeywordTypeNode(ast.KindNumberKeyword), arity)
+		replacements[declaration] = factory.UpdateVariableStatement(declaration.AsVariableStatement(), declaration.Modifiers(),
+			factory.UpdateVariableDeclarationList(list, factory.NewNodeList([]*ast.Node{value}), list.Flags))
+	}
+	if len(replacements) == 0 {
+		return file
 	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
-		if remove[node] {
-			return nil
+		if replacement, changed := replacements[node]; changed {
+			return replacement
 		}
 		return visitor.VisitEachChild(node)
-	}, &emit.Factory.NodeFactory, ast.NodeVisitorHooks{})
+	}, &factory.NodeFactory, ast.NodeVisitorHooks{})
 	return visitor.VisitEachChild(file.AsNode()).AsSourceFile()
 }
