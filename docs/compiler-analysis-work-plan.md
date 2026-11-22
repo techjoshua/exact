@@ -364,8 +364,8 @@ from a candidate build. Recheck the fixes with revision-matched providers.
 
 Track newer component findings separately. Forwarded event dispatch and
 private-context continuation lookup have scoped fixes. Standalone Workspace
-placement, destructured server optimistic activation and inline optional
-signal calls retain separate acceptance checks. For the
+placement retains separate acceptance checks. The focused task results below
+cover stored-bind arity, optimistic activation and inline optional signal calls. For the
 [architecture roadmap](compiler-architecture-completion-plan.md#first-integrated-delivery-boundary),
 finish component and operation qualification, rebuild Core and downstream
 providers on the integrated source, and run the canonical SDK and affected
@@ -3001,15 +3001,35 @@ member selection before continuation reconstruction can project it through the r
 Keep direct context calls on the established component receiver visible to the executor.
 Request scope, activation metadata and token partitioning continue to come from the existing
 contracts. The paired SDK checks exercise SSR, setup dispatch, retained clicks, response state
-and shared context publication in an application, with a guarded library control. Destructured
-server optimistic activation and the independent inline optional-call lowering case remain
-separate acceptance items. Installed-package and adapter-specific execution remain open.
+and shared context publication in an application, with a guarded library control.
+Installed-package and adapter-specific execution remain open.
 
 The scoped native counter run reaches the pending-lane bypass and ordinary member lane, optional
 and nonoptional selection, request lookup, and shared publication. Unchecked source variants
 include a non-context method on `this`, a matching name on nested ordinary `this`, and the
 unchanged direct shared-read and private-write executor arms. Wrong-arity `Component` calls and
 a missing lookup projection have no valid source witness in this run.
+
+**Stored-bind arity and invoked optimistic activation.** On the `bb3425ab3` baseline,
+mixed stored-bind arity failed semantic emission in application and library artifacts.
+Direct and destructured optimistic calls reached the server and failed dispatch.
+The combined candidate passed all 19 focused Node/jsdom cases. Local arity clicks
+issued zero requests, and explicit dispatch observed current state and shared context.
+The optimistic callback ran once before dispatch, followed by the authoritative result.
+Private-context and ordinary callback controls passed. Native checks covered default
+and rest arity, descriptor and authored-bind refusals, and direct, destructured, renamed
+and body-local optimistic bindings. Fresh counters observed 72 of 94 branch and
+153 of 248 condition outcomes in stored-bind projection. The changed optimistic
+guard observed both branch outcomes and three of four condition outcomes.
+These checks used candidate-built Core, DOM, Testing and Request providers and same-revision
+TypeScript output for Intl startup imports.
+
+**Inline optional signals.** With the primary patches as baseline, the signal witness
+failed with a missing task signal. The separate candidate passed the same Node/jsdom
+witness and focused native emission check. It preserved once-only receiver and argument
+evaluation, skipped arguments on absence, combined explicit cancellation, and left an
+ordinary optional method's arguments intact. Its native branch and condition audit
+remains open.
 
 **Published task concurrency.** For a button invoking a component-owned function task, changing the final parameter policy from `TaskContext.client().latest()` to `TaskContext.client().queue()` must change three independently observable results. Changing only the number assigned to component state inside the queued task from 1 to 9 must preserve its concurrency. Omitting the concurrency facet on this invoked task selects parallel.
 
