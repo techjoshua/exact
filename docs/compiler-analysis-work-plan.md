@@ -261,6 +261,25 @@ qualification for every inherited case. The replay used disk-backed scratch
 space and the existing test deadline. The sole accessor-only closure-array
 timeout reproduced the existing diagnostic failure in an isolated rerun.
 
+The matched native replay at `8c1125377` passed 1,975 of 2,342 groups.
+Relative to `c346cb72c`, all 1,965 prior passes held and all six added
+groups passed. The four recovered groups were
+`TestFrameworkReactiveValueImportedProducer`,
+`TestFrameworkReactiveValuePlacementSources`,
+`TestStagedKeySourcesImportedDescriptorInput`, and
+`TestStagedModuleMapActivationOriginalPartition`. Both descriptor groups
+passed their retained compile gates, which reported `EXACT2101` at the prior
+checkpoint. There were 365 remaining test failures and two inherited
+setup failures in the getter-adversarial groups because the fixture module
+was absent. Every group has a recorded outcome. No groups retired or timed
+out.
+
+The replay used the pinned upstream source and the same checker patch as the
+prior binary. An initial build without that patch panicked in
+`TestTaskIterationPlacement/sync_return_only`. The group passed in isolation
+and in the full replay with the patch applied. The full replay used one
+frozen test binary and the existing 160-second per-group deadline.
+
 For the integrated build, native application and library compiles have
 identical code and placement on each target for the same-property,
 disjoint-getter, unknown-descriptor and Proxy controls. The first remains
