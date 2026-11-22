@@ -1242,18 +1242,28 @@ publishes the Workspace bootstrap. Strict hydration adopts both original
 buttons and activates their handlers. The replacement control checks
 subsequent list updates.
 
-The existing helper-page control exercises the generated bootstrap for
-Workspace list handlers under Page. The separate bootstrap fixture composes
-Workspace's helper-forwarded nested child inputs and checks in-place nested
-updates after activation. Its recorded attempt stopped at a missing compiler
-binary before compilation. It remains queued for a revision-matched run.
+The nested-input regression on `36c8aa6f1` uses Page's generated bootstrap
+with strict hydration in application and library builds. Both adopt the original
+SSR buttons and child output. Mutation, replacement and a second mutation
+update the same child for named, indexed and direct reads. The literal child
+stays fixed while Workspace's state changes. The registration graph publishes
+two entries for the same Workspace owner. In both package modes the named and
+indexed reads leave `renderChild` with incomplete accessor provenance, so
+Workspace reports unknown placement and no standalone artifact targets. The
+literal and direct controls report isomorphic placement and both targets.
+The generated Page route works in all four cases.
 
 The legacy state, context and environment propagation test declares a local
-`Component` type and stops at the missing `count` read, before its task
-assertions. The queued replacement uses the Core component receiver in an
-ordinary helper invoked with `.call()` and `.bind()` and observes the context
-write in a descendant. Execute it alongside the context-write control before
-retiring the legacy assertion.
+`Component` type and stops at the missing `count` read. The existing SDK
+context-write control passed on `36c8aa6f1`. The real Core receiver follow-up
+uses ordinary helpers with two runtime parameters to separate them from
+JSX entry points. A direct `.call()` reaches task lowering, where normalization
+turns the helper's numeric return into a child-range thunk. Generated semantic
+checking reports TS2322. A syntax-only probe renders the thunk in the task's
+result output instead of the number during SSR. A stored `.bind(this)` fails
+earlier with EXACT2001 for incomplete accessor provenance, including when
+`.bind(this)` targets the publishing helper directly. The inferred dispatch
+and descendant context checks remain open for the bound path.
 
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,
