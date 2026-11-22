@@ -144,6 +144,12 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 		q.reflectiveCopy = &projection
 		defer func() { q.reflectiveCopy = prior }()
 	case sourceNativeObjectDefineProperties:
+		// Component placement has the ordinary module Effects collector.
+		// Source-only queries still need their original staged input proof.
+		if len(q.owner.components) != 0 && runtimeModuleEvaluation(site.Parent) &&
+			originalFreezeDescriptorParent(child, q.owner.checker) == site && q.freezeChildArgumentsOwned(actuals, result) {
+			break
+		}
 		if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) ||
 			!sourceInertObjectFields(actuals[0], func(name *ast.Node) bool {
 				return q.freezeChildInertComputedName(name, result)
@@ -211,6 +217,68 @@ func (q *sourceValueQuery) freezeChildPlainDescriptorMap(input *ast.Node) bool {
 		}
 		for _, alternative := range key.Distributed() {
 			if alternative.Flags()&(checker.TypeFlagsStringLike|checker.TypeFlagsNumberLike|checker.TypeFlagsESSymbolLike) == 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// originalFreezeDescriptorParent recognizes the original direct nesting. Both
+// operations still require canonical selection in their respective consumers.
+func originalFreezeDescriptorParent(child *ast.Node, c *checker.Checker) *ast.Node {
+	if child == nil || !ast.IsCallExpression(child) || ast.IsOptionalChain(child) ||
+		stagedNativeInputIntent(child.Expression()) != sourceNativeObjectDefineProperties ||
+		!standardLibraryCallRoot(child.Expression(), c) {
+		return nil
+	}
+	parent := child.Parent
+	if parent == nil || !ast.IsCallExpression(parent) || ast.IsOptionalChain(parent) ||
+		stagedNativeInputIntent(parent.Expression()) != sourceNativeObjectFreeze ||
+		!standardLibraryCallRoot(parent.Expression(), c) {
+		return nil
+	}
+	args := restrictedInvocationArguments(parent.AsCallExpression())
+	if len(args) == 1 && args[0] == child {
+		return parent
+	}
+	return nil
+}
+
+// freezeChildArgumentsOwned bounds the fresh-literal case to descriptor maps
+// whose eager phases the original argument walk and DefineProperties cover.
+func (q *sourceValueQuery) freezeChildArgumentsOwned(actuals []*ast.Node, result *accessorCandidates) bool {
+	keyAccounted := func(name *ast.Node) bool {
+		return q.freezeChildInertComputedName(name, result) ||
+			nestedDescriptorArgumentKey(name, q.owner.checker) != nil
+	}
+	if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) || !ast.IsObjectLiteralExpression(actuals[1]) ||
+		!sourceInertObjectFields(actuals[0], keyAccounted) {
+		return false
+	}
+	entries := actuals[1].AsObjectLiteralExpression().Properties.Nodes
+	for _, entry := range entries {
+		if ast.IsGetAccessorDeclaration(entry) {
+			return len(entries) == 1 && plainReturnedDescriptorEntry(entry) && sourceInertValueCreation(actuals[0])
+		}
+		if !ast.IsPropertyAssignment(entry) || callableNameText(entry.Name()) == "__proto__" ||
+			ast.IsComputedPropertyName(entry.Name()) && !keyAccounted(entry.Name()) {
+			return false
+		}
+		descriptor := unwrapSourceCallableReference(entry.Initializer())
+		if len(entries) == 1 && soleDescriptorFieldGetter(descriptor) != nil {
+			continue
+		}
+		if !ast.IsObjectLiteralExpression(descriptor) {
+			return false
+		}
+		for _, field := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+			if !ast.IsPropertyAssignment(field) || field.Name() == nil || ast.IsComputedPropertyName(field.Name()) || callableNameText(field.Name()) == "__proto__" {
+				return false
+			}
+			initializer := unwrapSourceCallableReference(field.Initializer())
+			if !sourceInertValueCreation(initializer) &&
+				(callableNameText(field.Name()) != "value" || !ast.IsIdentifier(initializer)) {
 				return false
 			}
 		}

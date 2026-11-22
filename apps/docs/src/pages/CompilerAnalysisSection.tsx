@@ -109,7 +109,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				If a helper then uses <code>Reflect.get</code> to read those properties, its placement
 				includes the getters that the reads can invoke, including nonenumerable ones.
 				Freezing an ordinary object just created in that initializer keeps its stored callbacks
-				and installed getters dormant.
+				and installed getters dormant. A computed property name can run a conversion method
+				while the object is created. A getter on the descriptor map or on a descriptor field
+				can also run during <code>Object.defineProperties</code>. If that eager work reads
+				<code>document</code>, the initializer needs the browser.
 				If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their

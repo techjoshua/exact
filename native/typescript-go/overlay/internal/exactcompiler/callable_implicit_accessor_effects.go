@@ -27,6 +27,16 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		visit(accessorCandidates{})
 		return
 	}
+	var keyOperand *ast.Node
+	if ast.IsComputedPropertyName(node) {
+		if owner == nil || owner.values == nil || len(owner.values.components) == 0 {
+			return
+		}
+		keyOperand = nestedDescriptorArgumentKey(node, typeChecker)
+		if keyOperand == nil {
+			return
+		}
+	}
 	var query *sourceValueQuery
 	if len(normal) == 1 && normal[0] != nil {
 		var values *sourceValueOwner
@@ -41,7 +51,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		// Only these expressions and binding patterns can perform an implicit
 		// read here. A normal invocation may still need its enclosing work ledger.
 		switch node.Kind {
-		case ast.KindTemplateSpan, ast.KindSpreadElement, ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
+		case ast.KindComputedPropertyName, ast.KindTemplateSpan, ast.KindSpreadElement, ast.KindNewExpression, ast.KindBinaryExpression, ast.KindVariableDeclaration, ast.KindSpreadAssignment, ast.KindJsxSpreadAttribute, ast.KindCallExpression:
 		default:
 			visit(accessorCandidates{})
 			return
@@ -73,6 +83,10 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		if !query.deferUnboundPatternEffects(node, bound, &result) {
 			query.bindPattern(node.Name(), query.originsAt(node.Initializer(), node, bound, &result), bound, &result, accessorRead)
 		}
+	}
+	if keyOperand != nil {
+		query.descriptorArgumentKeyEffects(node, keyOperand, bound, &result)
+		return
 	}
 	query.implicitAccessorQueries(node, bound, &result)
 }
@@ -646,4 +660,69 @@ func (query *sourceValueQuery) assignmentPatternReads(node *ast.Node, bindings s
 			result.opaque = true
 		}
 	}
+}
+
+// nestedDescriptorArgumentKey locates coercion on an original target or map
+// literal. An assertion at the key or its direct const origin may hide the
+// actual operand from the checked primitive fast path.
+func nestedDescriptorArgumentKey(name *ast.Node, c *checker.Checker) *ast.Node {
+	member := name.Parent
+	literal := member.Parent
+	if !ast.IsObjectLiteralExpression(literal) ||
+		originalFreezeDescriptorParent(literal.Parent, c) == nil {
+		return nil
+	}
+	operand := unwrapSourceCallableReference(name.AsComputedPropertyName().Expression)
+	checked := operand
+	if ast.IsIdentifier(operand) {
+		if symbol := c.GetSymbolAtLocation(operand); symbol != nil {
+			declaration := symbol.ValueDeclaration
+			if declaration != nil && ast.IsVariableDeclaration(declaration) &&
+				declaration.Parent.Flags&ast.NodeFlagsConst != 0 && declaration.Initializer() != nil {
+				checked = unwrapSourceCallableReference(declaration.Initializer())
+			}
+		}
+	}
+	if checkedPrimitiveOperand(checked, c) {
+		return nil
+	}
+	return operand
+}
+
+// descriptorArgumentKeyEffects can select the sole own @@toPrimitive method on
+// a private literal. This Get has no authored accessor, and the standard
+// algorithm never falls back to ordinary hooks after selecting the method.
+func (q *sourceValueQuery) descriptorArgumentKeyEffects(name, operand *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+	// A module binding is consulted here only at a direct module initializer.
+	// Repeated uses inside a callable can observe changes made by an earlier hook.
+	initializer := sourceStagedModuleOwner(name)
+	if q.dependenciesOnly && (!ast.IsIdentifier(operand) || ast.IsVariableDeclaration(initializer) || ast.IsVariableStatement(initializer)) {
+		literal := singleUseLiteral(operand, q.owner, ast.KindObjectLiteralExpression)
+		if literal != nil && q.retainPrivateDescriptorKeyMethod(name, literal, bindings, result) {
+			return
+		}
+	}
+	q.primitiveConversionEffects(name, operand, bindings, true, result)
+}
+
+func (q *sourceValueQuery) retainPrivateDescriptorKeyMethod(name, literal *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
+	members := literal.AsObjectLiteralExpression().Properties.Nodes
+	if len(members) != 1 || !ast.IsMethodDeclaration(members[0]) || !ast.IsComputedPropertyName(members[0].Name()) {
+		return false
+	}
+	method := members[0]
+	if method.AsMethodDeclaration().AsteriskToken != nil || ast.HasSyntacticModifier(method, ast.ModifierFlagsAsync) {
+		return false
+	}
+	key := unwrapSourceCallableReference(method.Name().AsComputedPropertyName().Expression)
+	_, symbol := q.nativeWellKnownKey("toPrimitive", result)
+	if symbol == nil || !ast.IsAccessExpression(key) || q.owner.checker.GetSymbolAtLocation(key) != symbol ||
+		!standardLibraryCallRoot(key, q.owner.checker) {
+		return false
+	}
+	selected := accessorCandidates{values: []sourceValue{{node: method}}}
+	q.sourceKeyMethodEffects(name, sourceValue{node: literal}, q.acquireCallableScope(bindings, result), true, &selected)
+	selected.values = nil
+	mergeAccessorCandidates(result, selected)
+	return true
 }

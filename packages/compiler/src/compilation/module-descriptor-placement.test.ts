@@ -310,9 +310,109 @@ it.each(createDescriptorCases)(
 	}
 );
 
+const frozenVersion = (binding: string, target = '{}') => `${binding}
+	const identity = Symbol.for('identity');
+	const generation = Symbol.for('generation');
+	const prototype = Object.freeze(Object.defineProperties(${target}, {
+		[identity]: { value: true },
+		[generation]: { value: version }
+	}));`;
+const importVersion = "import { version } from './contract.js';";
+const browserGetter = '{ get held() { return document.title; } }';
+const scalarContract = 'export const version = 6;';
+
+it.each([
+	{
+		name: 'a frozen target literal converting a browser key',
+		declaration: `const key = {[Symbol.toPrimitive](){return document.title}} as unknown as string;
+		const record = Object.freeze(Object.defineProperties({[key]:0,value:'before'},{value:{value:'ready'}}));`,
+		value: 'record.value',
+		browser: true,
+		expected: 'ready'
+	},
+	{
+		name: 'a frozen descriptor map literal converting a browser key',
+		declaration: `const key = {[Symbol.toPrimitive](){return document.title === 'browser value' ? 'value' : 'other'}};
+		const record = Object.freeze(Object.defineProperties({value:'before'},{[key as unknown as string]:{value:'ready'}}));`,
+		value: 'record.value',
+		browser: true,
+		expected: 'ready'
+	},
+	{
+		name: 'a frozen record converting a descriptor field getter',
+		declaration: `let reads = 0;
+		const record = Object.freeze(Object.defineProperties({value:'before'},{value:{get value(){reads++; return document.title}}}));`,
+		value: "record.value + ':' + reads",
+		browser: true,
+		expected: 'browser value:1'
+	},
+	{
+		name: 'a frozen record reading a descriptor map getter',
+		declaration: `let reads = 0;
+		const record = Object.freeze(Object.defineProperties({value:'before'},{get value(){return {value:(reads++, document.title)}}}));`,
+		value: "record.value + ':' + reads",
+		browser: true,
+		expected: 'browser value:1'
+	},
+	{
+		name: 'an imported scalar initialized by a browser getter',
+		declaration: frozenVersion(importVersion),
+		contract:
+			'const input = { get version() { return document.title.length; } }; export const version = input.version;',
+		value: 'prototype[generation]',
+		browser: true,
+		expected: '13'
+	},
+	{
+		name: 'a lexical scalar stored at a Symbol key',
+		declaration: frozenVersion('const version = 6;'),
+		value: 'prototype[generation]',
+		expected: '6'
+	},
+	{
+		name: 'an imported scalar stored at a Symbol key',
+		declaration: frozenVersion(importVersion),
+		contract: scalarContract,
+		value: 'prototype[generation]',
+		expected: '6'
+	},
+	{
+		name: 'an imported scalar stored at a Symbol key beside a held getter',
+		declaration: frozenVersion(importVersion, browserGetter),
+		contract: scalarContract,
+		value: 'prototype[generation]',
+		expected: '6'
+	},
+	{
+		name: 'a reached getter beside an imported scalar',
+		declaration: frozenVersion(importVersion, browserGetter),
+		contract: scalarContract,
+		value: 'prototype.held',
+		browser: true,
+		expected: 'browser value'
+	},
+	{
+		name: 'a local scalar initialized by a browser getter',
+		declaration: frozenVersion(
+			'const input = { get version() { return document.title.length; } }; const version = input.version;'
+		),
+		value: 'prototype[generation]',
+		browser: true,
+		expected: '13'
+	}
+])('preserves application and library placement for $name', async (test) => {
+	await expectDescriptorPlacement(test, ['application', 'library']);
+});
+
 /** Compiles the same component source and logical path for each requested package type. */
 async function expectDescriptorPlacement(
-	test: { declaration: string; value: string; browser?: boolean; expected: string },
+	test: {
+		declaration: string;
+		contract?: string;
+		value: string;
+		browser?: boolean;
+		expected: string;
+	},
 	packageTypes: readonly ('application' | 'library')[]
 ) {
 	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
@@ -321,16 +421,48 @@ async function expectDescriptorPlacement(
 		entry,
 		`${test.declaration}\nexport function Page() { return () => <p>{${test.value}}</p>; }`
 	);
+	const sources = [entry];
+	if (test.contract) {
+		const contract = path.join(root, 'contract.ts');
+		await writeFile(contract, test.contract);
+		sources.push(contract);
+	}
 	for (const packageType of packageTypes) {
 		const outDir = path.join(root, packageType);
-		const [artifact] = await compileProjectArtifacts([entry], {
+		const artifacts = await compileProjectArtifacts(sources, {
 			rootDir: root,
 			outDir,
 			packageType
 		});
-		await expectDescriptorRendering(outDir, artifact!.serverFile, artifact!.clientFile, test);
+		const artifact = artifacts.find(({ inputFile }) => inputFile === entry)!;
+		await expectDescriptorRendering(outDir, artifact.serverFile, artifact.clientFile, test);
 	}
 }
+
+it.each(['application', 'library'] as const)(
+	'reports the unresolved imported initializer in a %s build',
+	async (packageType) => {
+		const root = await createCompilerTestWorkspace('.exact-descriptor-unknown-', process.cwd());
+		const entry = path.join(root, 'page.tsx');
+		const contract = path.join(root, 'contract.ts');
+		await writeFile(
+			entry,
+			`${frozenVersion(importVersion)}
+export function Page() { return () => <p>{prototype[generation]}</p>; }`
+		);
+		await writeFile(
+			contract,
+			'declare function foreign(): number; export const version = foreign();'
+		);
+		await expect(
+			compileProjectArtifacts([entry, contract], {
+				rootDir: root,
+				outDir: path.join(root, 'generated'),
+				packageType
+			})
+		).rejects.toThrow(/contract\.ts.*EXACT2101.*unresolved call foreign/);
+	}
+);
 
 /** Checks server execution without the browser global, then mounts the paired client artifact. */
 async function expectDescriptorRendering(
@@ -369,9 +501,30 @@ async function expectDescriptorRendering(
 
 it.each([
 	{
-		name: 'a frozen defined record with an opaque computed key coercion',
-		declaration: `const key = {[Symbol.toPrimitive](){document.title;return 'other'}} as unknown as string;
-		const record = Object.freeze(Object.defineProperties({[key]:0,value:'before'},{value:{value:'ready'}}));`,
+		name: 'an unresolved nested map getter',
+		declaration: `declare function foreign(): string;
+		const record = Object.freeze(Object.defineProperties({value:'before'},{get value(){return {value:foreign()}}}));`,
+		value: 'record.value',
+		diagnostic: /EXACT2101.*unresolved call foreign/
+	},
+	{
+		name: 'an unresolved nested descriptor field getter',
+		declaration: `declare function foreign(): string;
+		const record = Object.freeze(Object.defineProperties({value:'before'},{value:{get value(){return foreign()}}}));`,
+		value: 'record.value',
+		diagnostic: /EXACT2101.*unresolved call foreign/
+	},
+	{
+		name: 'a lexically shadowed descriptor constructor',
+		declaration: `declare const Object: ObjectConstructor;
+		const record = globalThis.Object.freeze(Object.defineProperties({value:'before'},{value:{value:'ready'}}));`,
+		value: 'record.value'
+	},
+	{
+		name: 'an opaque child called through a standard-shaped method',
+		declaration: `declare function foreign(target: {value: string}, descriptors: PropertyDescriptorMap): {value: string};
+		const authored = {defineProperties: foreign};
+		const record = Object.freeze(authored.defineProperties({value:'before'},{value:{value:'ready'}}));`,
 		value: 'record.value'
 	},
 	{
@@ -407,17 +560,20 @@ it.each([
 		});`,
 		value: 'record.value'
 	}
-])('requires module descriptor placement evidence for $name', async ({ declaration, value }) => {
-	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
-	const entry = path.join(root, 'page.tsx');
-	await writeFile(
-		entry,
-		`${declaration}\nexport function Page() { return () => <p>{${value}}</p>; }`
-	);
-	await expect(
-		compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
-	).rejects.toThrow('EXACT2101');
-});
+])(
+	'requires module descriptor placement evidence for $name',
+	async ({ declaration, value, diagnostic }) => {
+		const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
+		const entry = path.join(root, 'page.tsx');
+		await writeFile(
+			entry,
+			`${declaration}\nexport function Page() { return () => <p>{${value}}</p>; }`
+		);
+		await expect(
+			compileProjectArtifacts([entry], { rootDir: root, outDir: path.join(root, 'generated') })
+		).rejects.toThrow(diagnostic ?? 'EXACT2101');
+	}
+);
 
 it('refuses explicit server execution of an eager browser descriptor-map getter', async () => {
 	const root = await createCompilerTestWorkspace('.exact-task-descriptor-map-', process.cwd());

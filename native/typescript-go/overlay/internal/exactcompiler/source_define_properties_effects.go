@@ -10,11 +10,12 @@ import (
 // completed descriptor conversion.
 // The original invocation retains all of its uncertainty and authored siblings.
 func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepared sourcePreparedInvocation, bindings sourceValueBindings, result *accessorCandidates) {
-	// This is the top-level original dependency Call only. Nested writer
-	// probes and normal/result acquisition retain their existing paths.
+	// Recursive writer probes and normal/result acquisition retain their
+	// existing paths. Only the original dependency Call owns conversion.
 	if !query.dependenciesOnly || query.operation != nil || query.sourceEffects.issuer != query || query.dependencyUse != node {
 		return
 	}
+	parent := originalFreezeDescriptorParent(node, query.owner.checker)
 	callable := enclosingCallableNode(node)
 	switch {
 	case callable != nil:
@@ -28,7 +29,8 @@ func (query *sourceValueQuery) definePropertiesCallEffects(node *ast.Node, prepa
 	default:
 		// Definition availability asks for effects on the direct initializer.
 		if query.effectOwner != nil || query.reading == nil ||
-			!ast.IsVariableDeclaration(query.reading) || query.reading.Initializer() != node {
+			!ast.IsVariableDeclaration(query.reading) ||
+			query.reading.Initializer() != node && (parent == nil || unwrapSourceCallableReference(query.reading.Initializer()) != parent) {
 			return
 		}
 	}
@@ -313,7 +315,13 @@ func soleDescriptorFieldGetter(descriptor *ast.Node) *ast.Node {
 // simpleCreatedDescriptorEntry bounds the map Get to a plain returned descriptor.
 // The Get still contributes its original body effects and acquired return scope.
 func simpleCreatedDescriptorEntry(entry *ast.Node) bool {
-	if entry.Body() == nil || !ast.IsBlock(entry.Body()) || ast.IsComputedPropertyName(entry.Name()) || !descriptorGetterHasEmptyMutationSyntax(entry) {
+	return plainReturnedDescriptorEntry(entry) && descriptorGetterHasEmptyMutationSyntax(entry)
+}
+
+// plainReturnedDescriptorEntry bounds further conversion to the known fields of
+// the sole map getter's returned literal. Its body is still analyzed at the Get.
+func plainReturnedDescriptorEntry(entry *ast.Node) bool {
+	if entry.Body() == nil || !ast.IsBlock(entry.Body()) || ast.IsComputedPropertyName(entry.Name()) {
 		return false
 	}
 	statements := entry.Body().AsBlock().Statements.Nodes
