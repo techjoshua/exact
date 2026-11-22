@@ -327,6 +327,17 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
+Later focused results do not change the matched inventory totals.
+`deff9657d` replaces the failing `TestHelperMemberComponentInputsKeepTrackedReader`
+slot-tuple assertion with paired SDK hydration and retained DOM updates.
+`47c1e6a5f` passes the revised `TestNormalAwaitAlternativeEffects` through
+component task effect sources and paired application and library artifacts.
+The focused run passed 14 native groups and two SDK cases, including real
+server dispatch for remote selection and zero selection requests for the
+browser-local control. The SDK startup used TypeScript-emitted modules for
+the prerequisite whose native build reached its deadline. These runs do not
+settle the broader Promise and await families.
+
 The authored root factory passes its parameter to a real component through the paired SDK artifacts. The binding lifecycle and collection identity suites pass all 45 cases with the wrapped Map correction. The root factory control renders distinct inputs, adopts the server DOM under strict hydration and updates the retained owner on new props. This replaces the native assertion about a particular receipt helper for a declaration without a component body.
 
 The focused `7a85c2499` checkpoint passed 22 of 28 native groups, including the assigned-getter and recursive-projection controls. Six staged-source failures reproduced from `43fa437ca`. The checkpoint passed 21 paired SDK cases covering forwarded setup, context, retained props and host rendering. Direct browser and server task compilation also passed the scalar-or-thenable checking cases with rebuilt Core declarations. At this checkpoint, the canonical cancellation corpus reached the 30-second compile deadline.
@@ -1221,6 +1232,19 @@ Workspace identity and targets. Page runs its server task during SSR and
 publishes the Workspace bootstrap. Strict hydration adopts both original
 buttons and activates their handlers. The replacement control checks
 subsequent list updates.
+
+The existing helper-page control exercises the generated bootstrap for
+Workspace list handlers under Page. The separate bootstrap fixture composes
+Workspace's helper-forwarded nested child inputs and checks in-place nested
+updates after activation. Its recorded attempt stopped at a missing compiler
+binary before compilation. It remains queued for a revision-matched run.
+
+The legacy state, context and environment propagation test declares a local
+`Component` type and stops at the missing `count` read, before its task
+assertions. The queued replacement uses the Core component receiver in an
+ordinary helper invoked with `.call()` and `.bind()` and observes the context
+write in a descendant. Execute it alongside the context-write control before
+retiring the legacy assertion.
 
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,
