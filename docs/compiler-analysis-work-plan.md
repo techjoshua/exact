@@ -2821,6 +2821,32 @@ Controls used a native build of the local integration overlay at `97951da4e`, se
 
 Storing an arrow that reads `document.title` imposes no browser requirement. Calling the saved arrow introduces it at the Call. A getter returning that arrow runs at Get, but the browser requirement still arrives at Call. Moving the document read into the getter moves the requirement to Get even if the result is an ordinary number. Changing that number alone cannot change placement. The value of an opaque Call can also remain native when the chosen target is legal and existing result transport suffices. A subsequent property selection, callback invocation, state write or boundary crossing has its own input obligations.
 
+A component can select its producer with `this.reactive(table[key])` and read the cell
+from its render function. At `929cb6beb` the callback graph already linked the selected
+arrow, but the setup Get still marked the computed key opaque. A preceding local
+`const key = 'read' as const` now supplies its authored literal to the original
+read. The Get still owns authored getters and their receiver. The callback edge
+owns the producer's effects, and the cell read consumes the reactive value. A
+dynamic key or disagreement with the checked member identity keeps the selection
+uncertain. A getter's invocation can be known while its returned callback remains
+uncertain.
+
+The original computed-key row and the dormant browser getter control now pass on
+both targets. A selected browser producer or a browser read inside the selected
+getter still places the component on the client. Paired SDK controls emitted equal
+application and library implementations per target. Strict hydration retained the
+portable output, and a parent state update reached that output without replacing
+it. The selected getter ran with its original receiver at SSR or client setup.
+The update ran the producer again without a second client Get. For browser
+selection, SSR omitted the child output and hydration activated it with the
+browser effect.
+
+At `b1450195a`, the single-target JSX fixture's generated default export rendered
+`<p>Hello</p>` against its source-matched provider. Swapping only the provider to
+the older build selected by the checkout's dependency symlink reproduced the
+failure. That result qualifies the fixture setup. Paired placement and hydration
+controls use the JSX provider from the source revision under test.
+
 In `collectTasks`, callable sources supply transitive donors after exclusion of owned child-task work. Source-specific browser/server flags survive an unknown aggregate. The inferred scheduler consumes these flags, opacity and neutral writes; explicit placement consumes conflicting donors. `applyTaskPolicies` then joins body, state-path, context and capture policies. A client request reading a server-kept state field failed on both targets. `task_diagnostics.go` promotes placement errors to EXACT2001. For invoked declarations, `lowerInvokedTaskDeclaration` substitutes the server-side callable for client work. Server work retains its executor on the server and a continuation on the client. The SDK transforms both targets and publishes only after preparation succeeds.
 
 Paired SDK controls on the local overlay at `97951da4e` exercised the stored/invoked arrows directly and through a getter, the getter-body read, neutral inference, the state-policy conflict, and all three placement requests for opaque-only work, each platform joined with opacity, and both platforms joined with opacity. Accepted pairs produced two files. The executing body containing `document.title; return foreign()` or `process.cwd(); return foreign()` appeared only on its selected target. Each refused pair also failed both individual target transforms. These were compile controls with workspace dependency declarations. Separate native component controls passed for scheduling with and without writes, suspension and nested tasks, private captures, context ownership, returned-getter effects, held adapter refusal and application/library parity for a standard-call activation. Mounted behavior and parity of every SDK pair remain unverified.

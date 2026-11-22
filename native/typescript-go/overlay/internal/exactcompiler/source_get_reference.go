@@ -1,12 +1,16 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // sourceGetReference associates the original source Get with its evaluated
 // receiver. It carries no acquired value, normal operation or permission. The
 // accessor traversal consumes it at that Get and never lends it to child Gets.
 type sourceGetReference struct {
 	operation, receiver *ast.Node
+	key                 sourceKeySelection
 }
 
 // sourceGetReferenceFor is called only by the original source member owner.
@@ -29,7 +33,43 @@ func sourceGetReferenceFor(operation, receiver *ast.Node, path []string, name st
 	if actualReceiver == nil || actualReceiver.Kind == ast.KindSuperKeyword {
 		return nil
 	}
-	return &sourceGetReference{operation: operation, receiver: receiver}
+	key := sourceKeySelection{name: actualName, resolved: true}
+	if ast.IsElementAccessExpression(operation) {
+		key = sourceMemberKey(operation.AsElementAccessExpression().ArgumentExpression)
+	}
+	return &sourceGetReference{operation: operation, receiver: receiver, key: key}
+}
+
+// selectLocalGetKey carries an authored const initializer to this original Get.
+// A checked literal type alone does not identify the runtime key producer.
+func (reference *sourceGetReference) selectLocalGetKey(c *checker.Checker) bool {
+	if reference.key.resolved || !ast.IsElementAccessExpression(reference.operation) {
+		return false
+	}
+	operand := unwrapSourceCallableReference(reference.operation.AsElementAccessExpression().ArgumentExpression)
+	if operand == nil || !ast.IsIdentifier(operand) {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(operand)
+	if symbol == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+		return false
+	}
+	declaration := symbol.ValueDeclaration
+	if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(declaration) != enclosingCallableNode(reference.operation) || declaration.End() > operand.Pos() {
+		return false
+	}
+	key := unwrapSourceCallableReference(declaration.Initializer())
+	if key == nil || !ast.IsStringLiteral(key) {
+		return false
+	}
+	// The invoked callback graph still uses the checked member identity.
+	// Keep selection opaque when an assertion makes that identity disagree.
+	receiver, checkedName := restrictedInvocationMember(reference.operation, c)
+	if receiver == nil || checkedName != key.Text() {
+		return false
+	}
+	reference.key = sourceKeySelection{name: checkedName, resolved: true}
+	return true
 }
 
 // matches consumes only the final property of this original Get. An earlier
@@ -38,10 +78,7 @@ func (reference *sourceGetReference) matches(path []string, name string) bool {
 	if reference.operation == nil || !ast.IsPropertyAccessExpression(reference.operation) && !ast.IsElementAccessExpression(reference.operation) {
 		return false
 	}
-	receiver, key := accessorReceiver(reference.operation)
-	if receiver != reference.receiver {
-		return false
-	}
+	key := reference.key.name
 	if len(path) == 0 {
 		return name == key
 	}

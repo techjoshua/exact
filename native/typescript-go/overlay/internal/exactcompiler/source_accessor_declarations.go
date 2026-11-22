@@ -43,7 +43,12 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 	}
 	actualEmptyKey := false
 	if operation := query.protectedMember; operation != nil && ast.IsElementAccessExpression(operation) {
-		selected := sourceMemberKey(operation.AsElementAccessExpression().ArgumentExpression)
+		var selected sourceKeySelection
+		if reference != nil && reference.operation == operation {
+			selected = reference.key
+		} else {
+			selected = sourceMemberKey(operation.AsElementAccessExpression().ArgumentExpression)
+		}
 		actualEmptyKey = selected.resolved && selected.name == ""
 		if !selected.resolved && !query.deferStagedAssignmentKey(operation, mode) {
 			result.opaque = true

@@ -192,6 +192,9 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 	var reference *sourceGetReference
 	if query.dependenciesOnly {
 		reference = sourceGetReferenceFor(operation, receiver, path, name, mode)
+		if reference != nil && mode == accessorRead && reference.selectLocalGetKey(query.owner.checker) {
+			name = reference.key.name
+		}
 	}
 	previousSetter := query.setterInput
 	if query.dependenciesOnly && mode == accessorSetAcquire && len(setter) == 1 && setter[0] != nil && setter[0].target == operation {
