@@ -265,6 +265,17 @@ These examples reconcile the source-language cases with the [component authoring
 
 #### Final traversal and persistence rules
 
+The design target is one full eXact pass over the authored syntax tree. On descent,
+carry the enclosing scope, execution phase and relevant control context. On ascent,
+combine child facts and record the relationships later decisions need. A forward
+reference can be recorded at its use and resolved when its definition becomes
+available. Later consumers use those recorded relationships. Reopening an authored
+body to reconstruct a fact, or searching from the file root to recover a declaration
+already visited, is a deviation to identify in the audit. Review each proposed change
+against the original visit before accepting its test or performance results. If the
+design cannot express a required behavior, bring that specific conflict to the user
+before adopting another traversal.
+
 Use these rules together. They cover the decisions represented above and in the [requested-artifact table](#uncertainty-and-requested-artifact-decision-table). No rule requires annotating every visited node.
 
 1. **Start from the consumer.** Index declarations and bindings cheaply. Request deeper analysis from component setup, a render reader, handler, task, selected module initializer, artifact boundary or requested tooling fact. Use the checker for typing and the configured host for module selection and erasure. A declaration appearing in the source is insufficient reason to analyze its body.
