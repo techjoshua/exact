@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
@@ -13,10 +13,20 @@ import { compileProjectArtifacts } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 
-const fixture = `import type {Component} from '@exactjs/core';
+const reachedInput = `{base:this.state.n,get value(){reached++;receivers.push(this.base);return this.base+document.title.length}} as {base:number;value:number}`;
+const reachedAttributes = {
+	before: `label="inert" item={${reachedInput}}`,
+	after: `item={${reachedInput}} label={"inert"}`,
+	spread: `item={${reachedInput}} {...{label:"inert"}}`,
+	sole: `item={${reachedInput}}`
+};
+
+const fixture = (
+	attributes: keyof typeof reachedAttributes
+) => `import type {Component} from '@exactjs/core';
 export let reached = 0, dormant = 0, deferred = 0;
 export let receivers: number[] = [];
-export function Child(this: Component<{}>, props:{item:{value:number; other?:number}}) {
+export function Child(this: Component<{}>, props:{item:{value:number; other?:number}; label?:string}) {
  const cell = this.reactive(() => props.item.value);
  return () => <output>{cell.get()}</output>;
 }
@@ -27,7 +37,7 @@ export function Page(this: Component<{n:number}>) {
  this.state.n = 2;
  return () => <main>
   <button onClick={() => this.state.n++}>update</button>
-  <Child item={{base:this.state.n,get value(){reached++;receivers.push(this.base);return this.base+document.title.length}} as {base:number;value:number}}/>
+  <Child ${reachedAttributes[attributes]}/>
   <Child item={{value:7,get other(){dormant++;return document.title.length}}}/>
   <Deferred item={{get value(){deferred++;return document.title.length}}}/>
  </main>;
@@ -39,19 +49,22 @@ export function Passive() {
  </main>;
 }`;
 
-for (const [serverComponents, passive] of [
-	[false, false],
-	[true, false],
-	[true, true]
+for (const [serverComponents, passive, packageType, attributes] of [
+	[false, false, 'application', 'before'],
+	[true, false, 'application', 'before'],
+	[false, false, 'library', 'after'],
+	[true, false, 'library', 'spread'],
+	[true, true, 'application', 'sole']
 ] as const) {
-	it(`constructs reached getter inputs in the owning client render (serverComponents=${serverComponents}, passive=${passive})`, async () => {
+	it(`constructs reached getter inputs in the owning client render (serverComponents=${serverComponents}, ${packageType}, ${attributes})`, async () => {
 		const root = await createCompilerTestWorkspace('.exact-member-input-', process.cwd());
 		const input = path.join(root, 'page.tsx');
 		const outDir = path.join(root, 'generated');
-		await writeFile(input, fixture);
+		await writeFile(input, fixture(attributes));
 		const artifacts = await compileProjectArtifacts([input], {
 			rootDir: root,
 			outDir,
+			packageType,
 			serverComponents
 		});
 		const [artifact] = artifacts;
@@ -67,9 +80,10 @@ for (const [serverComponents, passive] of [
 		let dispose: (() => void) | undefined;
 		try {
 			const component = passive ? 'Passive' : 'Page';
+			vi.stubGlobal('document', undefined);
 			const output = await renderToHydratableString(
 				receipt(server[component] as AnyComponentFunction, {})
-			);
+			).finally(() => vi.unstubAllGlobals());
 			expect([server.reached, server.dormant, server.deferred]).toEqual([0, 0, 0]);
 			host.innerHTML = output.htmlWithHydration;
 			const plain = host.querySelector('output');
@@ -111,6 +125,7 @@ for (const [serverComponents, passive] of [
 				0,
 				[2]
 			]);
+			const reached = host.querySelector('output');
 			host.querySelector('button')!.click();
 			flushSync();
 			expect(Array.from(host.querySelectorAll('output'), (node) => node.textContent)).toEqual([
@@ -126,6 +141,8 @@ for (const [serverComponents, passive] of [
 			host.querySelectorAll('button')[1]!.click();
 			flushSync();
 			expect(client.deferred).toBe(1);
+			expect(host.querySelector('output')).toBe(reached);
+			expect(host.querySelectorAll('output')[1]).toBe(plain);
 			expect(errors).toEqual([]);
 		} finally {
 			dispose?.();

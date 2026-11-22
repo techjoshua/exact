@@ -157,25 +157,21 @@ func applyComponentMemberInputUses(project *projectState, records []projectCompo
 	}
 }
 
-// componentMemberInputGetter selects one own descriptor on a fresh literal.
-// Exclude operands that could run authored work merely constructing the input.
+// componentMemberInputGetter links a definite JSX input to its own getter only
+// when the entire input construction can be omitted from the server receipt.
 func componentMemberInputGetter(site *ast.Node, demand sourceComponentMemberInput, c *checker.Checker) *ast.Node {
-	properties := site.Attributes().AsJsxAttributes().Properties.Nodes
-	if len(properties) != 1 || !ast.IsJsxAttribute(properties[0]) {
+	selection := selectComponentCallableInput(site, demand.attribute)
+	if selection.unknown || len(selection.values) != 1 {
 		return nil
 	}
-	attribute := properties[0].AsJsxAttribute()
-	if demand.attribute == "key" || demand.attribute == "children" || jsxAttributeText(attribute.Name()) != demand.attribute || attribute.Initializer == nil || !ast.IsJsxExpression(attribute.Initializer) {
-		return nil
-	}
-	literal := unwrapSourceCallableReference(attribute.Initializer.AsJsxExpression().Expression)
+	literal := unwrapSourceCallableReference(selection.values[0])
 	if literal == nil || !ast.IsObjectLiteralExpression(literal) {
 		return nil
 	}
 	var getter *ast.Node
 	for _, property := range literal.AsObjectLiteralExpression().Properties.Nodes {
 		name := property.Name()
-		if name == nil || !ast.IsIdentifier(name) || name.Text() == "__proto__" {
+		if name == nil || !ast.IsIdentifier(name) {
 			return nil
 		}
 		if name.Text() == demand.member {
@@ -183,24 +179,83 @@ func componentMemberInputGetter(site *ast.Node, demand sourceComponentMemberInpu
 				return nil
 			}
 			getter = property
-		} else if !ast.IsGetAccessorDeclaration(property) {
-			if !ast.IsPropertyAssignment(property) {
-				return nil
-			}
-			value := unwrapSourceCallableReference(property.Initializer())
-			if value == nil {
-				return nil
-			}
-			switch value.Kind {
-			case ast.KindStringLiteral, ast.KindNumericLiteral, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword:
-			default:
-				receiver := directStateReadReceiver(value)
-				if !ast.IsPropertyAccessExpression(value) || receiver == nil || !ast.IsPropertyAccessExpression(receiver) ||
-					!intrinsicConstructionScalar(c.GetTypeAtLocation(value), c) {
-					return nil
-				}
-			}
 		}
 	}
+	if getter == nil || !componentMemberInputAttributesInert(site.Attributes(), literal, c) {
+		return nil
+	}
 	return getter
+}
+
+// componentMemberInputAttributesInert guards the input-free placeholder. A
+// definite final write only proves selection; overwritten attributes and spread
+// copies still execute. Key, ref and children also carry receipt semantics.
+func componentMemberInputAttributesInert(attributes, selected *ast.Node, c *checker.Checker) bool {
+	for _, attribute := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(attribute) {
+			spread := unwrapSourceCallableReference(attribute.AsJsxSpreadAttribute().Expression)
+			if spread == nil || !ast.IsObjectLiteralExpression(spread) || !componentMemberInputRecordInert(spread, nil, true, c) {
+				return false
+			}
+			continue
+		}
+		if !ast.IsIdentifier(attribute.Name()) {
+			return false
+		}
+		switch jsxAttributeText(attribute.Name()) {
+		case "key", "ref", "children":
+			return false
+		}
+		if init := attribute.AsJsxAttribute().Initializer; init != nil && ast.IsJsxExpression(init) &&
+			!componentMemberInputValueInert(init.AsJsxExpression().Expression, selected, false, c) {
+			return false
+		}
+	}
+	return true
+}
+
+// componentMemberInputRecordInert accepts plain record construction. A JSX
+// spread also reads each copied property, so its top-level accessors are excluded.
+// Only the selected record may use the existing scalar state capture.
+func componentMemberInputRecordInert(literal, selected *ast.Node, copied bool, c *checker.Checker) bool {
+	for _, property := range literal.AsObjectLiteralExpression().Properties.Nodes {
+		name := property.Name()
+		if name == nil || !ast.IsIdentifier(name) || name.Text() == "__proto__" {
+			return false
+		}
+		if copied {
+			switch name.Text() {
+			case "key", "ref", "children":
+				return false
+			}
+		} else if ast.IsGetAccessorDeclaration(property) {
+			continue
+		}
+		if !ast.IsPropertyAssignment(property) || !componentMemberInputValueInert(property.Initializer(), selected, literal == selected, c) {
+			return false
+		}
+	}
+	return true
+}
+
+func componentMemberInputValueInert(expression, selected *ast.Node, readsSelectedState bool, c *checker.Checker) bool {
+	value := unwrapSourceCallableReference(expression)
+	if value == nil {
+		return false
+	}
+	switch value.Kind {
+	case ast.KindStringLiteral, ast.KindNumericLiteral, ast.KindTrueKeyword, ast.KindFalseKeyword, ast.KindNullKeyword:
+		return true
+	case ast.KindObjectLiteralExpression:
+		return componentMemberInputRecordInert(value, selected, false, c)
+	case ast.KindPropertyAccessExpression:
+		if !readsSelectedState {
+			return false
+		}
+		receiver := directStateReadReceiver(value)
+		return receiver != nil && ast.IsPropertyAccessExpression(receiver) &&
+			intrinsicConstructionScalar(c.GetTypeAtLocation(value), c)
+	default:
+		return false
+	}
 }

@@ -82,9 +82,9 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					A child can read a field from an object passed in JSX. When the compiler can see that a
 					setup or reactive read reaches a browser getter on an inline object, that use of the child
-					renders in the browser. The parent creates the object there. Other uses of the same child
-					can still render on the server, and a getter read only by an event handler waits for the
-					event.
+					renders in the browser. The parent creates the object there. A literal prop such as
+					<code>label="total"</code> can accompany the object. Other uses of the same child can
+					still render on the server, and a getter read only by an event handler waits for the event.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults

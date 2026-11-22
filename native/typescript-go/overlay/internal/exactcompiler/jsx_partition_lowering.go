@@ -94,7 +94,8 @@ func (lowering *jsxLowering) partitionKey(opening *ast.Node) *ast.Node {
 }
 
 // clientLocalInputPlaceholder is adopted by the parent render's client receipt.
-// The child input is constructed in that render and never enters boundary serialization.
+// Analysis admits this path only when omitting server attribute construction
+// preserves evaluation. The client constructs the original inputs without serialization.
 func (lowering *jsxLowering) clientLocalInputPlaceholder(edge RenderEdge) *ast.Node {
 	return lowering.call(lowering.names.boundary, []*ast.Node{
 		lowering.factory.NewStringLiteral(lowering.clientComponentBoundaryID(edge), ast.TokenFlagsNone),

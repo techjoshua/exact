@@ -314,6 +314,11 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 				element = lowering.call(lowering.names.clientBoundaryIdentity, []*ast.Node{element, lowering.factory.NewStringLiteral(lowering.clientComponentBoundaryID(edge), ast.TokenFlagsNone)})
 			}
 		}
+		// The client-local placeholder has no spread range. Its admitted
+		// spreads are inert copies, so the ordinary input receipt owns updates.
+		if edge.clientInputOwner != nil {
+			return element
+		}
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
 	if intrinsic {
