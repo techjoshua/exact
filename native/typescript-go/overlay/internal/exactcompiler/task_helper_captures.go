@@ -8,7 +8,8 @@ import (
 )
 
 // taskHelperCaptures finds setup values referenced by reconstructed ordinary
-// helpers. Values cross as activation inputs, never by replaying initializers.
+// helpers and setup snapshots used directly by task work. Values cross as
+// execution inputs without replaying initializers.
 // Symbol identity preserves block shadowing and recursive helper graphs.
 func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts, classes []*ast.Node) []invokedTaskCapture {
 	result := []invokedTaskCapture{}
@@ -54,9 +55,12 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			if (!ast.IsVariableDeclaration(declaration) && !ast.IsParameterDeclaration(declaration) && !ast.IsBindingElement(declaration)) || declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
 				return true
 			}
-			// Direct task bodies also lose setup scope when reconstructed as executors.
-			// Capture proven state receivers without duplicating ordinary task inputs.
-			if !helper {
+			bindingProvenance := provenance[declaration.Name().Pos()]
+			setupSnapshot := bindingProvenance == "snapshot" && ast.IsVariableDeclaration(declaration) &&
+				declaration.Parent.Flags&ast.NodeFlagsConst != 0
+			// Reconstructed executors lose setup scope. Reuse the evaluated snapshot
+			// and proven state receivers without duplicating ordinary task inputs.
+			if !helper && !setupSnapshot {
 				if aliases == nil {
 					value := sourceStateAliases(componentCandidate{node: component}, typeChecker, facts)
 					aliases = &value
@@ -66,7 +70,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				}
 			}
 			reference := SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}
-			snapshot := snapshotContext || spanInsideTaskCapture(node.Pos(), node.End(), snapshots)
+			snapshot := setupSnapshot || snapshotContext || spanInsideTaskCapture(node.Pos(), node.End(), snapshots)
 			if index, exists := captured[id]; exists {
 				result[index].snapshot = result[index].snapshot && snapshot
 				result[index].references = append(result[index].references, reference)
@@ -76,7 +80,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			if ast.IsVariableDeclaration(declaration) {
 				initializer = unwrapRenderExpression(declaration.AsVariableDeclaration().Initializer)
 			}
-			if continuationContextLookup(initializer) != nil || provenance[declaration.Name().Pos()] == "context" {
+			if continuationContextLookup(initializer) != nil || bindingProvenance == "context" {
 				return true
 			}
 			captured[id] = len(result)
@@ -85,7 +89,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				typeNode = nil
 			}
 			capture := invokedTaskCapture{snapshot: snapshot, references: []SourceSpan{reference}, expression: node, typeNode: typeNode, source: "derived", path: declaration.Name().Text(), bindingName: declaration.Name().Text()}
-			if !helper || provenance[declaration.Name().Pos()] == "state" || provenance[declaration.Name().Pos()] == "derived" {
+			if !setupSnapshot && (!helper || bindingProvenance == "state" || bindingProvenance == "derived") {
 				if aliases == nil {
 					value := sourceStateAliases(componentCandidate{node: component}, typeChecker, facts)
 					aliases = &value

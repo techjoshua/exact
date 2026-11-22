@@ -271,6 +271,11 @@ export function TasksPage(this: Component<{}>) {
 						A defaulted ordinary parameter captures an untracked snapshot once per generation.
 					</li>
 					<li>
+						A task can close over a <code>const</code> initialized with <code>peek()</code> during
+						setup. The task uses that value for every run. Changes to the source leave its
+						reactive schedule unchanged.
+					</li>
+					<li>
 						A task-local derived read can follow a pending edit made by the task. Use{' '}
 						<code>task.peek(() =&gt; value)</code> when you need a conditional or mid-body snapshot.
 					</li>

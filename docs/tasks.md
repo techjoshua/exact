@@ -295,7 +295,10 @@ Reads inside an imported core `peek` callback are snapshots rather than activati
 Independent live inputs can still start the next generation, which reads a fresh snapshot.
 This boundary also applies to snapshot reads inside local helpers and named callbacks. Snapshot
 reads retain execution and transport read authority. A value read normally
-elsewhere in the task remains an activation input.
+elsewhere in the task remains an activation input. A task that closes over a `const` initialized
+with `peek()` during component setup uses the value evaluated during setup. Changes to the
+snapshot source do not schedule the task, and the server executor receives the evaluated value
+when the task crosses the client/server boundary.
 
 An event or invoked task can await another task's result and assign it to local state.
 That assignment belongs to the caller. It neither registers another setup activation nor
