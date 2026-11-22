@@ -17,7 +17,7 @@ one package request. No totals are available for an uncensored whole build.
 
 For a correctness check or prerequisite already known to exceed its normal deadline, use a longer, bounded deadline on the first run. Use the last successful duration with headroom when available. Set the limit at the layer that ends the run (for example, the native host request) and allow the outer test runner enough time to collect its result. Record elapsed time, the limit used, and the semantic outcome. An extended run establishes correctness only; the normal performance gate retains its original limit.
 
-Keep the existing two-lane limit and serialize heavy builds. If the extended run still expires, preserve the input and last completed operation and continue independent correctness work. Return a case to its ordinary deadline once representative runs consistently finish inside it. Diagnose remaining timeouts in the performance phase.
+Keep the two-lane limit. Both lanes may build concurrently. Direct Go and instrumentation temporary files to disk-backed workspace storage, check WSL memory, swap and Windows free space during builds, and remove each completed run’s private build files and caches. If the extended run still expires, preserve the input and last completed operation and continue independent correctness work. Return a case to its ordinary deadline once representative runs consistently finish inside it. Diagnose remaining timeouts in the performance phase.
 
 ## Conformance to the minimum-analysis rules
 
@@ -327,7 +327,7 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
-**Family qualification through `5115d38b9`**
+**Family qualification through `563fb63e1`**
 
 The fixed review population is the 366 failing groups in the restored-recipe
 `8c1125377` replay. Joining the matched inventory by test group to the
@@ -337,13 +337,13 @@ and supplies routing labels. Count each historical family once.
 
 | Disposition from recorded evidence | Families |
 | --- | ---: |
-| Scoped family requirements verified through component controls | 3 |
-| Open with a demonstrated component defect | 4 |
+| Scoped family requirements verified through component controls | 4 |
+| Open with a demonstrated component defect | 3 |
 | Partial evidence with remaining qualification or replay | 4 |
 | Still needs a component witness or replay | 107 |
 
 The verified families cover receiver forwarding at the agreed component
-boundary, tracked helper-forwarded inputs, and selected Await alternatives.
+boundary, tracked helper-forwarded inputs, selected Await alternatives, and artifact projection.
 Reached descriptor invocations and later Gets or Calls on created prototypes
 still have demonstrated placement gaps in public task controls. The adversarial
 getter replacement, real Core receiver work, deferred root coverage and isolated
