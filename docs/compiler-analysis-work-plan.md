@@ -2976,6 +2976,31 @@ Paired SDK controls on the local overlay at `97951da4e` exercised the stored/inv
 
 The public task record previously explained both explicit server work and opaque refusal as a client scheduling decision. Recording a default reason where the scheduler actually selects it corrects the common producer. At the original Get/Call boundary, a concrete return prediction exceeds placement demand for the stored callback and ordinary result. The controls showed no missing platform donor on those ordinary paths. The no-summary fallback walks body identifiers and lacks the graph's invocation edges and independent opacity evidence. Native adapter receiver admission shares this walk. A held activation reaches the session coverage gate before emission, but dependency analysis in `project_components.go` also consumes collected tasks. The necessity of its platform scan and a reachable no-summary misplacement through that route remain unverified; these controls do not justify retiring it.
 
+**Portable event callbacks and task dispatch.** A task definition owns its placement,
+executor and ordinary callable dispatch. A receiving component owns the event binding and
+its activation. For a fixed source, logical identity, target and configuration, the
+receiver must publish the same implementation, identity and contracts for every supplied
+callback and caller. A callback passed as a prop is an ordinary value. A declaration-only
+provider's lack of callback timing evidence does not itself warrant a diagnostic.
+
+Analyze a proven eager invocation in the phase where it occurs and apply that phase's
+execution constraints. This is independent of how the called task was placed. DOM event
+registration stores a callback for activation by the browser. The binding does not need to
+discover whether the callback performs a local update or invokes a server task. The
+server artifact must preserve ordinary callback value semantics where evaluated and keep
+private task executors behind their compiler-owned boundary.
+
+Acceptance uses one independently compiled `Button` twice on the same page. One parent
+closure invokes an explicit server task. The other updates parent-local state. SSR makes
+zero calls. Automatic strict hydration adopts both original buttons. The server click
+sends exactly one real task dispatch and publishes its update. The local click publishes
+only its local update and sends zero additional requests. Compare the standalone receiver's
+artifacts, identity and contracts across callers and equivalent application and library
+builds, including consumption from an installed library where supported. Exercise direct
+prop binding, alias and render-helper forwarding, and a known eager invocation. Trace
+each failing path to the owner of event activation or callable task lowering before
+changing either. The earlier render-helper fix is evidence for its original case.
+
 **Server task submission and publication at `2214cc83a`.** A mounted button invokes a latest server task that consumes a mocked credential and writes a public label. The [task contract](tasks.md) gives each activation its own arguments, pending state view, signal and lifetime. The discriminating pairs are a default argument versus a state-derived read after a helper write, a read-only versus a conditionally writing helper, a taken versus skipped write under the same declaration, an authorized label versus a label accompanied by an undeclared sibling, and a current versus superseded reply. Changing only the credential or the public text needs no new placement or path authority. [Item 5](#item-5-disposition-at-a5c584b62) supplies the default/live and reader/writer pairs at its recorded revision. Its constructed POST tests server projection; it does not measure browser submission.
 
 [Native continuation construction](../native/typescript-go/overlay/internal/exactcompiler/continuations.go) assigns ordered dependency slots, state reads and separate possible writes to the component-owned operation. During dispatch, the [client](../packages/hydrate/src/runtime/operations.ts) takes the projected state after the optimistic prelude and sends the activation dependencies and generation. The [executor](../packages/server/src/continuation/execution.ts) checks identity and dependency arity, links cancellation to the request-local frame and projects exact scalar writes after success. For an already-present input path it requires a recorded set on the final receiver; a newly present authorized output can be projected directly. The [response planner](../packages/hydrate/src/runtime/continuation-response.ts) validates the response before staged application. State-only publication checks component write ordering. A generation number alone grants no write authority.
