@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { expect, it, onTestFinished, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToString } from '@exactjs/ssr';
@@ -21,7 +21,7 @@ const descriptorWithEagerGetter = `const record = Object.defineProperty({value:(
 	get enumerable(){return true}, value:()=>document.title
 });`;
 
-it.each([
+const createDescriptorCases = [
 	{
 		name: 'a Create map storing a browser callback',
 		declaration: 'const record = Object.create(null, {value:{value:()=>document.title}});',
@@ -48,7 +48,10 @@ it.each([
 		value: 'record.value',
 		browser: true,
 		expected: 'browser value'
-	},
+	}
+];
+
+it.each([
 	{
 		name: 'an authored Create method receiving an unread descriptor entry',
 		declaration: `const Object = {create(_prototype:null, _map:object){return {value:'authored'}}};
@@ -297,26 +300,49 @@ it.each([
 		expected: 'authored replacement'
 	}
 ])('preserves module descriptor placement for $name', async (test) => {
+	await expectDescriptorPlacement(test, ['application']);
+});
+
+it.each(createDescriptorCases)(
+	'preserves application and library placement for $name',
+	async (test) => {
+		await expectDescriptorPlacement(test, ['application', 'library']);
+	}
+);
+
+/** Compiles the same component source and logical path for each requested package type. */
+async function expectDescriptorPlacement(
+	test: { declaration: string; value: string; browser?: boolean; expected: string },
+	packageTypes: readonly ('application' | 'library')[]
+) {
 	const root = await createCompilerTestWorkspace('.exact-module-descriptor-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
 	await writeFile(
 		entry,
 		`${test.declaration}\nexport function Page() { return () => <p>{${test.value}}</p>; }`
 	);
-	const [artifact] = await compileProjectArtifacts([entry], {
-		rootDir: root,
-		outDir: path.join(root, 'generated')
-	});
+	for (const packageType of packageTypes) {
+		const outDir = path.join(root, packageType);
+		const [artifact] = await compileProjectArtifacts([entry], {
+			rootDir: root,
+			outDir,
+			packageType
+		});
+		await expectDescriptorRendering(outDir, artifact!.serverFile, artifact!.clientFile, test);
+	}
+}
 
-	const priorTitle = document.title;
-	document.title = 'browser value';
-	onTestFinished(() => {
-		document.title = priorTitle;
-	});
+/** Checks server execution without the browser global, then mounts the paired client artifact. */
+async function expectDescriptorRendering(
+	root: string,
+	serverFile: string,
+	clientFile: string,
+	test: { browser?: boolean; expected: string }
+) {
 	let html: string;
 	vi.stubGlobal('document', undefined);
 	try {
-		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		const server = await importArtifact(serverFile, path.join(root, 'server.mjs'));
 		({ html } = await renderToString(receipt(server.Page as never, {}), { markers: false }));
 	} finally {
 		vi.unstubAllGlobals();
@@ -324,16 +350,22 @@ it.each([
 	if (test.browser) expect(html).toContain('data-exact-client-boundary=');
 	else expect(html).toBe(`<p>${test.expected}</p>`);
 
-	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const priorTitle = document.title;
+	document.title = 'browser value';
 	const host = document.createElement('div');
-	onTestFinished(() => unmount(host));
-	const errors: unknown[] = [];
-	render(receipt(client.Page as never, {}), host, {
-		onErrorReport: (report) => errors.push(report.error)
-	});
-	expect(errors).toEqual([]);
-	expect(host.textContent).toBe(test.expected);
-});
+	try {
+		const client = await importArtifact(clientFile, path.join(root, 'client.mjs'));
+		const errors: unknown[] = [];
+		render(receipt(client.Page as never, {}), host, {
+			onErrorReport: (report) => errors.push(report.error)
+		});
+		expect(errors).toEqual([]);
+		expect(host.textContent).toBe(test.expected);
+	} finally {
+		document.title = priorTitle;
+		unmount(host);
+	}
+}
 
 it.each([
 	{
