@@ -73,6 +73,10 @@ Computed state reads keep key evaluation inside task work, including keys declar
 and selectors with side effects. Preparation captures the receiver before a dynamic selector.
 The activation contract and generated work use that same receiver and dependency ordering.
 Calls on captured objects retain their method receivers.
+Property reads and method calls on a fresh `Object.create` receiver can carry
+placement requirements from the prototype member they reach. A prototype getter
+or method body stays dormant during construction. An own property with the same
+name takes precedence.
 Component-local helper closures can read setup values. The activation carries those values without
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
 state, context, and placement effects. State aliases retain their selected instance state path.

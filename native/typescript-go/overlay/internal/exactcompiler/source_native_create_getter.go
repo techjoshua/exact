@@ -2,8 +2,8 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
-// sourceCreatedGetter describes an original named Get on a fresh receiver
-// returned by a native Call. Callee discovery is still pending.
+// sourceCreatedGetter describes an original named Get on a fresh receiver.
+// A stored callable is acquired by the Get and invoked only by a later Call.
 type sourceCreatedGetter struct {
 	creation, read, receiver, body *ast.Node
 	name                           string
@@ -47,8 +47,22 @@ func (q *sourceValueQuery) sourceCreatedGetter(call *ast.Node, projection []stri
 	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
 		return nil
 	}
-	input := q.sourceCreatedReadInput(call, q.protectedMember, args[0], true, result)
-	return createdPrototypeGetter(call, q.protectedMember, input, name)
+	prototype := args[0]
+	if literal := singleUseLiteral(prototype, q.owner, ast.KindObjectLiteralExpression); literal != nil {
+		prototype = literal
+	}
+	input := q.sourceCreatedReadInput(call, q.protectedMember, prototype, true, result)
+	member := namedPrototypeMember(input, name)
+	if member == nil {
+		return nil
+	}
+	if ast.IsMethodDeclaration(member) && stored != nil {
+		return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: call, body: member, name: name, stored: stored}
+	}
+	if !ast.IsGetAccessorDeclaration(member) {
+		return nil
+	}
+	return &sourceCreatedGetter{creation: call, read: q.protectedMember, receiver: call, body: member, name: name}
 }
 
 // createdLiteralDataCallback identifies a stored arrow in a sole inert own
@@ -85,11 +99,21 @@ func createdPrototypeGetter(call, read, input *ast.Node, name string) *sourceCre
 	return &sourceCreatedGetter{creation: call, read: read, receiver: call, body: getter, name: name}
 }
 
+// namedPrototypeGetter selects only an authored getter for native Get callers.
 func namedPrototypeGetter(input *ast.Node, name string) *ast.Node {
+	member := namedPrototypeMember(input, name)
+	if member != nil && ast.IsGetAccessorDeclaration(member) {
+		return member
+	}
+	return nil
+}
+
+// namedPrototypeMember requires a single explicit declaration of the name.
+func namedPrototypeMember(input *ast.Node, name string) *ast.Node {
 	if input == nil || !ast.IsObjectLiteralExpression(input) {
 		return nil
 	}
-	var getter *ast.Node
+	var selected *ast.Node
 	for _, member := range input.AsObjectLiteralExpression().Properties.Nodes {
 		if member.Name() == nil || ast.IsComputedPropertyName(member.Name()) || ast.IsSpreadAssignment(member) {
 			return nil
@@ -97,12 +121,12 @@ func namedPrototypeGetter(input *ast.Node, name string) *ast.Node {
 		if callableNameText(member.Name()) != name {
 			continue
 		}
-		if getter != nil || !ast.IsGetAccessorDeclaration(member) {
+		if selected != nil || !ast.IsGetAccessorDeclaration(member) && !ast.IsMethodDeclaration(member) {
 			return nil
 		}
-		getter = member
+		selected = member
 	}
-	return getter
+	return selected
 }
 
 // sourceCreatedGetterRead follows the getter on the selected returned receiver.
@@ -151,11 +175,18 @@ func (q *sourceValueQuery) sourceCreatedReadInput(call, read, argument *ast.Node
 		if unwrapSourceCallableReference(parent) == unwrapSourceCallableReference(current) {
 			continue
 		}
-		if ast.IsVariableDeclaration(parent) && unwrapSourceCallableReference(parent.Initializer()) == call {
-			if privateCreatedModuleRead(parent, q.owner) == read {
+		if ast.IsVariableDeclaration(parent) && unwrapSourceCallableReference(parent.Initializer()) == unwrapSourceCallableReference(current) {
+			if privateCreatedModuleRead(parent, q.owner) == read ||
+				allowFreeze && q.privateCreatedLocalRead(parent, read, unwrapSourceCallableReference(argument), result) {
 				return unwrapSourceCallableReference(argument)
 			}
 			return nil
+		}
+		if allowFreeze && ast.IsConditionalExpression(parent) {
+			branch := parent.AsConditionalExpression()
+			if branch.WhenTrue == current || branch.WhenFalse == current {
+				continue
+			}
 		}
 		if allowFreeze && ast.IsCallExpression(parent) {
 			callee := parent.Expression()
@@ -198,6 +229,43 @@ func (q *sourceValueQuery) sourceCreatedReadInput(call, read, argument *ast.Node
 		return nil
 	}
 	return nil
+}
+
+// privateCreatedLocalRead confines a fresh local receiver to its original
+// named read. References inside the confined prototype's dormant bodies
+// cannot observe the receiver before this read selects one of those bodies.
+func (q *sourceValueQuery) privateCreatedLocalRead(declaration, read, prototype *ast.Node, result *accessorCandidates) bool {
+	owner := enclosingCallableNode(declaration)
+	use := unwrapSourceCallableReference(read.Expression())
+	if owner == nil || enclosingCallableNode(read) != owner || read.Pos() < declaration.End() ||
+		!ast.IsIdentifier(declaration.Name()) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || !ast.IsIdentifier(use) {
+		return false
+	}
+	symbol := q.owner.checker.GetSymbolAtLocation(use)
+	if symbol == nil || symbol.ValueDeclaration != declaration {
+		return false
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(declaration))
+	pop := index.privateUses
+	if index.incomplete || index.normalDynamicScope || pop == nil || !pop.complete || len(pop.unresolved[use.Text()]) != 0 {
+		return false
+	}
+	found := false
+	for _, ref := range pop.uses[ast.GetSymbolId(symbol)] {
+		if !q.charge(result, ref.node) {
+			return false
+		}
+		if ref.node == use {
+			found = true
+			continue
+		}
+		body := enclosingCallableNode(ref.node)
+		if prototype == nil || !ast.IsObjectLiteralExpression(prototype) || body == nil || body.Parent != prototype ||
+			!ast.IsGetAccessorDeclaration(body) && !ast.IsMethodDeclaration(body) {
+			return false
+		}
+	}
+	return found
 }
 
 // privateCreatedModuleRead keeps a single original named read of a private

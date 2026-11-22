@@ -333,6 +333,10 @@ export function TasksPage(this: Component<{}>) {
 					setup and update it inside the task.
 				</p>
 				<p>
+					Apply the same rule to inherited getters and methods. If a task reads a getter or
+					calls a method that uses <code>window</code>, keep that operation on the client.
+				</p>
+				<p>
 					Call a helper on the client if it uses a value initialized from the browser. Then pass
 					the needed data to the server task.
 				</p>

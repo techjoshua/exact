@@ -1569,7 +1569,16 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				if query.dependenciesOnly && !instance && mode&accessorNoGet == 0 {
 					var stored func(sourceValue)
 					if mode == accessorAcquire {
-						stored = visitMember
+						stored = func(value sourceValue) {
+							// Transfer callable identity and its creating scope to the
+							// ordinary Call. The original member expression supplies this.
+							result.sourceCallable = true
+							if result.callableScopes == nil {
+								result.callableScopes = make(map[int]acquiredCallableScope)
+							}
+							result.callableScopes[len(result.values)] = *value.capture
+							result.values = append(result.values, value)
+						}
 					}
 					interest.createdGetter = query.sourceCreatedGetter(value, projection, name, get, &result, stored)
 				}
