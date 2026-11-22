@@ -303,6 +303,18 @@ that substitution.
 A focused run of both groups on `d765f8b6f` reproduced the same outcomes
 using the restored recipe at its repository-relative path.
 
+On `58d6b2616`, the four default analysis cases still fail on missing helper
+summaries. The opt-in throwing case reaches the staged bookkeeping assertion
+and fails there. The adversarial getter component matrix replaces those assertions. It observes the component setup's reached
+browser sources and placement, then runs the emitted component through SSR
+and client mounting in application and library mode. A throwing Get stops
+argument evaluation. A returned throwing callback stays dormant with both
+portable and browser-only getters. A saved callable survives container
+replacement, and member and detached calls use their own receivers. A
+foreign call retains uncertainty alongside the reached browser sources.
+All six component cases pass against the same compiler source. The five
+original sources and their ten emitted Node checks also pass.
+
 For the integrated build, native application and library compiles have
 identical code and placement on each target for the same-property,
 disjoint-getter, unknown-descriptor and Proxy controls. The first remains

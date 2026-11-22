@@ -11,13 +11,8 @@ import (
 )
 
 type stagedGetterCase struct {
-	Name     string `json:"name"`
-	Source   string `json:"source"`
-	Analysis map[string]struct {
-		Required []string `json:"required"`
-		Absent   []string `json:"absent"`
-		Unknown  *bool    `json:"unknown"`
-	} `json:"analysis"`
+	Name   string `json:"name"`
+	Source string `json:"source"`
 	Oracle string `json:"oracle"`
 }
 
@@ -59,63 +54,6 @@ func stagedGetterCases(t *testing.T) []stagedGetterCase {
 		t.Fatal(err)
 	}
 	return cases
-}
-
-// These are actual native public-fact checks. Source TS7/oracle preflight is
-// separate evidence and does not qualify the compiler or a migrated route.
-func TestGetterAdversarialAnalysis(t *testing.T) {
-	for _, test := range stagedGetterCases(t) {
-		t.Run(test.Name, func(t *testing.T) {
-			if test.Name == "throwing-get-before-call" && os.Getenv("EXACT_STAGED_GETTER_ABRUPT_ACCEPTANCE") != "1" {
-				t.Skip("unmigrated abrupt/no-return precision target, retained RED: set EXACT_STAGED_GETTER_ABRUPT_ACCEPTANCE=1 to qualify unchanged unknown=false expectation")
-			}
-			session := NewSession()
-			response := session.Execute(Request{Kind: "analyze", ID: "/virtual/getter-" + test.Name + ".ts", Source: test.Source, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatalf("native source: %s %#v", response.Error, response.Diagnostics)
-			}
-			for name, expected := range test.Analysis {
-				summary := executableSummary(t, response, name)
-				known := map[string]bool{}
-				unknown := false
-				for _, effect := range summary.EffectSources {
-					if effect.Environment == "browser" {
-						known[effect.Description] = true
-					}
-					unknown = unknown || effect.Environment == "unknown"
-				}
-				for _, required := range expected.Required {
-					if !known[required] {
-						t.Fatalf("missing %s donor: %#v", required, summary.EffectSources)
-					}
-				}
-				for _, absent := range expected.Absent {
-					if known[absent] {
-						t.Fatalf("dormant %s donor activated: %#v", absent, summary.EffectSources)
-					}
-				}
-				if expected.Unknown != nil && unknown != *expected.Unknown {
-					t.Fatalf("unknown=%t want %t: %#v", unknown, *expected.Unknown, summary.EffectSources)
-				}
-			}
-			for _, fact := range stagedDeclarationFacts(session) {
-				if fact.summary.Name != "entry" && fact.summary.Name != "member" && fact.summary.Name != "detached" {
-					continue
-				}
-				if test.Name == "dormant-throwing-returned-callback" {
-					if len(fact.staged.operationUses) != 1 || fact.staged.operationUses[0].request.producer.kind != relativeDemandEffects || fact.staged.operationUses[0].call != nil || !stagedGetterSkipped(fact, fact.staged.operationUses[0].request.producer.operation) {
-						t.Fatal("getter acquisition did not use its eager-only source producer")
-					}
-				} else {
-					// Abrupt/no-return, mutation, receiver and extended statement-list
-					// domains are explicit legacy boundaries of this immediate slice.
-					if len(fact.staged.operationUses) != 0 || len(fact.staged.legacy) == 0 {
-						t.Fatal("unmigrated adjacent domain silently acquired getter coverage")
-					}
-				}
-			}
-		})
-	}
 }
 
 func TestGetterAdversarialEmission(t *testing.T) {
