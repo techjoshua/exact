@@ -25,6 +25,8 @@ type sourceCallResultInterest struct {
 	discover func(*sourceStagedFreezeReturnSource) bool
 	// A synchronous callback for the actual descriptor field reader only.
 	descriptorData *descriptorCallbackDemand
+	// Reports exclusive native descriptor selection for immediate optional value recovery.
+	selectedNativeDescriptor *bool
 	// Used synchronously by legacy source projection at the original Get.
 	createdGetter *sourceCreatedGetter
 }

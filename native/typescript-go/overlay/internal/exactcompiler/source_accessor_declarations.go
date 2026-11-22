@@ -1566,6 +1566,14 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				query.traceProjection = progressBeginProjection(query, value, projection, name, mode)
 				defer func() { query.traceProjection = tracePriorProjection }()
 				interest := sourceCallResultInterest{purpose: resultSourceProjection}
+				selectedNativeDescriptor := false
+				if query.dependenciesOnly && !instance && mode == accessorRead && descriptorRetrievalIntent(value) {
+					member := query.protectedMember
+					receiver, field := sourceLiteralMemberReference(member)
+					if field == "value" && ast.IsAccessExpression(member) && member.QuestionDotToken() != nil && unwrapSourceCallableReference(receiver) == value {
+						interest.selectedNativeDescriptor = &selectedNativeDescriptor
+					}
+				}
 				if query.dependenciesOnly && !instance && mode&accessorNoGet == 0 {
 					var stored func(sourceValue)
 					if mode == accessorAcquire {
@@ -1640,13 +1648,18 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				if query.dependenciesOnly && len(result.values) == start && (len(projection) > 0 || name != "") && (result.opaque || result.receiverIncomplete) {
 					progressMemberRecovery(query, traceCurrentProjection)
+					ownOrAbsent := selectedNativeDescriptor && query.descriptorValueOwnOrAbsent(value, &result)
 					query.retainCreatedGetter(value, projection, name, mode, arguments, &result)
 					// An unavailable output still has its original binding origin.
 					// Retain indexed MAY writes through that origin without inventing
 					// an object, a fresh allocation or a completed Call result.
-					query.withActiveInvocation(value, func() {
-						query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, nil, readCut)
-					})
+					// A fresh native descriptor with its own value cannot
+					// inherit a getter. Optional lookup also skips absence.
+					if !ownOrAbsent {
+						query.withActiveInvocation(value, func() {
+							query.memberValuesAtGet(value, projection, name, mode, arguments, &result, visitMember, sourceMemberOperationProof{}, nil, readCut)
+						})
+					}
 				}
 			})
 			if query.dependenciesOnly {

@@ -11,9 +11,10 @@ import (
 // body or intrinsic resolver. A result observer never enrolls execution escapes
 // merely by selecting the same call. Both consumers keep actual input obligations.
 type sourceInvocationConsumer struct {
-	coreAllocationEffects bool                                                  // Actual Effects owner, independent of normal output consumers.
-	descriptorData        *descriptorCallbackDemand                             // Possible callback in the requested descriptor field.
-	descriptorView        func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
+	coreAllocationEffects    bool                                                  // Actual Effects owner, independent of normal output consumers.
+	selectedNativeDescriptor *bool                                                 // Reports exclusive native descriptor selection.
+	descriptorData           *descriptorCallbackDemand                             // Possible callback in the requested descriptor field.
+	descriptorView           func(sourceNativeDescriptorView, sourceValueBindings) // Typed result channel, never raw receiver/output.
 	// arrayPush consumes MAY mutation effects only, never a native result receipt.
 	arrayPush func(*ast.Node, sourceValue, sourceValueBindings, *accessorCandidates)
 	// native consumes an already acquired alternative, never a declaration lookup.

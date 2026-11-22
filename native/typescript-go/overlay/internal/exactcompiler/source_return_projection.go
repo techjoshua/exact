@@ -59,11 +59,12 @@ func (query *sourceValueQuery) projectSourceCallReturnsWithViews(call *ast.Node,
 	}
 	selected := false
 	result := query.consumeInvocation(call, bindings, sourceInvocationConsumer{
-		selection:      func(complete bool) { selected = complete },
-		sourceReturn:   project,
-		sourceView:     view,
-		descriptorView: descriptorConsumer,
-		descriptorData: interest.descriptorData,
+		selection:                func(complete bool) { selected = complete },
+		sourceReturn:             project,
+		sourceView:               view,
+		descriptorView:           descriptorConsumer,
+		descriptorData:           interest.descriptorData,
+		selectedNativeDescriptor: interest.selectedNativeDescriptor,
 		construction: func(body sourceInvocationBody, part *accessorCandidates) {
 			if interest.purpose != resultSourceProjection {
 				part.valueIncomplete = true

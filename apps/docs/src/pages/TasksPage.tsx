@@ -345,6 +345,11 @@ export function TasksPage(this: Component<{}>) {
 					possible callback.
 				</p>
 				<p>
+					The returned record has its own property lookup. If code installs an inherited getter on
+					that record's prototype, reading the record can invoke it. An own data field takes
+					precedence, and an optional read skips the lookup when the descriptor is absent.
+				</p>
+				<p>
 					A call to <code>Object.getOwnPropertyDescriptor</code> on a proxy can run its
 					descriptor trap and getters on the descriptor it returns. Keep the call on the client if
 					that code uses browser globals.

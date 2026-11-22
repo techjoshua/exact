@@ -5,7 +5,14 @@ import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
-import { renderToString } from '@exactjs/ssr';
+import { hydrate } from '@exactjs/hydrate';
+import { renderToHydratableString, renderToString } from '@exactjs/ssr';
+import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
+import {
+	composeExactExecutorContract,
+	exactResponseToFetchResponse,
+	handleExactRequest
+} from '@exactjs/server';
 import { compileProjectArtifacts } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { createBrowserTestWorkspace } from '../test-support/workspace.js';
@@ -16,6 +23,7 @@ const probes: {
 	trace: string[];
 	output?: string;
 	browserOutput?: string;
+	serverExecution?: boolean;
 }[] = [
 	{
 		name: 'inherited getter',
@@ -228,6 +236,64 @@ const probes: {
 		trace: [],
 		output: 'function'
 	},
+	...(['Object.defineProperty', 'Reflect.defineProperty'] as const).flatMap((define) =>
+		[
+			{
+				name: 'an inherited getter on the returned descriptor',
+				target: '{ get code() { trace.push("original getter"); return 1; } }',
+				inherited: true,
+				read: 'Object.getOwnPropertyDescriptor(readTarget(), readKey())?.value'
+			},
+			{
+				name: 'a dormant callable returned by the inherited getter',
+				target: '{ get code() { trace.push("original getter"); return 1; } }',
+				inherited: true,
+				read: 'typeof Object.getOwnPropertyDescriptor(readTarget(), readKey())?.value',
+				getter: '() => { trace.push("returned callback"); return document.title; }',
+				output: 'function'
+			},
+			{
+				name: 'an own data field on the returned descriptor',
+				target: '{ code: "own" }',
+				read: 'Object.getOwnPropertyDescriptor(target, "code")?.value',
+				output: 'own'
+			},
+			{
+				name: 'an absent descriptor',
+				target: '{}',
+				read: 'Object.getOwnPropertyDescriptor(target, "code")?.["value"] ?? "absent"',
+				output: 'absent'
+			}
+		].map(({ name, target, read, getter, output, inherited }) => ({
+			name: `${name} after ${define}`,
+			body: `
+				const target = ${target};
+				${
+					inherited
+						? `
+				function readTarget() { trace.push('target'); return target; }
+				function readKey() { trace.push('key'); return 'code'; }
+				`
+						: ''
+				}
+				${define}(Object.prototype, 'value', {
+					configurable: true,
+					get() {
+						trace.push(Object.hasOwn(this, 'get') ? 'descriptor receiver' : 'wrong receiver');
+						return ${getter ?? 'document.title'};
+					}
+				});
+				try {
+					this.state.label = ${read};
+				} finally {
+					Reflect.deleteProperty(Object.prototype, 'value');
+				}
+			`,
+			trace: inherited ? ['target', 'key', 'descriptor receiver'] : [],
+			serverExecution: output !== undefined,
+			output
+		}))
+	),
 	{
 		name: 'Proxy descriptor normalization',
 		body: `
@@ -344,6 +410,59 @@ export function Page(this: Component<{label: string}>) {
 			await expect(compile(packageType, 'server')).rejects.toThrow(
 				/EXACT2001.*browser-only globals/
 			);
+		} else if (probe.serverExecution) {
+			const [remote] = await compile(packageType, 'server');
+			const remoteServer = await importArtifact(
+				remote!.serverFile,
+				path.join(root, 'remote-server.mjs')
+			);
+			const remoteClient = await importArtifact(
+				remote!.clientFile,
+				path.join(root, 'remote-client.mjs')
+			);
+			const ServerPage = remoteServer.Page as AnyComponentFunction;
+			const ClientPage = remoteClient.Page as AnyComponentFunction;
+			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
+			const logger = {
+				log: (event: { level: string }) => {
+					if (event.level === 'warn' || event.level === 'error') errors.push(event);
+				}
+			};
+			const rendered = await renderToHydratableString(receipt(ServerPage, {}), { logger });
+			const remoteHost = document.createElement('div');
+			remoteHost.innerHTML = rendered.htmlWithHydration;
+			const remoteButton = remoteHost.querySelector('button')!;
+			let requests = 0;
+			const hydrated = hydrate(receipt(ClientPage, {}), remoteHost, {
+				...composeExactComponentContracts([ClientPage], 'client'),
+				resumptions: rendered.resumptions,
+				endpoint: '/__exact',
+				batch: false,
+				onErrorReport: (report) => errors.push(report.error),
+				onDiagnostic: (report) => errors.push(report),
+				fetch: async (url, init) => {
+					requests++;
+					return exactResponseToFetchResponse(
+						await handleExactRequest(
+							{ method: init.method, url, headers: init.headers, body: init.body },
+							{ contract, invocations: {}, logger }
+						)
+					);
+				}
+			});
+			onTestFinished(() => hydrated.dispose());
+			expect(remoteButton.textContent).toBe('initial');
+			expect(remoteServer.trace).toEqual([]);
+			expect(remoteClient.trace).toEqual([]);
+			expect(requests).toBe(0);
+			remoteButton.click();
+			await expect.poll(() => remoteButton.textContent).toBe(probe.output);
+			await hydrated.whenSettled();
+			expect(requests).toBe(1);
+			expect(remoteServer.trace).toEqual(['before', ...probe.trace, 'after']);
+			expect(remoteClient.trace).toEqual([]);
+			expect(Object.hasOwn(Object.prototype, 'value')).toBe(false);
+			expect(errors).toEqual([]);
 		} else {
 			await expect(compile(packageType, 'server')).resolves.toHaveLength(1);
 		}

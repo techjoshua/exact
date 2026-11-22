@@ -53,6 +53,11 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		return
 	}
 	if value.native.kind == sourceNativeObjectGetOwnPropertyDescriptor {
+		// Complete source selection excludes an authored replacement. Native
+		// reference history stays independent on the original Call.
+		if exclusive && consumer.selectedNativeDescriptor != nil {
+			*consumer.selectedNativeDescriptor = true
+		}
 		query.withActiveInvocation(node, func() {
 			revoke, _ := query.beginDescriptorSourcePhases(node, value)
 			defer revoke()

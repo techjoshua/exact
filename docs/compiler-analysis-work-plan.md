@@ -530,6 +530,14 @@ The known-effect correction retains the ordinary host route for the literal case
 
 The stored-descriptor fixture now observes a typed task that publishes its result to component state. On both targets, the placement decision preserves dormant retrieval, absent properties, and the browser effect of direct invocation. A direct call through a single-use local const retains the stored getter or method's browser effect alongside independent unknowns. Native controls now retain the browser effect of ordinary `call`, `apply`, and invoked `bind` for stored accessors and checked data functions, alongside retrieval and invocation uncertainty. A known descriptor target contributes its effect beside a foreign target alternative. The paired application and library task controls check SSR before interaction, client receiver and argument order, and refusal of explicit server placement. Binding without invoking the function leaves its body dormant. The Proxy descriptor-normalization control retains the trap and descriptor getter effects.
 
+A component task can read the inherited `value` getter of a returned descriptor record
+even when the original target property's getter stays dormant. With an immediate optional
+read and an exclusively selected native retrieval, a fresh literal's data descriptor owns
+`value`, and a missing property skips field lookup. Placement excludes the inherited getter
+in those cases while preserving original argument effects and unresolved Call alternatives.
+Computed descriptor keys, escaping targets and authored replacement callees retain the
+existing conservative source path.
+
 Standard `Reflect.apply` contributes possible effects from a stored getter or
 data function using the original target argument, receiver, and argument vector.
 The ordinary input binder receives positional values for a fresh dense literal

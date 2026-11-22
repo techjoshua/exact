@@ -418,3 +418,35 @@ func (q *sourceValueQuery) descriptorSourceFieldPhase(value sourceValue, path []
 	}
 	return result
 }
+
+// descriptorValueOwnOrAbsent accounts for the immediate optional value Get on a
+// native descriptor of a confined ordinary literal. The standard Call still
+// owns callee and operand effects. No value or descriptor is projected here.
+func (q *sourceValueQuery) descriptorValueOwnOrAbsent(call *ast.Node, result *accessorCandidates) bool {
+	actuals := restrictedInvocationArguments(call.AsCallExpression())
+	if len(actuals) != 2 {
+		return false
+	}
+	key := unwrapSourceCallableReference(actuals[1])
+	if key == nil || !ast.IsStringLiteralLike(key) {
+		return false
+	}
+	target := unwrapSourceCallableReference(actuals[0])
+	if target != nil && ast.IsIdentifier(target) {
+		target = q.descriptorPrivateInitializer(target)
+	}
+	if target == nil || !ast.IsObjectLiteralExpression(target) {
+		return false
+	}
+	for _, field := range target.AsObjectLiteralExpression().Properties.Nodes {
+		name := field.Name()
+		q.charge(result, field)
+		if name == nil || !ast.IsIdentifier(name) && !ast.IsStringLiteral(name) {
+			return false
+		}
+		if name.Text() == key.Text() && (ast.IsGetAccessorDeclaration(field) || ast.IsSetAccessorDeclaration(field)) {
+			return false
+		}
+	}
+	return true
+}
