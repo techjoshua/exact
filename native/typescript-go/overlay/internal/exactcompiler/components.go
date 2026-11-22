@@ -536,6 +536,9 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	// Publish the stable lexical order directly. Each signal has one producer.
 	signals := []string{}
 	typedReceiver := hasComponentReceiver(candidate.node, sourceFile)
+	if typedReceiver && !componentName(candidate.name) && !componentReceiverReturnsView(candidate.node) {
+		return signals
+	}
 	if componentCandidateIsModuleLevel(candidate) &&
 		(typedReceiver || componentReceiverAnnotation(candidate.node) == nil) &&
 		containsComponentProtocolCall(candidate.node) {
@@ -553,6 +556,12 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 		signals = append(signals, "typed-receiver")
 	}
 	return signals
+}
+
+// componentReceiverReturnsView permits lowercase definitions with an authored view.
+// A Core receiver on an ordinary helper gives its body access to the caller's instance.
+func componentReceiverReturnsView(node *ast.Node) bool {
+	return directlyReturnsRenderedValue(node) || componentReturnsRenderFunction(node)
 }
 
 func componentName(name string) bool {

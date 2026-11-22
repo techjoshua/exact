@@ -1674,7 +1674,8 @@ func TestSessionDiscoversComponentDeclarationSignals(t *testing.T) {
 			const protocolOnly = function () {
 				this.onMount(() => undefined);
 			};
-			const typedOnly = function(this: Component<{ ready: boolean }>){ return 1; };
+			const typedOnly = function(this: Component<{ ready: boolean }>){ return () => 1; };
+			const readReady = function(this: Component<{ ready: boolean }>){ return this.state.ready; };
 			function helper() {
 				return <aside />;
 			}

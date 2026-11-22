@@ -368,3 +368,37 @@ func TestDestructuredComponentPropsRejectUnsupportedBindings(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeCoreReceiverReturns(t *testing.T) {
+	source := `
+		import { type Component as CoreComponent } from '@exactjs/core';
+		type Owner = CoreComponent<{ count: number }>;
+		function publish(this: Owner, next: number) {
+			this.setContext(Token, next);
+			return this.state.count + next;
+		}
+		function forward(this: Owner, next: number) {
+			return publish.call(this, next);
+		}
+		function renderDirect(this: Owner) { return <output>{this.state.count}</output>; }
+		function prepare(this: Owner) { return () => <output>{this.state.count}</output>; }
+		export function Panel(this: Owner) { return prepare.call(this); }
+		export function Scalar(this: Owner) { return 1; }
+	`
+	normalized, err := normalizeAuthoredSource(normalizationTestFile(t, "receiver-returns.tsx"), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"return this.state.count + next;",
+		"return publish.call(this, next);",
+		"return () => (<output>{this.state.count}</output>);",
+		"return () => <output>{this.state.count}</output>;",
+		"return prepare.call(this);",
+		"return () => (1);",
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("canonical receiver returns lost %q:\n%s", expected, normalized.text)
+		}
+	}
+}

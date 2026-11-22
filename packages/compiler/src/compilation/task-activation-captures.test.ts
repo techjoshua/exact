@@ -16,6 +16,9 @@ import {
 	exactResponseToFetchResponse
 } from '@exactjs/server';
 import { compileProjectArtifacts } from '../index.js';
+import { artifactAnalysis } from './analysis-results.js';
+import { createCompilerSession } from '../expression/session.js';
+import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 it.each([
@@ -41,6 +44,12 @@ it.each([
 	{ name: 'aliased context default', statement: '', value: undefined, mode: 'alias' },
 	{ name: 'helper context read', statement: '', value: undefined, mode: 'helper-read' },
 	{ name: 'helper context write', statement: '', value: undefined, mode: 'helper-write' },
+	...['call-application', 'call-library', 'ssr-application', 'ssr-library'].map((variant) => ({
+		name: 'receiver task helper ' + variant,
+		statement: '',
+		value: undefined,
+		mode: 'receiver-' + variant
+	})),
 	{ name: 'awaited server resource', statement: '', value: undefined, mode: 'resource-awaited' },
 	{ name: 'wrapped server resource', statement: '', value: undefined, mode: 'resource-wrapped' },
 	{
@@ -158,7 +167,11 @@ it.each([
 			'helper-derived',
 			'helper-derived-object'
 		].includes(mode);
+		const receiverHelper = mode.startsWith('receiver-');
+		const receiverSSR = mode.startsWith('receiver-ssr-');
+		const receiverInteraction = receiverHelper && !receiverSSR;
 		const initial = capturedContext ? 19 : mode === 'helper-props' ? 27 : helperValue ? 26 : 24;
+		const resultAfterFirstCall = receiverInteraction ? 25 : initial;
 		if (capturedContext)
 			source = source
 				.replace(
@@ -180,6 +193,35 @@ it.each([
 					'const read = () => this.state.revision;const publish=(value:number)=>this.setContext(CaptureStatus,{value});'
 				)
 				.replace('this.setContext(CaptureStatus, { value: result });', 'publish(result);');
+		if (receiverHelper)
+			source =
+				`import { existsSync } from 'node:fs';
+				type CaptureOwner = Component<{ revision: number; draft: number; result: number }>;
+				function publishBound(this: CaptureOwner, input: number, next: number) {
+					const offset = existsSync('.') ? 7 : 0;
+				const result = input + next + this.state.revision + offset;
+					${receiverSSR ? 'this.setContext(CaptureStatus, { value: result });' : ''}
+					return result;
+				}
+				function forwardBound(this: CaptureOwner, input: number, next: number) {
+					return publishBound.call(this, input, next);
+				}
+				` +
+				source
+					.replace('const read = () => this.state.revision;', '')
+					.replace('TaskContext.server().blocking()', 'TaskContext.blocking()')
+					.replace('const privateValue = this.getContext(CapturePrivate);', '')
+					.replace(
+						'const result = value + next + read() + shared + privateValue;',
+						receiverSSR
+							? 'const result = forwardBound.call(this, value + shared, next);'
+							: 'const result = forwardBound.call(this, value + shared, next) + this.state.revision;'
+					)
+					.replace(
+						'this.setContext(CaptureStatus, { value: result });',
+						receiverSSR ? '' : 'this.setContext(CaptureStatus, { value: result });'
+					)
+					.replace('void run();', receiverSSR ? 'void run();' : '');
 		const helperVariants: Record<string, string> = {
 			'helper-constant': 'const offset=2;const read=()=>this.state.revision+offset;',
 			'helper-parenthesized': 'const offset=2;const read=((()=>this.state.revision+offset));',
@@ -299,12 +341,25 @@ it.each([
 			entry,
 			source.replace('this.state.result = result;', `this.state.result = result;${statement}`)
 		);
+		const session = receiverHelper
+			? createCompilerSession({
+					nativeCompiler: { executable: resolveNativeCompilerExecutable(), timeoutMs: 120_000 }
+				})
+			: undefined;
 		const [artifact] = await compileProjectArtifacts([entry], {
 			rootDir: root,
 			outDir: path.join(root, 'generated'),
 			instrumentInspection: true,
-			generatedValidation: 'semantic'
-		});
+			generatedValidation: 'semantic',
+			packageType: receiverHelper && mode.endsWith('-library') ? 'library' : 'application',
+			session
+		}).finally(() => session?.dispose());
+		if (receiverHelper) {
+			const inputs = artifactAnalysis(artifact!).components.find(
+				({ name }) => name === 'ActivationCaptureInputs'
+			);
+			expect(inputs?.tasks.map(({ placement }) => placement)).toContain('server');
+		}
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
 		const Client = client.ActivationCaptureShell as AnyComponentFunction;
@@ -324,8 +379,12 @@ it.each([
 		});
 		const host = document.createElement('div');
 		host.innerHTML = output.html;
-		expect(host.querySelector('[data-result]')?.textContent).toBe(String(initial));
-		expect(host.querySelector('[data-status]')?.textContent).toBe(String(initial));
+		const initialHTML = String(receiverInteraction ? 0 : initial);
+		expect(host.querySelector('[data-result]')?.textContent).toBe(initialHTML);
+		expect(host.querySelector('[data-status]')?.textContent).toBe(initialHTML);
+		// The receiver's context method is exercised during SSR. Live continuations
+		// publish from the task body and use revision independently of the helper.
+		if (receiverSSR) return;
 		const contract = composeExactExecutorContract(serverComponents);
 		const contextRuntime = createExactContextRuntime({
 			requestContexts: [[server.CapturePrivate as ContextToken<number>, { value: 7 }]]
@@ -389,14 +448,16 @@ it.each([
 		await view.settle();
 		expect(reports).toEqual([]);
 		await view.action(() => run.click());
-		await expect.poll(() => result?.textContent).toBe(String(initial));
+		await expect.poll(() => result?.textContent).toBe(String(resultAfterFirstCall));
 		if (mode === 'nullable-absent' || mode === 'nullable-null')
 			expect(host.querySelector('[data-collection]')?.textContent).toBe('');
 		if (mode.endsWith('collection'))
-			expect(host.querySelector('[data-collection]')?.textContent).toBe(String(initial));
-		expect(status?.textContent).toBe(String(initial));
+			expect(host.querySelector('[data-collection]')?.textContent).toBe(
+				String(resultAfterFirstCall)
+			);
+		expect(status?.textContent).toBe(String(resultAfterFirstCall));
 		expect(reports).toEqual([]);
-		for (const expected of [String(initial + 2), String(initial + 4)]) {
+		for (const expected of [String(resultAfterFirstCall + 2), String(resultAfterFirstCall + 4)]) {
 			const before = requests;
 			await view.action(() =>
 				host.querySelector<HTMLButtonElement>('[data-capture-only]')!.click()
@@ -416,30 +477,26 @@ it.each([
 		await view.action(() => run.click());
 		await expect
 			.poll(() => result?.textContent)
-			.toBe(String(initial + (mode === 'helper-props' ? 7 : 6)));
+			.toBe(String(resultAfterFirstCall + (mode === 'helper-props' ? 7 : 6)));
 		expect(host.querySelector('[data-result]')).toBe(result);
 		expect(reports).toEqual([]);
 		await view.action(() => host.querySelector<HTMLButtonElement>('[data-next]')!.click());
 		await view.settle();
 		await view.action(() => run.click());
-		await expect
-			.poll(() => result?.textContent)
-			.toBe(
-				String(
-					initial +
-						(['helper-props', 'helper-derived', 'helper-derived-object'].includes(mode) ? 8 : 7)
-				)
-			);
-		expect(status?.textContent).toBe(
-			String(
-				initial +
-					(['helper-props', 'helper-derived', 'helper-derived-object'].includes(mode) ? 8 : 7)
-			)
-		);
+		const nextStep =
+			receiverInteraction ||
+			['helper-props', 'helper-derived', 'helper-derived-object'].includes(mode)
+				? 8
+				: 7;
+		const nextResult = String(resultAfterFirstCall + nextStep);
+		await expect.poll(() => result?.textContent).toBe(nextResult);
+		expect(status?.textContent).toBe(nextResult);
 		if (mode === 'nullable-absent' || mode === 'nullable-null')
 			expect(host.querySelector('[data-collection]')?.textContent).toBe('');
 		if (mode.endsWith('collection'))
-			expect(host.querySelector('[data-collection]')?.textContent).toBe(String(initial + 7));
+			expect(host.querySelector('[data-collection]')?.textContent).toBe(
+				String(resultAfterFirstCall + 7)
+			);
 		await view.action(() => host.querySelector<HTMLButtonElement>('[data-remove]')!.click());
 		await view.settle();
 		await expect.poll(() => host.querySelector('[data-result]')).toBeNull();

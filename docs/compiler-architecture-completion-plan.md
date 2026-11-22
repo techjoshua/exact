@@ -514,6 +514,9 @@ the analysis projection. Receiver recognition uses TypeScript binder scopes and 
 `Component` import declaration, including renamed imports, namespace imports and local type
 aliases. Interface heritage retains that identity only when a base resolves through those
 authenticated declarations, including multilevel inheritance. Symbol visitation bounds cycles.
+For a lowercase callable with a Core receiver, component discovery also requires an authored
+view return. A scalar receiver helper can read state or write context through the calling
+instance. Canonical return normalization leaves its result and evaluation timing intact.
 Custom interfaces, structural receivers and shadowing type parameters supply no component identity. An explicitly ordinary receiver cannot regain identity through a protocol
 method's spelling. The unchanged `namedSpellingBrowser` source is an ordinary-callable control.
 Optional/computed callee access, aliases of invoked props and call/apply forwarding remain

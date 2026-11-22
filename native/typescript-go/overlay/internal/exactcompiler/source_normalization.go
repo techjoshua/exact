@@ -880,17 +880,19 @@ func isComponentComputationFunction(
 		!ast.IsArrowFunction(node) {
 		return false
 	}
-	if hasComponentReceiver(node, sourceFile) {
-		return true
-	}
 	if ast.IsArrowFunction(node) {
 		return false
 	}
 	name := node.Name()
-	return name != nil &&
-		componentName(name.Text()) &&
-		node.Body() != nil &&
-		containsJSX(node.Body())
+	if hasComponentReceiver(node, sourceFile) {
+		if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
+			name = node.Parent.Name()
+		}
+		return name != nil && ast.IsIdentifier(name) && componentName(name.Text()) ||
+			componentReceiverReturnsView(node)
+	}
+	return name != nil && componentName(name.Text()) &&
+		node.Body() != nil && containsJSX(node.Body())
 }
 
 func visitDirectComponentSyntax(root *ast.Node, visit func(*ast.Node)) {
