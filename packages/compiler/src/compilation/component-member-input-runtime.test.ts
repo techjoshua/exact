@@ -13,11 +13,14 @@ import { compileProjectArtifacts } from '../index.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 
-const reachedInput = `{base:this.state.n,get value(){reached++;receivers.push(this.base);return this.base+document.title.length}} as {base:number;value:number}`;
+const reachedInput = `{base:this.state.n,get value(){reached++;receivers.push(this);return this.base+document.title.length}} as {base:number;value:number}`;
 const reachedAttributes = {
 	before: `label="inert" item={${reachedInput}}`,
 	after: `item={${reachedInput}} label={"inert"}`,
-	spread: `item={${reachedInput}} {...{label:"inert"}}`,
+	siblingSpread: `item={${reachedInput}} {...{label:"inert"}}`,
+	spread: `{...{item:${reachedInput}}}`,
+	spreadLast: `item={{value:0}} {...({item:${reachedInput}} as {item?:{value:number}})}`,
+	spreadFirst: `{...{item:${reachedInput}}} {...{label:"inert"}}`,
 	sole: `item={${reachedInput}}`
 };
 
@@ -25,7 +28,7 @@ const fixture = (
 	attributes: keyof typeof reachedAttributes
 ) => `import type {Component} from '@exactjs/core';
 export let reached = 0, dormant = 0, deferred = 0;
-export let receivers: number[] = [];
+export let receivers: {base:number;value:number}[] = [];
 export function Child(this: Component<{}>, props:{item:{value:number; other?:number}; label?:string}) {
  const cell = this.reactive(() => props.item.value);
  return () => <output>{cell.get()}</output>;
@@ -53,6 +56,10 @@ for (const [serverComponents, passive, packageType, attributes] of [
 	[false, false, 'application', 'before'],
 	[true, false, 'application', 'before'],
 	[false, false, 'library', 'after'],
+	[true, false, 'library', 'siblingSpread'],
+	[false, false, 'application', 'spread'],
+	[true, false, 'application', 'spreadLast'],
+	[false, false, 'library', 'spreadFirst'],
 	[true, false, 'library', 'spread'],
 	[true, true, 'application', 'sole']
 ] as const) {
@@ -119,25 +126,23 @@ for (const [serverComponents, passive, packageType, attributes] of [
 				expect([client.reached, client.dormant, client.deferred, errors]).toEqual([1, 0, 0, []]);
 				return;
 			}
-			expect([client.reached, client.dormant, client.deferred, client.receivers]).toEqual([
-				1,
-				0,
-				0,
-				[2]
-			]);
+			const receivers = client.receivers as { base: number; value: number }[];
+			expect([client.reached, client.dormant, client.deferred]).toEqual([1, 0, 0]);
+			expect(receivers.map((receiver) => receiver.base)).toEqual([2]);
+			expect(Object.getOwnPropertyDescriptor(receivers[0]!, 'value')?.get).toBeTypeOf('function');
 			const reached = host.querySelector('output');
-			host.querySelector('button')!.click();
-			flushSync();
-			expect(Array.from(host.querySelectorAll('output'), (node) => node.textContent)).toEqual([
-				'8',
-				'7'
-			]);
-			expect([client.reached, client.dormant, client.deferred, client.receivers]).toEqual([
-				2,
-				0,
-				0,
-				[2, 3]
-			]);
+			for (const n of [3, 4]) {
+				host.querySelector('button')!.click();
+				flushSync();
+				expect(reached?.textContent).toBe(String(n + 5));
+				expect(plain?.textContent).toBe('7');
+				expect([client.reached, client.dormant, client.deferred]).toEqual([n - 1, 0, 0]);
+				const nextReceiver = receivers[n - 2]!;
+				expect(nextReceiver.base).toBe(n);
+				expect(Object.is(nextReceiver, receivers[n - 3])).toBe(false);
+				expect(Object.getOwnPropertyDescriptor(nextReceiver, 'value')?.get).toBeTypeOf('function');
+			}
+			expect(receivers.map((receiver) => receiver.base)).toEqual([2, 3, 4]);
 			host.querySelectorAll('button')[1]!.click();
 			flushSync();
 			expect(client.deferred).toBe(1);
@@ -150,3 +155,50 @@ for (const [serverComponents, passive, packageType, attributes] of [
 		}
 	});
 }
+
+it('keeps outer spread getters in SSR when a later input replaces their value', async () => {
+	const root = await createCompilerTestWorkspace('.exact-member-input-', process.cwd());
+	const input = path.join(root, 'page.tsx');
+	await writeFile(
+		input,
+		`import type {Component} from '@exactjs/core';
+export const calls: string[] = [];
+function Child(this: Component<{}>, props:{item:{value:number}}) {
+ const cell = this.reactive(() => props.item.value);
+ return () => <output>{cell.get()}</output>;
+}
+export function Page(props:{inputs:{item:{value:number}}}) {
+ return () => <main>
+  <Child {...{get item(){calls.push('outer');return {get value(){calls.push('overwritten');return document.title.length}}}}} {...{item:{value:3}}}/>
+  <Child {...props.inputs} item={{value:4}}/>
+ </main>;
+}`
+	);
+	const [artifact] = await compileProjectArtifacts([input], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const calls = server.calls as string[];
+	const inputs = {
+		get item() {
+			calls.push('unknown');
+			return {
+				get value() {
+					throw new Error('read overwritten item');
+				}
+			};
+		}
+	};
+	vi.stubGlobal('document', undefined);
+	const output = await renderToHydratableString(
+		receipt(server.Page as AnyComponentFunction, { inputs })
+	).finally(() => vi.unstubAllGlobals());
+	const host = document.createElement('div');
+	host.innerHTML = output.htmlWithHydration;
+	expect(Array.from(host.querySelectorAll('output'), (node) => node.textContent)).toEqual([
+		'3',
+		'4'
+	]);
+	expect(calls).toEqual(['outer', 'unknown']);
+});

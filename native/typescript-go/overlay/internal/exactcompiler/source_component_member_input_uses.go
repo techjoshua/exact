@@ -194,7 +194,7 @@ func componentMemberInputAttributesInert(attributes, selected *ast.Node, c *chec
 	for _, attribute := range attributes.AsJsxAttributes().Properties.Nodes {
 		if ast.IsJsxSpreadAttribute(attribute) {
 			spread := unwrapSourceCallableReference(attribute.AsJsxSpreadAttribute().Expression)
-			if spread == nil || !ast.IsObjectLiteralExpression(spread) || !componentMemberInputRecordInert(spread, nil, true, c) {
+			if spread == nil || !ast.IsObjectLiteralExpression(spread) || !componentMemberInputRecordInert(spread, selected, true, c) {
 				return false
 			}
 			continue
@@ -216,7 +216,8 @@ func componentMemberInputAttributesInert(attributes, selected *ast.Node, c *chec
 
 // componentMemberInputRecordInert accepts plain record construction. A JSX
 // spread also reads each copied property, so its top-level accessors are excluded.
-// Only the selected record may use the existing scalar state capture.
+// A copied data property can carry the selected record without reading its nested
+// getter. Only that selected record may use the existing scalar state capture.
 func componentMemberInputRecordInert(literal, selected *ast.Node, copied bool, c *checker.Checker) bool {
 	for _, property := range literal.AsObjectLiteralExpression().Properties.Nodes {
 		name := property.Name()

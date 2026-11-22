@@ -22,7 +22,16 @@ func TestComponentMemberInputUsePlacement(t *testing.T) {
 		{"selected state capture", memberInputChild, `<Child label="inert" item={{other:this.state.n,get value(){return this.other+document.title.length}}}/>`, "client"},
 		{"unrelated state read", memberInputChild, `<Child label={this.state.label} item={{get value(){return document.title.length}}}/>`, "unknown"},
 		{"spread preserves", memberInputChild, `<Child item={{get value(){return document.title.length}}} {...{label:'inert'}}/>`, "client"},
-		{"getter supplied by spread", memberInputChild, `<Child {...{item:{get value(){return document.title.length}}}}/>`, "unknown"},
+		{"getter supplied by spread", memberInputChild, `<Child {...{item:{get value(){return document.title.length}}}}/>`, "client"},
+		{"spread selected state capture", memberInputChild, `<Child {...{item:{other:this.state.n,get value(){return this.other+document.title.length}} as {other:number;value:number}}}/>`, "client"},
+		{"later spread supplies getter", memberInputChild, `<Child item={{value:1}} {...({item:{get value(){return document.title.length}}} as {item?:{value:number}})}/>`, "client"},
+		{"later direct input overrides spread getter", memberInputChild, `<Child {...{item:{get value(){return document.title.length}}}} item={{value:1}}/>`, "unknown"},
+		{"later spread overrides spread getter", memberInputChild, `<Child {...{item:{get value(){return document.title.length}}}} {...{item:{value:1}}}/>`, "unknown"},
+		{"unknown spread after spread getter", memberInputChild, `<Child {...{item:{get value(){return document.title.length}}}} {...optionalInputs}/>`, "unknown"},
+		{"unknown spread before spread getter", memberInputChild, `<Child {...inputs} {...{item:{get value(){return document.title.length}}}}/>`, "unknown"},
+		{"effectful spread item", memberInputChild, `<Child {...{get item(){mark();return {get value(){return document.title.length}}}}}/>`, "unknown"},
+		{"effectful earlier spread item", memberInputChild, `<Child {...{get item(){mark();return {value:1}}}} {...{item:{get value(){return document.title.length}}}}/>`, "unknown"},
+		{"effectful spread construction", memberInputChild, `<Child {...{label:mark(),item:{get value(){return document.title.length}}}}/>`, "unknown"},
 		{"spread overrides", memberInputChild, `<Child item={{get value(){return document.title.length}}} {...({item:{value:1}} as {item?:{value:number}})}/>`, "unknown"},
 		{"direct overrides spread", memberInputChild, `<Child {...{item:{value:1}}} item={{get value(){return document.title.length}}}/>`, "client"},
 		{"unknown spread after", memberInputChild, `<Child item={{get value(){return document.title.length}}} {...optionalInputs}/>`, "unknown"},
@@ -47,7 +56,7 @@ func TestComponentMemberInputUsePlacement(t *testing.T) {
 				setup = "let input={get value(){return document.title.length}};"
 			}
 			parent := "export function Parent(){"
-			if row.name == "selected state capture" || row.name == "unrelated state read" {
+			if strings.HasSuffix(row.name, "state capture") || row.name == "unrelated state read" {
 				setup += "import type {Component} from '@exactjs/core';"
 				parent = "export function Parent(this:Component<{n:number;label:string}>){this.state.n=2;this.state.label='label';"
 			}
@@ -73,7 +82,7 @@ func TestComponentMemberInputUsePlacement(t *testing.T) {
 					if len(edges) != 1 || edges[0].Placement != row.want {
 						t.Fatal(target, mode, edges)
 					}
-					if strings.HasPrefix(row.name, "effectful") && !strings.Contains(result.Code, "mark()") {
+					if strings.HasPrefix(row.name, "effectful") && strings.Count(result.Code, "mark()") < 2 {
 						t.Fatal(target, "unrelated attribute evaluation disappeared")
 					}
 					if row.want == "client" && strings.Contains(result.Code, "document.title") != (target == TargetClient) {
@@ -94,7 +103,7 @@ func TestComponentMemberInputChildPortability(t *testing.T) {
 	fixture := newExecutableFixture(t, map[string]string{
 		"child.tsx": memberInputChild,
 		"entry.tsx": `import {Child} from './child.js';
-export function Parent(){return()=> <main><Child item={{get value(){return document.title.length}}}/></main>}`,
+export function Parent(){return()=> <main><Child {...{item:{get value(){return document.title.length}}}}/></main>}`,
 	})
 	configFile := fixture.request("compile", "child.tsx").ConfigFile
 	const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":`
@@ -114,7 +123,8 @@ export function Parent(){return()=> <main><Child item={{get value(){return docum
 				if standalone.Code == "" {
 					standalone = result
 				}
-				if result.Code != standalone.Code || result.Analysis.Components[0].ID != standalone.Analysis.Components[0].ID {
+				if result.Code != standalone.Code || result.Analysis.Components[0].ID != standalone.Analysis.Components[0].ID ||
+					result.Analysis.Components[0].Placement != standalone.Analysis.Components[0].Placement {
 					t.Fatal(target, mode, "the caller changed the child's implementation or identity")
 				}
 			}

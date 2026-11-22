@@ -250,6 +250,11 @@ func callableDemandBoundary(node, owner *ast.Node, componentReturn bool) bool {
 		if componentReturn && ast.IsReturnStatement(p) || ast.IsJsxExpression(p) || ast.IsCallExpression(p) && p.Expression() != at {
 			return true
 		}
+		// A literal spread can deliver an authored callable or an object with
+		// a getter to a component. Index its body like a direct JSX input.
+		if ast.IsJsxSpreadAttribute(p) && ast.IsObjectLiteralExpression(unwrapSourceCallableReference(p.AsJsxSpreadAttribute().Expression)) {
+			return true
+		}
 	}
 	return false
 }
