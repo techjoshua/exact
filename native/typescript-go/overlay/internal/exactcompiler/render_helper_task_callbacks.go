@@ -6,21 +6,13 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
-type renderHelperCallbackUse struct {
-	event bool
-	eager bool
-	other bool
-}
-
-// planRenderHelperTaskCallbacks records server erasure only for inline task
-// callbacks whose checked helper receives them solely for intrinsic events.
-// The call, other arguments, helper body and continuation work remain intact.
-func planRenderHelperTaskCallbacks(
+// renderHelperTaskCallbackDiagnostics reports a checked eager call in the render
+// phase. Task placement and event registration do not depend on this proof.
+func renderHelperTaskCallbackDiagnostics(
 	renders []componentRender,
 	tasks []Task,
 	owner *sourceValueOwner,
-) (map[*ast.Node]struct{}, []Diagnostic) {
-	var projected map[*ast.Node]struct{}
+) []Diagnostic {
 	var diagnostics []Diagnostic
 	var taskCalls map[int]struct{}
 	for _, task := range tasks {
@@ -32,10 +24,10 @@ func planRenderHelperTaskCallbacks(
 		}
 	}
 	if len(taskCalls) == 0 {
-		return nil, nil
+		return nil
 	}
 	c := owner.checker
-	usesByHelper := make(map[*ast.Node][]renderHelperCallbackUse)
+	usesByHelper := make(map[*ast.Node][]bool)
 	for _, render := range renders {
 		call := unwrapRenderExpression(render.callable.Body())
 		if call == nil || !ast.IsCallExpression(call) || !ast.IsIdentifier(call.AsCallExpression().Expression) {
@@ -68,38 +60,31 @@ func planRenderHelperTaskCallbacks(
 			}
 			uses, known := usesByHelper[helper]
 			if !known {
-				uses = renderHelperCallbackUses(helper, call.AsCallExpression().Expression, owner)
+				uses = renderHelperEagerCallbacks(helper, call.AsCallExpression().Expression, owner)
 				usesByHelper[helper] = uses
 			}
 			if i >= len(uses) {
 				continue
 			}
-			use := uses[i]
-			if use.eager {
+			if uses[i] {
 				diagnostics = append(diagnostics, renderDiagnostic(invocation,
 					"render functions may not invoke a task through a helper callback. Invoke the task during component setup or from an event handler"))
 			}
-			if use.event && !use.eager && !use.other {
-				if projected == nil {
-					projected = make(map[*ast.Node]struct{})
-				}
-				projected[callback] = struct{}{}
-			}
 		}
 	}
-	return projected, diagnostics
+	return diagnostics
 }
 
-// Only explicit formal references can prove an event-only argument. Indirect
-// access through arguments or direct eval leaves the entire helper unproved.
-func renderHelperCallbackUses(helper, callee *ast.Node, owner *sourceValueOwner) []renderHelperCallbackUse {
+// renderHelperEagerCallbacks recognizes direct calls to checked parameter bindings
+// in the helper body. A nested function runs in a separate phase.
+func renderHelperEagerCallbacks(helper, callee *ast.Node, owner *sourceValueOwner) []bool {
 	c := owner.checker
 	symbol := resolvedCallableSymbol(c.GetSymbolAtLocation(callee), c)
 	if symbol == nil || owner.bindingWritten(symbol) || usesForeignJSXRuntime(ast.GetSourceFileOfNode(helper)) {
 		return nil
 	}
 	params := helper.Parameters()
-	uses := make([]renderHelperCallbackUse, len(params))
+	uses := make([]bool, len(params))
 	indexes := make(map[ast.SymbolId]int, len(params))
 	for i, param := range params {
 		name := param.Name()
@@ -113,60 +98,19 @@ func renderHelperCallbackUses(helper, callee *ast.Node, owner *sourceValueOwner)
 			}
 		}
 	}
-	opaque := false
-	walkNode(helper, func(node *ast.Node) bool {
-		if opaque || ast.IsTypeNode(node) {
-			return false
-		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+	walkCallable(helper, func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
 			return true
 		}
-		if node.Text() == "arguments" || node.Text() == "eval" {
-			opaque = true
-			return false
-		}
-		binding := c.GetSymbolAtLocation(node)
-		if ast.IsShorthandPropertyAssignment(node.Parent) {
-			binding = c.GetShorthandAssignmentValueSymbol(node.Parent)
-		}
-		if binding == nil {
-			return true
-		}
-		if i, found := indexes[ast.GetSymbolId(binding)]; found {
-			parent := node.Parent
-			scope := enclosingCallableNode(node)
-			switch {
-			case intrinsicEventValue(node) || (scope != nil &&
-				(ast.IsArrowFunction(scope) || ast.IsFunctionExpression(scope)) && intrinsicEventValue(scope)):
-				uses[i].event = true
-			case ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == node &&
-				scope == helper:
-				uses[i].eager = true
-			default:
-				uses[i].other = true
+		callee := node.AsCallExpression().Expression
+		if ast.IsIdentifier(callee) {
+			if symbol := c.GetSymbolAtLocation(callee); symbol != nil {
+				if i, found := indexes[ast.GetSymbolId(symbol)]; found {
+					uses[i] = true
+				}
 			}
 		}
 		return true
 	})
-	if opaque {
-		return nil
-	}
 	return uses
-}
-
-// intrinsicEventValue recognizes whole expressions omitted by server JSX
-// lowering, including an ordinary function that will run only on dispatch.
-func intrinsicEventValue(node *ast.Node) bool {
-	expression := node.Parent
-	for expression != nil && ast.IsParenthesizedExpression(expression) {
-		expression = expression.Parent
-	}
-	if expression == nil || !ast.IsJsxExpression(expression) || !ast.IsJsxAttribute(expression.Parent) {
-		return false
-	}
-	attribute := expression.Parent.AsJsxAttribute()
-	opening := attribute.Parent.Parent
-	tag := opening.TagName()
-	return tag != nil && ast.IsIdentifier(tag) && jsxIntrinsic(tag.Text()) &&
-		jsxEventAttribute(jsxAttributeText(attribute.Name()))
 }

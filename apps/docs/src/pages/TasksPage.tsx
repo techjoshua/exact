@@ -256,10 +256,11 @@ export function TasksPage(this: Component<{}>) {
 					run once with their supplied arguments.
 				</p>
 				<p>
-					You can pass an inline callback that calls a server task to a render helper, such as a
-					helper that returns a button. Use that callback only for DOM events in the helper. The
-					task runs when the hydrated button receives the event. If the helper calls it while
-					rendering, move the invocation to component setup or an event handler.
+					Pass a callback as a prop when you want to reuse a button with a different action.
+					One instance can invoke a server task while another updates local state. Each button
+					binds its callback to a DOM click, and hydration installs both handlers on the existing
+					elements. A render helper can also pass a callback to an event attribute. Invoke tasks
+					during component setup or from an event handler.
 				</p>
 				<ul>
 					<li>

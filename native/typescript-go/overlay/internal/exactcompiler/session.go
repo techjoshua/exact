@@ -507,11 +507,9 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 	planComponentIntlSurfaces(sourceFile, components, intlPlan)
 	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
-	var serverRenderTaskCallbacks map[*ast.Node]struct{}
 	if request.JSXInterop == nil {
-		callbacks, diagnostics := planRenderHelperTaskCallbacks(renders, tasks, callables.owner.values)
-		serverRenderTaskCallbacks = callbacks
-		renderContractDiagnostics = append(renderContractDiagnostics, diagnostics...)
+		renderContractDiagnostics = append(renderContractDiagnostics,
+			renderHelperTaskCallbackDiagnostics(renders, tasks, callables.owner.values)...)
 	}
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(
@@ -809,6 +807,10 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		importedPolicy = planImportedHelperPolicy(sourceFile, generation.checker, callables.owner, components, callables.byNode)
 	}
 	directRoots := make(map[string]struct{})
+	var serverTaskSourceBindings map[*ast.Node]*ast.Node
+	if request.Target == TargetServer && len(operations) != 0 {
+		serverTaskSourceBindings = make(map[*ast.Node]*ast.Node)
+	}
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
@@ -841,7 +843,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			dynamicComponents:    dynamicComponents.uses,
 			intl:                 intlPlan,
 
-			serverRenderTaskCallbacks: serverRenderTaskCallbacks,
+			serverTaskSourceBindings: serverTaskSourceBindings,
 		},
 	)
 	if request.Target == TargetClient && len(componentInputTaskIDs) != 0 {
@@ -873,6 +875,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		componentUpdates,
 		componentInputUpdates,
 		directRoots,
+		serverTaskSourceBindings,
 	)
 	transformed = lowerEnhancementContextContracts(
 		transformed,

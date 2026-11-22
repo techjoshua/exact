@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 type nativeTaskDependency struct {
@@ -604,10 +605,7 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 	// whose transformed node can no longer be indexed through the source file.
 	dependencyCount := task.ArgumentCount
 	if lowering.target == TargetServer && lowering.directServerArtifactOwnsTask(task) {
-		initializer := lowering.inertClientTaskCallable()
-		if operation != nil {
-			initializer = lowering.directServerInvokedTaskWork(work, task, *operation, dependencyCount)
-		}
+		initializer := lowering.directServerTaskBinding(work, task, operation, dependencyCount)
 		return lowering.factory.NewVariableStatement(
 			nil,
 			lowering.factory.NewVariableDeclarationList(
@@ -664,10 +662,7 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 	}
 	dependencyCount := task.ArgumentCount
 	if lowering.target == TargetServer && lowering.directServerArtifactOwnsTask(task) {
-		initializer := lowering.inertClientTaskCallable()
-		if operation != nil {
-			initializer = lowering.directServerInvokedTaskWork(work, task, *operation, dependencyCount)
-		}
+		initializer := lowering.directServerTaskBinding(work, task, operation, dependencyCount)
 		return lowering.factory.UpdateVariableDeclaration(
 			declaration,
 			name,
@@ -692,17 +687,53 @@ func (lowering *jsxLowering) directServerArtifactOwnsTask(task Task) bool {
 	return task.Invoked && exists && component.TargetPlan.DirectServer
 }
 
+// directServerTaskBinding keeps request-local definitions callable for nested
+// server work. Interaction-only definitions carry their executor to contract
+// construction and expose the authored callable signature in SSR.
+func (lowering *jsxLowering) directServerTaskBinding(work *ast.Node, task Task, operation *InvokedTaskOperation, dependencyCount int) *ast.Node {
+	if operation == nil {
+		return lowering.typedInertClientTaskCallable(task)
+	}
+	bound := lowering.serverTaskHasCaller(task)
+	executor := lowering.directServerInvokedTaskWork(work, task, *operation, dependencyCount, bound)
+	if !bound {
+		factory := lowering.factory
+		message := factory.NewStringLiteral("An interaction task was invoked during server rendering", ast.TokenFlagsNone)
+		placeholder := lowering.arrow(factory.NewBlock(factory.NewNodeList([]*ast.Node{factory.NewThrowStatement(message)}), true))
+		lowering.serverTaskSourceBindings[executor] = lowering.taskCallableSignature(task,
+			factory.NewAsExpression(placeholder, factory.NewKeywordTypeNode(ast.KindUnknownKeyword)))
+	}
+	return executor
+}
+
+// projectDirectServerTaskBindings runs after executor extraction has consumed
+// generated work and its helper dependencies. Only the SSR binding changes.
+func projectDirectServerTaskBindings(source *ast.SourceFile, factory *printer.NodeFactory, bindings map[*ast.Node]*ast.Node) *ast.SourceFile {
+	if len(bindings) == 0 {
+		return source
+	}
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
+		if binding := bindings[node]; binding != nil {
+			return binding
+		}
+		return visitor.VisitEachChild(node)
+	}, &factory.NodeFactory, ast.NodeVisitorHooks{})
+	return visitor.VisitEachChild(source.AsNode()).AsSourceFile()
+}
+
 func (lowering *jsxLowering) directServerInvokedTaskWork(
 	work *ast.Node,
 	task Task,
 	operation InvokedTaskOperation,
 	dependencyCount int,
+	bound bool,
 ) *ast.Node {
 	captureArguments := lowering.taskCaptureArgumentResolver(work, 0, dependencyCount)
 	if captureArguments != nil {
 		work = lowering.eraseTaskCapturedParameterDefaults(work, dependencyCount)
 	}
-	if !lowering.serverTaskHasCaller(task) {
+	if !bound {
 		return lowering.lowerInvokedTaskOperationWork(work, operation, task)
 	}
 	options := lowering.taskDefinitionOptions(lowering.functionTaskLabel(task), work, task, captureArguments, dependencyCount)

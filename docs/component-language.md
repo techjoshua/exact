@@ -1614,13 +1614,20 @@ async function searchPage(
 searchPage(this.state.query, this.state.page);
 ```
 
-A component's returned render function can pass an inline task callback to a
-statically resolved render helper. When the helper uses that argument only in
-intrinsic event attributes, server rendering retains the helper call and the
-evaluation of its other arguments. The server projects out the callback body
-while retaining the task's executor. Hydration installs the event handler with
-the component's task owner. An eager call to the callback from the helper's
-render body is a render error. Start tasks in component setup or from an event.
+Pass a callback as a prop to reuse the same interactive component with different
+actions. For example, two instances of a Button that binds its `onClick` prop to a
+DOM click can use these callbacks on the same page.
+
+```tsx
+<Button onClick={() => void saveTask()} />
+<Button onClick={() => { this.state.expanded = true; }} />
+```
+
+The button owns the event binding. The first click invokes the server task
+through the component that defined it. The second click updates local state.
+SSR renders both buttons, and hydration installs their handlers on the
+existing elements. A render helper can also pass the callback to an event
+attribute. Invoke tasks during component setup or from an event handler.
 
 Task cancellation preserves TypeScript's ordinary `await` result type. For example,
 `await (enabled && loadLabel())` has type `false | string` when `enabled` is

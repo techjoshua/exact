@@ -16,7 +16,7 @@ type jsxLowering struct {
 	analysisFacts                *sourceAnalysisFacts
 	phase                        jsxLoweringPhase
 	checking                     bool
-	serverRenderTaskCallbacks    map[*ast.Node]struct{}
+	serverTaskSourceBindings     map[*ast.Node]*ast.Node
 	componentPropTypes           map[SourceSpan]*ast.Node
 	mutationFrames               []*mutationFrame
 	taskAnnotationDestination    *taskAnnotationDestination
@@ -369,16 +369,6 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	}
 	if captured := lowering.lowerIslandCapturedChildren(node); captured != nil {
 		return captured
-	}
-	if lowering.target == TargetServer && !lowering.checking && len(lowering.serverRenderTaskCallbacks) != 0 &&
-		(ast.IsArrowFunction(node) || ast.IsFunctionExpression(node)) {
-		if _, event := lowering.serverRenderTaskCallbacks[lowering.emitContext.MostOriginal(node)]; event {
-			// A never-returning placeholder also satisfies event callbacks typed to
-			// return a value. Its checked consumer discards it on the server.
-			factory := lowering.factory
-			message := factory.NewStringLiteral("A client event callback was invoked during server rendering", ast.TokenFlagsNone)
-			return lowering.arrow(factory.NewBlock(factory.NewNodeList([]*ast.Node{factory.NewThrowStatement(message)}), true))
-		}
 	}
 	if direct := lowering.lowerDirectServerExecutorReturn(node); direct != nil {
 		return direct

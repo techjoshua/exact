@@ -24,6 +24,7 @@ func lowerComponentContracts(
 	componentUpdates map[string]string,
 	componentInputUpdates map[string]string,
 	directRoots map[string]struct{},
+	serverTaskSourceBindings map[*ast.Node]*ast.Node,
 ) (*ast.SourceFile, map[string]struct{}) {
 	if target == TargetDefault {
 		return sourceFile, nil
@@ -210,6 +211,7 @@ func lowerComponentContracts(
 		factory.NewNodeList(statements),
 		sourceFile.EndOfFileToken,
 	).AsSourceFile()
+	result = projectDirectServerTaskBindings(result, factory, serverTaskSourceBindings)
 	ast.SetParentInChildren(result.AsNode())
 	return result, retainedImports
 }

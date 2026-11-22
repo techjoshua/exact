@@ -37,7 +37,7 @@ type jsxLoweringPlan struct {
 	dynamicComponents    map[int]dynamicComponentUseKind
 	intl                 intlOperationPlan
 
-	serverRenderTaskCallbacks map[*ast.Node]struct{}
+	serverTaskSourceBindings map[*ast.Node]*ast.Node
 }
 
 // prepare creates the mutable traversal state only when the analyzed module needs JSX-owned work.
@@ -89,7 +89,7 @@ func (plan jsxLoweringPlan) prepare(
 		importedPolicy:              plan.importedPolicy,
 		analysisFacts:               plan.analysisFacts,
 		checking:                    plan.checking,
-		serverRenderTaskCallbacks:   plan.serverRenderTaskCallbacks,
+		serverTaskSourceBindings:    plan.serverTaskSourceBindings,
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
 		emitContext:                 emitContext,
