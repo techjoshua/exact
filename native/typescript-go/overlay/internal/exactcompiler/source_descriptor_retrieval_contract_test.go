@@ -68,6 +68,8 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 		{"saved-data-function", `export function probe(){const target={value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const invoke=descriptor!.value;return invoke()}`, true},
 		{"accessor-call", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return descriptor!.get!.call(receiver)}`, true},
 		{"accessor-saved-apply", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const getter=descriptor!.get!;return getter.apply(receiver,[])}`, true},
+		{"accessor-reflect-apply-open-vector", `declare const args: [];export function probe(){const target={get value(){return document.title}};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return Reflect.apply(descriptor!.get!,{},args)}`, true},
+		{"conditional-reflect-apply", `declare const choose:boolean;declare const foreign:()=>string;export function probe(){const descriptor=Object.getOwnPropertyDescriptor({value(){return document.title}},'value');const callback=choose?descriptor!.value as ()=>string:foreign;return Reflect.apply(callback,{},[])}`, true},
 		{"accessor-bound", `export function probe(){const target={get value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');const bound=descriptor!.get!.bind(receiver);return bound()}`, true},
 		{"data-call", `export function probe(){const target={value(){return document.title}};const receiver={};const descriptor=Object.getOwnPropertyDescriptor(target,'value');return (descriptor!.value as typeof target.value).call(receiver)}`, true},
 		{"data-call-mixed-target", `declare const choice:boolean;declare const foreign:{value():string};export function probe(){const target=choice?{value(){return document.title}}:foreign;const descriptor=Object.getOwnPropertyDescriptor(target,'value');return (descriptor!.value as typeof target.value).call({})}`, true},
@@ -100,7 +102,7 @@ func TestDescriptorContractStoredFieldsAndAbsence(t *testing.T) {
 					t.Fatalf("%s recorded browser effect=%v want=%v: %#v", target, browser, row.browser, task.EffectSources)
 				}
 				switch row.name {
-				case "proxy-normalization-getter", "accessor-call", "data-apply", "data-call-mixed-target":
+				case "proxy-normalization-getter", "accessor-call", "data-apply", "data-call-mixed-target", "accessor-reflect-apply-open-vector", "conditional-reflect-apply":
 					if !unknown {
 						t.Fatalf("%s descriptor uncertainty lost: %#v", target, task.EffectSources)
 					}

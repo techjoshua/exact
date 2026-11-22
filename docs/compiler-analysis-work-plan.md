@@ -501,7 +501,22 @@ A Vite resolver-backed snapshot supplies selected source for small portable and 
 
 The known-effect correction retains the ordinary host route for the literal case and uses EXACT2101 on the opposite target for a directly eager browser or server operand. The real Vite fixture still renders the numeric range. The directly eager browser use now stops before server emission. The unresolved accessor case still reaches a runtime error in Vite when the installed body reads it. Its matching dormant control renders successfully. The available declaration alone cannot distinguish those outcomes.
 
-The stored-descriptor fixture now observes a typed task that publishes its result to component state. On both targets, the placement decision preserves dormant retrieval, absent properties, and the browser effect of direct invocation. A direct call through a single-use local const retains the stored getter or method's browser effect alongside independent unknowns. Native controls now retain the browser effect of ordinary `call`, `apply`, and invoked `bind` for stored accessors and checked data functions, alongside retrieval and invocation uncertainty. A known descriptor target contributes its effect beside a foreign target alternative. The paired application and library task controls check SSR before interaction, client receiver and argument order, and refusal of explicit server placement. Binding without invoking the function leaves its body dormant. The Proxy descriptor-normalization control retains the trap and descriptor getter effects. `Reflect.apply` and a callback alias that conditionally selects a descriptor field or a foreign function still need source routing. Descriptor prototype-target, returned-record, and staged descriptor protocol groups still need their own component witnesses or replay.
+The stored-descriptor fixture now observes a typed task that publishes its result to component state. On both targets, the placement decision preserves dormant retrieval, absent properties, and the browser effect of direct invocation. A direct call through a single-use local const retains the stored getter or method's browser effect alongside independent unknowns. Native controls now retain the browser effect of ordinary `call`, `apply`, and invoked `bind` for stored accessors and checked data functions, alongside retrieval and invocation uncertainty. A known descriptor target contributes its effect beside a foreign target alternative. The paired application and library task controls check SSR before interaction, client receiver and argument order, and refusal of explicit server placement. Binding without invoking the function leaves its body dormant. The Proxy descriptor-normalization control retains the trap and descriptor getter effects.
+
+Standard `Reflect.apply` contributes possible effects from a stored getter or
+data function using the original target argument, receiver, and argument vector.
+The ordinary input binder receives positional values for a fresh dense literal
+vector. Unresolved vectors and callable alternatives retain uncertainty, with
+no native result authority. Private conditional aliases keep the stored
+function's placement requirements alongside independent alternatives. The
+application and library controls exercise live tasks, receiver and argument
+evaluation, dormant callbacks, and lexical shadows and authored own methods.
+
+Descriptor-family acceptance remains open. Prototype-target descriptions need
+replay against genuine and unknown targets. Returned descriptor records need
+component coverage for the snapshot, later field reads, and forwarded results.
+Staged descriptor protocols still need evidence for callee scope, receiver
+delivery, field consumers, and normalization through real component uses.
 
 A typed task consuming a getter through an array exposes the capture-write consequence. After strict hydration, the client task updates the rendered result and the captured counter. A server task formerly returned the result while leaving the counter unchanged because the possible write supplied no performed remote lowering. The test now uses the actual component and checks refusal of the unsupported remote work. A direct scalar helper publishes both declared writes through the server handler. A reply containing a forged sibling field is discarded by the existing browser continuation validator, leaving both fields unchanged.
 

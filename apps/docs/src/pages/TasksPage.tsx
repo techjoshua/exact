@@ -339,8 +339,10 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Reading a property descriptor on an ordinary object leaves its stored getter or callback
 					dormant. If the task later calls that function, keep the call on the client when the
-					function uses browser globals. This applies to <code>call</code> and <code>apply</code>,
-					as well as calls to functions created with <code>bind</code>.
+					function uses browser globals. This applies to <code>call</code>, <code>apply</code>,
+					<code>Reflect.apply</code>, and calls to functions created with <code>bind</code>.
+					If a local conditional chooses between callbacks, consider the placement needs of each
+					possible callback.
 				</p>
 				<p>
 					A call to <code>Object.getOwnPropertyDescriptor</code> on a proxy can run its

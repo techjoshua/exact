@@ -38,6 +38,7 @@ const (
 	sourceNativeObjectGetOwnPropertyDescriptor // Selected Object retrieval, not a raw descriptor/result object.
 	sourceNativeReflectGet                     // Selected property read, without a normal output receipt.
 	sourceNativeObjectAssign                   // Selected original copy target, scoped to reflective writer source projection.
+	sourceNativeReflectApply                   // Selected callback adapter for source effects only.
 )
 
 // sourceNativeValue is one trusted standard-entry alternative. The declaration
@@ -127,7 +128,7 @@ func (query *sourceValueQuery) nativeEntryRoot(symbol *ast.Symbol, fromGlobal bo
 		if entry.kind == sourceNativeObjectConstructor && len(path) == offset+1 && query.reflectiveCopyMember(path[offset]) {
 			return global, entry.kind
 		}
-		if entry.kind == sourceNativeReflectObject && len(path) > offset && path[offset] == "get" {
+		if entry.kind == sourceNativeReflectObject && len(path) > offset && (path[offset] == "get" || query.dependenciesOnly && path[offset] == "apply") {
 			return global, entry.kind
 		}
 		if entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1))) {
@@ -267,10 +268,14 @@ func (query *sourceValueQuery) nativeMemberSeed(value sourceValue, key string, s
 					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeObjectPrototype, acquired: value.native.acquired}}, true
 				}
 			}
-			if value.native.kind == sourceNativeReflectObject && key == "get" {
+			if value.native.kind == sourceNativeReflectObject && (key == "get" || query.dependenciesOnly && key == "apply") {
 				member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeOfSymbol(global), key)
 				if member != nil && member.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(member.ValueDeclaration)) {
-					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeReflectGet, acquired: value.native.acquired}}, true
+					kind := sourceNativeReflectGet
+					if key == "apply" {
+						kind = sourceNativeReflectApply
+					}
+					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: kind, acquired: value.native.acquired}}, true
 				}
 			}
 			memberName := "defineProperty"

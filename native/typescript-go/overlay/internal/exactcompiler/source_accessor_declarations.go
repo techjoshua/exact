@@ -1584,7 +1584,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 				}
 				if query.dependenciesOnly && !instance && mode == accessorAcquire && name == "" &&
 					len(projection) >= 1 && len(projection) <= 2 && descriptorRetrievalIntent(value) &&
-					query.immutableDescriptorCallbackRead(value, projection) {
+					query.immutableDescriptorCallbackRead(value, projection, &result) {
 					reading, initializing := query.reading, query.initializing
 					interest.descriptorData = &descriptorCallbackDemand{field: projection[0], publish: func(source sourceValue) {
 						if len(projection) == 1 {

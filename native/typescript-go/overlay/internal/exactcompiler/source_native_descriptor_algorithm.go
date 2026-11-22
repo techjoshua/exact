@@ -113,13 +113,15 @@ func (q *sourceValueQuery) descriptorInvocationEffects(call *ast.Node, callee so
 
 // immutableDescriptorCallbackRead follows the selected return and private aliases
 // from the native snapshot to the original callback invocation.
-func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, projection []string) bool {
+func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, projection []string, result *accessorCandidates) bool {
 	field := projection[0]
 	if q.owner.program == nil || (field != "value" && field != "get" && field != "set") {
 		return false
 	}
 	member := q.protectedMember
-	if member == nil {
+	if q.reflectApplyTarget != nil && len(projection) == 1 {
+		member = q.reflectApplyTarget
+	} else if member == nil {
 		// An active direct Call can consume a saved descriptor field. Its
 		// immutable initializer owns the earlier Get and its lexical scope.
 		use := q.reading
@@ -138,21 +140,36 @@ func (q *sourceValueQuery) immutableDescriptorCallbackRead(retrieval *ast.Node, 
 		return false
 	}
 	member = unwrapSourceCallableReference(member)
-	if member == nil {
-		return false
-	}
-	owner := enclosingCallableNode(member)
-	for ast.IsIdentifier(member) {
-		member = q.descriptorPrivateInitializer(member)
+	return member != nil && q.descriptorCallbackArm(member, enclosingCallableNode(member), retrieval, field, result)
+}
+
+// descriptorCallbackArm follows only private aliases and conditional value arms.
+// The source acquisition selects which arms reach this retrieval. Matching the
+// arm here grants no result proof or authority over its independent siblings.
+func (q *sourceValueQuery) descriptorCallbackArm(member, owner, retrieval *ast.Node, field string, result *accessorCandidates) bool {
+	for {
+		member = unwrapSourceCallableReferenceWithBudget(member, func(node *ast.Node) bool { return q.charge(result, node) })
 		if member == nil || enclosingCallableNode(member) != owner {
 			return false
 		}
+		if !ast.IsIdentifier(member) {
+			break
+		}
+		member = q.descriptorPrivateInitializer(member)
+	}
+	if ast.IsConditionalExpression(member) {
+		branch := member.AsConditionalExpression()
+		return q.descriptorCallbackArm(branch.WhenTrue, owner, retrieval, field, result) ||
+			q.descriptorCallbackArm(branch.WhenFalse, owner, retrieval, field, result)
 	}
 	ref, key := sourceLiteralMemberReference(member)
 	if key != field {
 		return false
 	}
 	for ref = unwrapSourceCallableReference(ref); ref != nil && ast.IsIdentifier(ref); {
+		if !q.charge(result, ref) {
+			return false
+		}
 		ref = q.descriptorPrivateInitializer(ref)
 	}
 	// Directly returning the fresh native descriptor also preserves its identity.

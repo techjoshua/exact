@@ -91,6 +91,9 @@ const probes: {
 		[
 			['call', 'callback.call(receiver, first(), second())'],
 			['apply', 'callback.apply(receiver, [first(), second()])'],
+			['Reflect.apply', 'Reflect.apply(callback, receiver, [first(), second()])'],
+			['conditional Reflect.apply', 'Reflect.apply(selected, receiver, [first(), second()])'],
+			['conditional call', 'selected.call(receiver, first(), second())'],
 			['bind', 'bound(second())']
 		] as const
 	).map(([adapter, invocation]) => ({
@@ -106,6 +109,7 @@ const probes: {
 			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
 			function first() { trace.push('first'); return 'the '; }
 			function second() { trace.push('second'); return 'client: '; }
+			${adapter.startsWith('conditional') ? 'const selected = trace.length > 0 ? callback : foreign;' : ''}
 			${adapter === 'bind' ? "const bound = callback.bind(receiver, first()); trace.push('bound');" : ''}
 			this.state.label = ${invocation};
 		`,
@@ -115,6 +119,72 @@ const probes: {
 				: ['first', 'second', 'callback:receiver'],
 		browserOutput: 'from the client: from browser'
 	})),
+	{
+		name: 'conditional stored callback without an adapter',
+		body: `
+			const target = { value: () => document.title };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const selected = trace.length > 0 ? callback : () => 'other';
+			this.state.label = selected();
+		`,
+		trace: []
+	},
+	{
+		name: 'Reflect.apply routes the selected receiver and positional values',
+		body: `
+			const receiver = { get label() { trace.push('receiver read'); return document.title; } };
+			const input = { get suffix() { trace.push('argument read'); return window.name; } };
+			const target = {
+				value(this: typeof receiver, value: typeof input) {
+					trace.push('callback');
+					return this.label + ': ' + value.suffix;
+				}
+			};
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			this.state.label = Reflect.apply(
+				callback,
+				(trace.push('receiver'), receiver),
+				[(trace.push('argument'), input)]
+			);
+		`,
+		trace: ['receiver', 'argument', 'callback', 'receiver read', 'argument read'],
+		browserOutput: 'from browser: from browser'
+	},
+	{
+		name: 'Reflect.apply throws on a primitive argument vector before calling the target',
+		body: `
+			const descriptor = Object.getOwnPropertyDescriptor({ get value() { return document.title; } }, 'value');
+			try {
+				this.state.label = Reflect.apply(descriptor!.get!, undefined, null as unknown as []);
+			} catch (error) {
+				if (!(error instanceof TypeError)) throw error;
+				this.state.label = 'rejected vector';
+			}
+		`,
+		trace: [],
+		output: 'rejected vector'
+	},
+	{
+		name: 'a shadowed Reflect.apply leaves the descriptor callback dormant',
+		body: `
+			const Reflect = { apply: (() => 'shadowed') as typeof globalThis.Reflect.apply };
+			const descriptor = Object.getOwnPropertyDescriptor({ get value() { return document.title; } }, 'value');
+			this.state.label = Reflect.apply(descriptor!.get!, undefined, []);
+		`,
+		trace: [],
+		output: 'shadowed'
+	},
+	{
+		name: 'an authored Reflect.apply replacement leaves the descriptor callback dormant',
+		body: `
+			const operations = { apply: Reflect.apply };
+			operations.apply = (() => 'replacement') as typeof Reflect.apply;
+			const descriptor = Object.getOwnPropertyDescriptor({ get value() { return document.title; } }, 'value');
+			this.state.label = operations.apply(descriptor!.get!, undefined, []);
+		`,
+		trace: [],
+		output: 'replacement'
+	},
 	{
 		name: 'stored descriptor getter via call',
 		body: `
@@ -126,6 +196,20 @@ const probes: {
 				}
 			}, 'value');
 			this.state.label = descriptor!.get!.call(receiver);
+		`,
+		trace: ['getter:receiver']
+	},
+	{
+		name: 'stored descriptor getter via Reflect.apply',
+		body: `
+			const receiver = { label: 'from browser' };
+			const descriptor = Object.getOwnPropertyDescriptor({
+				get value() {
+					trace.push(this === (receiver as object) ? 'getter:receiver' : 'getter:wrong receiver');
+					return document.title;
+				}
+			}, 'value');
+			this.state.label = Reflect.apply(descriptor!.get!, receiver, []);
 		`,
 		trace: ['getter:receiver']
 	},
@@ -194,6 +278,7 @@ it.each(products)(
 				entry,
 				`import { TaskContext, type Component } from '@exactjs/core';
 export const trace: string[] = [];
+declare function foreign(a: string, b: string): string;
 export function Page(this: Component<{label: string}>) {
 	this.state.label = 'initial';
 	function show(task: TaskContext = TaskContext.${placement}()) {

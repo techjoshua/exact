@@ -43,7 +43,7 @@ func reflectiveNative(kind sourceNativeKind) bool {
 	return kind == sourceNativeObjectDefineProperty || kind == sourceNativeReflectDefineProperty
 }
 func nativeInvocable(kind sourceNativeKind) bool {
-	return kind == sourceNativeReflectGet || kind == sourceNativeArrayPush || kind == sourceNativePromiseResolve || kind == sourceNativeObjectFreeze || kind == sourceNativeObjectGetOwnPropertyDescriptor || reflectiveNative(kind)
+	return kind == sourceNativeReflectApply || kind == sourceNativeReflectGet || kind == sourceNativeArrayPush || kind == sourceNativePromiseResolve || kind == sourceNativeObjectFreeze || kind == sourceNativeObjectGetOwnPropertyDescriptor || reflectiveNative(kind)
 }
 
 func (query *sourceValueQuery) acquireReflectiveOperation(node *ast.Node, callee sourceValue, bindings sourceValueBindings, exclusive bool, result *accessorCandidates) *sourceReflectiveOperation {

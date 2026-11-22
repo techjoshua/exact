@@ -283,6 +283,11 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			for index, value := range acquired.values {
 				if value.native != nil {
 					covered := nativeCount == len(acquired.values) && !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete
+					if value.native.kind == sourceNativeReflectApply {
+						// The selected adapter supplies possible authored effects but
+						// does not close the vector or target invocation.
+						complete = false
+					}
 					query.consumeNativeInvocation(node, value, bindings, consumer, complete, len(acquired.values) == 1 && complete, covered, &result)
 					continue
 				}
@@ -304,6 +309,11 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			for _, target := range nativeTargets {
 				// The adapter relation transports MAY effects only. It grants no
 				// callee coverage, descriptor or successful native result rights.
+				if target.native.kind == sourceNativeReflectApply {
+					// A second adapter hides Reflect.apply's raw argument slots.
+					result.opaque, result.valueIncomplete = true, true
+					continue
+				}
 				query.consumeNativeInvocation(node, target, bindings, consumer, false, false, false, &result)
 			}
 			enroll()
@@ -435,6 +445,18 @@ func (query *sourceValueQuery) sourceCallableImplementation(value *ast.Node, res
 // invokeAcquired transfers one acquired occurrence's creating scope to the existing
 // source-method input owner. Restoration also covers nested demands and refusals.
 func (query *sourceValueQuery) invokeAcquired(body, node *ast.Node, bindings sourceValueBindings, scope acquiredCallableScope, result *accessorCandidates, sourceMethod bool, consumer sourceInvocationConsumer, binding *ast.Node, actuals []sourceNormalActual, selected ...*sourceObservedValue) {
+	var plan *ordinaryInvocationPlan
+	if binding != nil {
+		bound := planOrdinaryInvocation(binding, restrictedInvocationArguments(node.AsCallExpression()), query.owner.checker, func(at *ast.Node) bool { return query.charge(result, at) })
+		bound.captured = actuals
+		plan = &bound
+	}
+	query.invokeAcquiredWithPlan(body, node, bindings, scope, result, sourceMethod, consumer, binding, plan, selected...)
+}
+
+// invokeAcquiredWithPlan installs arguments that an already selected adapter
+// routed to this source body, under the original caller and creator scopes.
+func (query *sourceValueQuery) invokeAcquiredWithPlan(body, node *ast.Node, bindings sourceValueBindings, scope acquiredCallableScope, result *accessorCandidates, sourceMethod bool, consumer sourceInvocationConsumer, binding *ast.Node, boundPlan *ordinaryInvocationPlan, selected ...*sourceObservedValue) {
 	previousCreators, previousReturn := query.creators, query.returning
 	defer func() { query.creators, query.returning = previousCreators, previousReturn }()
 	if reject, intrinsic := query.promiseResolver(body, result); intrinsic {
@@ -448,12 +470,6 @@ func (query *sourceValueQuery) invokeAcquired(body, node *ast.Node, bindings sou
 		}
 		consumer.resolver(node, actuals, reject, bindings, result)
 		return
-	}
-	var boundPlan *ordinaryInvocationPlan
-	if binding != nil {
-		plan := planOrdinaryInvocation(binding, restrictedInvocationArguments(node.AsCallExpression()), query.owner.checker, func(at *ast.Node) bool { return query.charge(result, at) })
-		plan.captured = actuals
-		boundPlan = &plan
 	}
 	var selectedScope *acquiredCallableScope
 	if scope.creators != nil {
