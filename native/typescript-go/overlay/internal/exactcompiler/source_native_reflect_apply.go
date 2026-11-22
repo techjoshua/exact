@@ -25,8 +25,9 @@ func (query *sourceValueQuery) reflectApplyEffects(node *ast.Node, bindings sour
 		if plan.actuals == nil {
 			plan.actuals = []*ast.Node{}
 		}
+		// The shared binder keeps fixed positions before the first spread.
 		for _, element := range plan.actuals {
-			if !query.charge(result, element) || ast.IsOmittedExpression(element) || ast.IsSpreadElement(element) {
+			if !query.charge(result, element) || ast.IsOmittedExpression(element) {
 				plan.actuals = nil
 				break
 			}
@@ -49,8 +50,7 @@ func (query *sourceValueQuery) reflectApplyEffects(node *ast.Node, bindings sour
 		mergeAccessorCandidates(&part, acquired)
 		noncallable := !acquired.opaque && !acquired.valueIncomplete && !acquired.receiverIncomplete &&
 			!acquired.fieldReceiverIncomplete && !acquired.thenIncomplete && sourceValuesNoncallable(acquired.values)
-		if !abrupt && !noncallable {
-			query.materializeInvocationVectors(node, plan, bindings, &part)
+		if !abrupt && !noncallable && !query.materializeInvocationVectors(node, plan, bindings, &part) {
 			for index, value := range acquired.values {
 				if !query.charge(&part, value.node) {
 					break

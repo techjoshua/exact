@@ -158,6 +158,60 @@ const probes: {
 		trace: ['receiver', 'argument', 'callback', 'receiver read', 'argument read'],
 		browserOutput: 'from browser: from browser'
 	},
+	...(['direct', 'destructured', 'dormant'] as const).map((read) => ({
+		name: `Reflect.apply keeps the prefix getter ${read} before a spread`,
+		body: `
+			const original = { get label() { trace.push('getter'); return document.title; } };
+			const target = { value(${read === 'destructured' ? '{ label }: typeof original' : 'input: { label: string }'}, ...tail: string[]) {
+				trace.push('callback');
+				return ${read === 'direct' ? 'input.label' : read === 'destructured' ? 'label' : "'ready'"} + tail.join('');
+			} };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			const tail = ['!'];
+			this.state.label = Reflect.apply(callback, undefined, [
+				(trace.push('prefix'), original),
+				...(trace.push('spread'), tail)
+			]);
+		`,
+		trace:
+			read === 'destructured'
+				? ['prefix', 'spread', 'getter', 'callback']
+				: ['prefix', 'spread', 'callback', ...(read === 'direct' ? ['getter'] : [])],
+		...(read === 'dormant' ? { output: 'ready!' } : { browserOutput: 'from browser!' })
+	})),
+	...(['Reflect.apply', 'apply'] as const).map((adapter) => ({
+		name: `${adapter} skips later vector elements and target on a throwing spread`,
+		body: `
+			const input = { get label() { return document.title; } };
+			const target = { value(input: { label: string }, ..._args: unknown[]) { trace.push(input.label); } };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			function fail(): string[] { trace.push('spread'); throw new Error('stop'); }
+			try {
+				${adapter === 'apply' ? 'callback.apply(undefined,' : 'Reflect.apply(callback, undefined,'}
+					[(trace.push('prefix'), input), ...fail(), trace.push('unexpected tail')]);
+			} catch (error) {
+				if (!(error instanceof Error) || error.message !== 'stop') throw error;
+				this.state.label = 'stopped';
+			}
+		`,
+		trace: ['prefix', 'spread'],
+		output: 'stopped'
+	})),
+	{
+		name: 'Reflect.apply retains callback effects after an untrusted never annotation',
+		body: `
+			const input = { get label() { trace.push('getter'); return document.title; } };
+			const target = { value(input: { label: string }, ..._args: string[]) {
+				trace.push('callback');
+				return input.label;
+			} };
+			const callback = Object.getOwnPropertyDescriptor(target, 'value')!.value as typeof target.value;
+			function suffix(): never { trace.push('spread'); return [] as never; }
+			this.state.label = Reflect.apply(callback, undefined, [input, ...(suffix() as string[])]);
+		`,
+		trace: ['spread', 'callback', 'getter'],
+		browserOutput: 'from browser'
+	},
 	{
 		name: 'Reflect.apply throws on a primitive argument vector before calling the target',
 		body: `

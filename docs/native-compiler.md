@@ -1558,6 +1558,12 @@ completion remains unknown. A possible reflective override retains both the inhe
 the authored alternative. Removing the inherited route requires a preceding installation on the
 same function and key that still holds when the component reads the method.
 
+For a selected standard `Reflect.apply`, a hole-free literal vector keeps the
+fixed inputs before its first spread. The shared binder treats the following
+positions as possible inputs. A zero-argument, unreassigned local function call
+in a spread operand that is proven to throw prevents callback entry while retaining
+the effects of the evaluated operand.
+
 When a component stores `helper.bind(this)` in a setup constant and calls it from its server
 tasks, the compiler can omit the bound function from the client. This projection requires a
 private, server-only module function and the standard receiver-only bind. If code outside task

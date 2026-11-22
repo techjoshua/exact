@@ -488,9 +488,9 @@ func (query *sourceValueQuery) withActiveInvocation(invocation *ast.Node, bind f
 
 // materializeInvocationVectors preserves apply's length and indexed Gets independently
 // of whether any formal consumes an input. Literal vectors and finite source lengths bound the required Gets.
-// Other values retain known Get effects and incompleteness. Positional formal
-// substitution remains separate and cannot turn an unresolved vector into empty inputs.
-func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan ordinaryInvocationPlan, bindings sourceValueBindings, result *accessorCandidates) {
+// Other values retain known Get effects and incompleteness. The disposition
+// prevents callback entry only for a source-proven abrupt literal operand.
+func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan ordinaryInvocationPlan, bindings sourceValueBindings, result *accessorCandidates) (abrupt bool) {
 	for _, vector := range plan.vectors {
 		if !query.charge(result, vector) {
 			return
@@ -510,6 +510,10 @@ func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan
 				}
 				if ast.IsOmittedExpression(element) || ast.IsSpreadElement(element) {
 					result.opaque = true
+				}
+				if query.dependenciesOnly && ast.IsSpreadElement(element) &&
+					query.applySpreadThrows(element.Expression(), result) {
+					return true
 				}
 			}
 			continue
@@ -584,4 +588,49 @@ func (query *sourceValueQuery) materializeInvocationVectors(node *ast.Node, plan
 			result.cause = vector
 		}
 	}
+	return false
+}
+
+// applySpreadThrows recognizes a direct same-scope, unreassigned function
+// declaration with a throw-only body. Original operand analysis owns effects.
+// An annotation, dynamic scope or unknown callee grants no pruning authority.
+func (query *sourceValueQuery) applySpreadThrows(operand *ast.Node, result *accessorCandidates) bool {
+	call := unwrapSourceCallableReference(operand)
+	if call == nil || !ast.IsCallExpression(call) || ast.IsOptionalChain(call) || len(callArguments(call)) != 0 {
+		return false
+	}
+	callee := unwrapSourceCallableReference(call.Expression())
+	if callee == nil || !ast.IsIdentifier(callee) || !query.charge(result, callee) {
+		return false
+	}
+	symbol := query.owner.checker.GetSymbolAtLocation(callee)
+	if symbol == nil || len(symbol.Declarations) != 1 {
+		return false
+	}
+	body := symbol.ValueDeclaration
+	owner := enclosingCallableNode(call)
+	if owner == nil || !envelopeSynchronousFunction(body) || len(body.Parameters()) != 0 ||
+		enclosingCallableNode(body) != owner {
+		return false
+	}
+	// The callee's local values are not the caller's current formal bindings.
+	return query.stableApplyBinding(ast.GetSourceFileOfNode(body), symbol) &&
+		query.completionFor(body.Body(), nil, true).outcomes == sourceReturnThrow
+}
+
+// stableApplyBinding reuses indexed uses to cover direct, pattern and loop
+// assignment destinations, including writes by lexically nested callables.
+func (query *sourceValueQuery) stableApplyBinding(source *ast.SourceFile, symbol *ast.Symbol) bool {
+	index := query.owner.index(source)
+	id := ast.GetSymbolId(symbol)
+	if index.incomplete || index.normalDynamicScope || len(index.bindings[id]) != 0 ||
+		index.privateUses == nil || !index.privateUses.complete {
+		return false
+	}
+	for _, use := range index.privateUses.uses[id] {
+		if !query.charge(&accessorCandidates{}, use.node) || ast.IsWriteAccess(use.node) || nativeAssignmentPatternTarget(use.node) {
+			return false
+		}
+	}
+	return true
 }

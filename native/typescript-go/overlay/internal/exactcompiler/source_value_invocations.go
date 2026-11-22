@@ -237,10 +237,11 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			if !construction {
 				plan, adapterOwned = query.ordinaryAdapterExecution(node, acquired, &result)
 			}
+			var vectorAbrupt bool
 			if adapterOwned && !construction {
 				// Consume the acquired plan once in caller scope, before any
 				// alternative installs its creating/formal bindings.
-				query.withActiveInvocation(node, func() { query.materializeInvocationVectors(node, plan, bindings, &result) })
+				query.withActiveInvocation(node, func() { vectorAbrupt = query.materializeInvocationVectors(node, plan, bindings, &result) })
 			}
 			// Capture callee coverage before installing any formal/default inputs.
 			// Later value or body opacity remains in result without rewriting this fact.
@@ -267,14 +268,16 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 						continue
 					}
 					if body.nativeTarget != nil {
-						nativeTargets = append(nativeTargets, *body.nativeTarget)
+						if !vectorAbrupt {
+							nativeTargets = append(nativeTargets, *body.nativeTarget)
+						}
 						continue
 					}
 					if construction {
 						if consumer.construction != nil {
 							consumer.construction(body, &result)
 						}
-					} else {
+					} else if !vectorAbrupt {
 						bodies = append(bodies, installedBody{body.declaration, body.scope, false, body.binding, body.actuals, nil})
 					}
 				}

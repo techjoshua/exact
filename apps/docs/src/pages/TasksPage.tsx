@@ -345,6 +345,9 @@ export function TasksPage(this: Component<{}>) {
 					possible callback.
 				</p>
 				<p>
+					With <code>Reflect.apply</code>, a callback can read arguments that precede a spread.
+				</p>
+				<p>
 					The returned record has its own property lookup. If code installs an inherited getter on
 					that record's prototype, reading the record can invoke it. An own data field takes
 					precedence, and an optional read skips the lookup when the descriptor is absent.

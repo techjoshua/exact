@@ -85,6 +85,8 @@ placement requirements, including through standard `call`, `apply`, and
 `Reflect.apply`, or when invoking a function created with `bind`. Creating the
 bound function leaves the body dormant. If a local conditional selects between
 callbacks, keep the task on a target that can run the possible callbacks.
+With `Reflect.apply`, a callback can read properties on arguments that precede
+a spread.
 A read of the returned descriptor can also reach a getter inherited by the descriptor
 record itself. For an immediate optional `value` read of a descriptor taken from a
 fresh object literal, an own data descriptor supplies that field and an absent

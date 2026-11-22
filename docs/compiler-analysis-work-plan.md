@@ -540,8 +540,10 @@ existing conservative source path.
 
 Standard `Reflect.apply` contributes possible effects from a stored getter or
 data function using the original target argument, receiver, and argument vector.
-The ordinary input binder receives positional values for a fresh dense literal
-vector. Unresolved vectors and callable alternatives retain uncertainty, with
+The ordinary input binder retains fixed positions before the first spread in
+a hole-free literal vector. When a spread operand
+is a zero-argument call to an unreassigned local function with a proven
+throw-only body, operand effects are retained and the callback remains dormant. Unresolved vectors and callable alternatives retain uncertainty, with
 no native result authority. Private conditional aliases keep the stored
 function's placement requirements alongside independent alternatives. The
 application and library controls exercise live tasks, receiver and argument
