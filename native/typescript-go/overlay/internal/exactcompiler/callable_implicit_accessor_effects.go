@@ -29,11 +29,8 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 	}
 	var keyOperand *ast.Node
 	if ast.IsComputedPropertyName(node) {
-		if owner == nil || owner.values == nil || len(owner.values.components) == 0 {
-			return
-		}
 		keyOperand = nestedDescriptorArgumentKey(node, typeChecker)
-		if keyOperand == nil {
+		if keyOperand == nil || sourceStagedModuleOwner(node) == nil {
 			return
 		}
 	}
@@ -85,7 +82,11 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 		}
 	}
 	if keyOperand != nil {
-		query.descriptorArgumentKeyEffects(node, keyOperand, bound, &result)
+		// Only the paired, supported coercion has an ordinary module owner.
+		// Other conversions retain the refusal on the enclosing allocation.
+		if literal := singleUseLiteral(keyOperand, query.owner, ast.KindObjectLiteralExpression); literal != nil {
+			query.retainPrivateDescriptorKeyMethod(node, literal, bound, &result)
+		}
 		return
 	}
 	query.implicitAccessorQueries(node, bound, &result)
@@ -689,40 +690,33 @@ func nestedDescriptorArgumentKey(name *ast.Node, c *checker.Checker) *ast.Node {
 	return operand
 }
 
-// descriptorArgumentKeyEffects can select the sole own @@toPrimitive method on
-// a private literal. This Get has no authored accessor, and the standard
-// algorithm never falls back to ordinary hooks after selecting the method.
-func (q *sourceValueQuery) descriptorArgumentKeyEffects(name, operand *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
-	// A module binding is consulted here only at a direct module initializer.
-	// Repeated uses inside a callable can observe changes made by an earlier hook.
-	initializer := sourceStagedModuleOwner(name)
-	if q.dependenciesOnly && (!ast.IsIdentifier(operand) || ast.IsVariableDeclaration(initializer) || ast.IsVariableStatement(initializer)) {
-		literal := singleUseLiteral(operand, q.owner, ast.KindObjectLiteralExpression)
-		if literal != nil && q.retainPrivateDescriptorKeyMethod(name, literal, bindings, result) {
-			return
-		}
-	}
-	q.primitiveConversionEffects(name, operand, bindings, true, result)
-}
-
-func (q *sourceValueQuery) retainPrivateDescriptorKeyMethod(name, literal *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
+// privateDescriptorKeyMethod selects the original, supported conversion shape
+// without invoking the method. The computed name collector owns its effects.
+func (q *sourceValueQuery) privateDescriptorKeyMethod(literal *ast.Node, result *accessorCandidates) *ast.Node {
 	members := literal.AsObjectLiteralExpression().Properties.Nodes
 	if len(members) != 1 || !ast.IsMethodDeclaration(members[0]) || !ast.IsComputedPropertyName(members[0].Name()) {
-		return false
+		return nil
 	}
 	method := members[0]
 	if method.AsMethodDeclaration().AsteriskToken != nil || ast.HasSyntacticModifier(method, ast.ModifierFlagsAsync) {
-		return false
+		return nil
 	}
 	key := unwrapSourceCallableReference(method.Name().AsComputedPropertyName().Expression)
 	_, symbol := q.nativeWellKnownKey("toPrimitive", result)
 	if symbol == nil || !ast.IsAccessExpression(key) || q.owner.checker.GetSymbolAtLocation(key) != symbol ||
 		!standardLibraryCallRoot(key, q.owner.checker) {
-		return false
+		return nil
+	}
+	return method
+}
+
+func (q *sourceValueQuery) retainPrivateDescriptorKeyMethod(name, literal *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+	method := q.privateDescriptorKeyMethod(literal, result)
+	if method == nil {
+		return
 	}
 	selected := accessorCandidates{values: []sourceValue{{node: method}}}
 	q.sourceKeyMethodEffects(name, sourceValue{node: literal}, q.acquireCallableScope(bindings, result), true, &selected)
 	selected.values = nil
 	mergeAccessorCandidates(result, selected)
-	return true
 }

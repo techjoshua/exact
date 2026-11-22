@@ -1,11 +1,13 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile, writeFile } from 'node:fs/promises';
 import { expect, it, vi } from 'vitest';
 import { createCompiledComponentInputReceipt as receipt } from '@exactjs/core/runtime/component-operations';
 import { render, unmount } from '@exactjs/dom';
 import { renderToString } from '@exactjs/ssr';
-import { compileProjectArtifacts } from '../index.js';
+import { compileFile, compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
@@ -429,6 +431,64 @@ export function read() {
 		},
 		['application', 'library']
 	);
+});
+
+it.each([
+	{ name: 'an inert initializer', contract: scalarContract },
+	{ name: 'a browser initializer', contract: 'export const version = document.title.length;' }
+])('emits the same independent descriptor helper with $name', async ({ contract }) => {
+	const root = await createCompilerTestWorkspace('.exact-independent-descriptor-', process.cwd());
+	const helper = path.join(root, 'helper.ts');
+	const configFile = path.join(root, 'tsconfig.json');
+	const config = JSON.parse(await readFile(configFile, 'utf8')) as Record<string, unknown>;
+	await writeFile(
+		helper,
+		`${frozenVersion(importVersion)}
+export function read() { return prototype[generation]; }`
+	);
+	const contractFile = path.join(root, 'contract.ts');
+	await writeFile(contractFile, contract);
+	await writeFile(
+		path.join(root, 'unrelated.tsx'),
+		'export function Unrelated() { return () => <p />; }'
+	);
+	const targets = ['client', 'server'] as const;
+	const compileTargets = () =>
+		Promise.all(targets.map((target) => compileFile(helper, { root, configFile, target })));
+	const independent = await compileTargets();
+	for (const packageType of ['application', 'library'] as const) {
+		const artifacts = await compileProjectArtifacts([helper, contractFile], {
+			rootDir: root,
+			outDir: path.join(root, packageType),
+			packageType
+		});
+		const artifact = artifacts.find(({ inputFile }) => inputFile === helper)!;
+		// These fixtures emit plain JavaScript in .ts files. Match the ESM
+		// import specifiers without bundling away unused named imports.
+		for (const result of artifacts) {
+			for (const file of [result.clientFile, result.serverFile]) {
+				await writeFile(file.replace(/\.ts$/, '.js'), await readFile(file, 'utf8'));
+			}
+		}
+		const check = `import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+assert.equal(typeof document, 'undefined');
+const server = await import(pathToFileURL(process.argv[1]).href);
+${contract === scalarContract ? 'assert.equal(server.read(), 6);' : 'assert.equal(server.read, undefined);'}
+globalThis.document = {title: 'browser value'};
+const client = await import(pathToFileURL(process.argv[2]).href);
+assert.equal(client.read(), ${contract === scalarContract ? 6 : 13});`;
+		await promisify(execFile)(process.execPath, [
+			'--input-type=module',
+			'-e',
+			check,
+			artifact.serverFile,
+			artifact.clientFile
+		]);
+	}
+	await writeFile(configFile, JSON.stringify({ ...config, files: ['helper.ts', 'unrelated.tsx'] }));
+	const withUnrelated = await compileTargets();
+	expect(withUnrelated.map(({ code }) => code)).toEqual(independent.map(({ code }) => code));
 });
 
 /** Compiles the same component source and logical path for each requested package type. */

@@ -850,13 +850,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 			_, components[index].Lists = componentListOwners[components[index].Name]
 		}
 	}
-	// Contract wrapping synthesizes nested component implementations. Retain
-	// target-local import uses observed after task lowering so wrapping
-	// cannot make an authored render-helper reference invisible to import
-	// pruning.
-	targetImportUses := artifactRuntimeIdentifierUses(transformed)
-
-	transformed = lowerComponentContracts(
+	transformed, targetImportUses := lowerComponentContracts(
 		transformed,
 		emitContext,
 		components,

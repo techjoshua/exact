@@ -113,6 +113,10 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				while the object is created. A getter on the descriptor map or on a descriptor field
 				can also run during <code>Object.defineProperties</code>. If that eager work reads
 				<code>document</code>, the initializer needs the browser.
+				A descriptor value imported from another module also carries that module's initializer
+				requirements. For example, if the imported value is initialized from
+				<code>document.title</code>, a component that renders the frozen record needs the browser.
+				An unresolved initializer is reported in the module where it runs.
 				If a getter returns a
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their

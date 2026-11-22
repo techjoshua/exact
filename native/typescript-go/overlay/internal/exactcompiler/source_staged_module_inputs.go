@@ -17,49 +17,63 @@ type sourceStagedModuleInput struct {
 // against the existing executable selection. Declaration-only, erased, barrel
 // identity and unavailable-source gaps stay pending instead of an empty module.
 func (work *callableEffectWork) stagedModuleInputRead(facts []callableFacts, source *sourceStagedNativeGetSource, expression *ast.Node, owner *executableBodyOwner) bool {
-	if expression == nil || !ast.IsIdentifier(expression) || source == nil || owner == nil || owner.values == nil {
+	if source == nil || owner == nil || owner.values == nil {
 		return false
+	}
+	input, selected := selectedModuleInput(expression, source.request.consumer, owner, nil)
+	if !selected {
+		return false
+	}
+	for _, prior := range source.moduleSources {
+		if prior == input {
+			return true
+		}
+	}
+	source.moduleSources = append(source.moduleSources, input)
+	return true
+}
+
+// selectedModuleInput resolves a direct runtime import to the source partition
+// that initializes it. It authenticates source availability without reading the value.
+func selectedModuleInput(expression, consumer *ast.Node, owner *executableBodyOwner, query *sourceValueQuery) (sourceStagedModuleInput, bool) {
+	if expression == nil || !ast.IsIdentifier(expression) {
+		return sourceStagedModuleInput{}, false
 	}
 	symbol := owner.checker.GetSymbolAtLocation(expression)
 	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 || owner.values.bindingWritten(symbol) {
-		return false
+		return sourceStagedModuleInput{}, false
 	}
 	canonical := owner.checker.GetAliasedSymbol(symbol)
 	if canonical == nil || canonical.ValueDeclaration == nil || !ast.IsVariableDeclaration(canonical.ValueDeclaration) || owner.values.bindingWritten(canonical) {
-		return false
+		return sourceStagedModuleInput{}, false
 	}
 	declaration := canonical.ValueDeclaration
 	file := ast.GetSourceFileOfNode(declaration)
 	if file == nil || file.IsDeclarationFile || declaration.Initializer() == nil {
-		return false
+		return sourceStagedModuleInput{}, false
 	}
 	target := sourceStagedModuleOwner(declaration.Initializer())
 	if target == nil || !runtimeModuleEvaluation(target) {
-		return false
+		return sourceStagedModuleInput{}, false
 	}
-	query := newSourceDependencyQuery(expression, owner.checker, owner, source.request.consumer)
-	defer query.publishDependencyStatistics()
 	for _, binding := range symbol.Declarations {
 		for edge := binding; edge != nil && !ast.IsSourceFile(edge); edge = edge.Parent {
 			if !ast.IsImportDeclaration(edge) {
 				continue
 			}
+			if query == nil {
+				query = newSourceDependencyQuery(expression, owner.checker, owner, consumer)
+				defer query.publishDependencyStatistics()
+			}
 			result := accessorCandidates{}
 			selected, state := query.operationDependencyState(edge, &result)
 			if state != sourceDependencyAvailable || selected != file || result.opaque {
-				return false
+				return sourceStagedModuleInput{}, false
 			}
-			input := sourceStagedModuleInput{reference: expression, importEdge: edge, declaration: target}
-			for _, prior := range source.moduleSources {
-				if prior == input {
-					return true
-				}
-			}
-			source.moduleSources = append(source.moduleSources, input)
-			return true
+			return sourceStagedModuleInput{reference: expression, importEdge: edge, declaration: target}, true
 		}
 	}
-	return false
+	return sourceStagedModuleInput{}, false
 }
 
 // stagedCreationInputEffects follows expression construction without acquiring

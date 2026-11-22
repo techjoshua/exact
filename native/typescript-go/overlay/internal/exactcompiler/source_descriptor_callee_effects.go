@@ -5,11 +5,12 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // sourceEffectsObserver is one stack-local original publisher observer. Body
 // callbacks retain their existing semantics; only the exact live native-callee
 // event can account integrity metadata through its already-owned Get request.
-// Neither callback nor event enters prepared selections, facts or graph clones.
+// Callbacks and events stay within the original traversal.
 type sourceEffectsObserver struct {
-	issuer *sourceValueQuery
-	body   func(sourceBodyEffectsObservation)
-	callee func(*sourceCalleeEffectsObservation) bool
+	issuer      *sourceValueQuery
+	body        func(sourceBodyEffectsObservation)
+	callee      func(*sourceCalleeEffectsObservation) bool
+	moduleInput func(sourceStagedModuleInput)
 }
 
 // sourceCalleeEffectsObservation is valid only during its issuing callback.

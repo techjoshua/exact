@@ -756,31 +756,34 @@ initializer rendered a boundary with `document` absent on the server and
 fixture document. An unresolved initializer was rejected at the binding's
 own module.
 
-Independent helper compilation is still defective. The public single-file
-API and the project API given the helper and its initializer owner both
-reject the inert and browser variants with `EXACT2101` at the outer freeze.
-An unrelated component with no import of the helper changes the outcome.
-The helper then emits executable artifacts, and the unresolved initializer
-is rejected at its owner when that source is explicitly included. The
-nested allocation proof currently consults the presence of any component in
-the source owner. This is insufficient evidence of who covers the original
-descriptor operation and its module inputs.
+Independent helper compilation reached a false `EXACT2101` at the outer
+freeze. An unrelated component enabled the ordinary allocation proof. Forcing
+the original map into staged collection exposed a separate pending input:
+the map's eager phase had consumed the imported `componentContractVersion`
+initializer revision, but still required the original
+`Symbol.for('@exactjs/opaque-component-input-generation')` producer. The
+public effects walk had collected that earlier call without the corresponding
+staged entry proof. Enrolling every earlier Symbol call also made the helper
+emit, but would expand protocol work for ordinary module declarations.
 
-The native `TestStagedKeySourcesImportedDescriptorInput` and
-`TestStagedModuleMapActivationOriginalPartition` reproduce the independent
-compilation error. The first also requires a callable summary for an
-undemanded export. The second requires exact recipe relationships that are
-already examined by the dedicated original source queue and per-file import
-comparison. Both dedicated checks and the unrepresented-entry control pass.
-Keep the two failing checks until the emitted helper succeeds independently
-and equivalent staged delivery coverage has been verified. Removing the
-component-presence gate alone admits the native unsupported coercion and
-unresolved module-entry controls. Forcing the staged outer call through the
-ordinary module path leaves an original input contribution pending in the
-larger fixture. Acceptance still requires an occurrence-owned proof in the
-existing collector, matching helper artifacts with or without unrelated
-components, correct diagnostics for the unresolved owner, and a fresh
-native branch audit.
+The module effects walker now qualifies the allocation at the original nested
+freeze occurrence. It retains the child conversion and the original eager
+key and getter effects. The private staged source paths retain their own
+input relationships and refuse unsupported entry. A required descriptor
+input's selected module retains ownership of its initializer diagnostics.
+The diagnostic pass checks those module facts together, including separate
+eager statements before the imported binding.
+
+Both independent native regressions exercise the emitted helper. The larger
+original fixture compares both targets with an unrelated project root and
+loads the inert helper without `document`. The dedicated source-queue,
+per-file delivery and unrepresented-entry controls continue to check exact
+staged relationships, including an unavailable producer and an unresolved
+runtime import entry. Undemanded export summaries do not gate helper emission. An unbundled Node
+import also exercises the paired SDK artifacts in application and library
+mode. The wrapper's retained import uses come from the declarations it
+wraps, so a browser-only descriptor binding erased from the server helper
+leaves no named import of an unavailable export.
 
 The next distinct correctness family is eager module `WeakMap#set`. A
 component rendering `map.get(key)` after a module initializes that entry

@@ -24,9 +24,9 @@ func lowerComponentContracts(
 	componentUpdates map[string]string,
 	componentInputUpdates map[string]string,
 	directRoots map[string]struct{},
-) *ast.SourceFile {
+) (*ast.SourceFile, map[string]struct{}) {
 	if target == TargetDefault {
-		return sourceFile
+		return sourceFile, nil
 	}
 	factory := emitContext.Factory
 	rootContracts := make(map[string]Component)
@@ -36,9 +36,13 @@ func lowerComponentContracts(
 		}
 	}
 	if len(rootContracts) == 0 {
-		return sourceFile
+		return sourceFile, nil
 	}
 
+	// Wrapping can obscure authored imports from the final AST walk. Retain
+	// uses from the exact declarations that enter the wrapper so partitioning
+	// can remove imports used solely by an erased ordinary declaration.
+	retainedImports := make(map[string]struct{})
 	used := sourceIdentifiers(sourceFile)
 	brandingName := allocateGeneratedName(used, "__exactBrandComponent")
 	constructors := componentConstructorImports{
@@ -71,6 +75,7 @@ func lowerComponentContracts(
 			name := statement.Name()
 			if name != nil {
 				if component, wrap := rootContracts[name.Text()]; wrap {
+					collectArtifactRuntimeIdentifierUses(statement, retainedImports)
 					preserveHoisting := preserveComponentHoisting ||
 						componentFunctionReferencedEarlier(sourceFile, statement, name.Text())
 					wrapped := wrapRootComponentFunction(
@@ -122,6 +127,7 @@ func lowerComponentContracts(
 				componentUpdates,
 				componentInputUpdates,
 				&constructors,
+				retainedImports,
 			)
 			if rootChanged {
 				statements = append(statements, updatedRoot)
@@ -205,7 +211,7 @@ func lowerComponentContracts(
 		sourceFile.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
-	return result
+	return result, retainedImports
 }
 
 type componentConstructorImports struct {
@@ -1037,6 +1043,7 @@ func wrapRootComponentVariables(
 	componentUpdates map[string]string,
 	componentInputUpdates map[string]string,
 	constructors *componentConstructorImports,
+	retainedImports map[string]struct{},
 ) (*ast.Node, bool) {
 	factory := emitContext.Factory
 	variable := statement.AsVariableStatement()
@@ -1056,6 +1063,7 @@ func wrapRootComponentVariables(
 				!ast.IsFunctionExpression(declaration.Initializer)) {
 			continue
 		}
+		collectArtifactRuntimeIdentifierUses(node, retainedImports)
 		implementationName := allocateGeneratedName(
 			used,
 			"__exactComponentImplementation",

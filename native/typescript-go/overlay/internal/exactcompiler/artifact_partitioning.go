@@ -316,14 +316,18 @@ func artifactRuntimeIdentifierUses(sourceFile *ast.SourceFile) map[string]struct
 		if ast.IsImportDeclaration(statement) {
 			continue
 		}
-		walkNode(statement, func(node *ast.Node) bool {
-			if ast.IsIdentifier(node) && !semanticTypeOnly(node) {
-				result[node.Text()] = struct{}{}
-			}
-			return true
-		})
+		collectArtifactRuntimeIdentifierUses(statement, result)
 	}
 	return result
+}
+
+func collectArtifactRuntimeIdentifierUses(root *ast.Node, uses map[string]struct{}) {
+	walkNode(root, func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) && !semanticTypeOnly(node) {
+			uses[node.Text()] = struct{}{}
+		}
+		return true
+	})
 }
 
 func pruneImportDeclaration(

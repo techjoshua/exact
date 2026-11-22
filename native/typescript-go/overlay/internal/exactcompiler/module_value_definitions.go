@@ -20,6 +20,7 @@ type moduleDefinitionNodeVisit struct {
 // visited once per mode, so a deferred definition cannot mask a later eager invocation.
 type moduleDefinitionAnalysis struct {
 	placementOnly            bool
+	descriptorModuleInput    func(sourceStagedModuleInput)
 	initializerActiveSymbols map[moduleDefinitionSymbolVisit]bool
 	initializerActiveNodes   map[moduleDefinitionNodeVisit]bool
 	initializerMerged        map[string]bool
@@ -249,7 +250,7 @@ func (analysis *moduleDefinitionAnalysis) expression(work *ast.Node, execute boo
 		if !deferred {
 			analysis.evaluatedAccessors(node)
 			if ast.IsCallExpression(node) {
-				candidates := sourceInvocationDependenciesAt(node, analysis.reading, analysis.checker, analysis.owner, nil, analysis.inputs)
+				candidates := sourceInvocationDependenciesObserved(node, analysis.reading, analysis.checker, analysis.owner, nil, analysis.inputs, sourceEffectsObserver{moduleInput: analysis.descriptorModuleInput})
 				boundInvocation = candidates.invocationOwned
 				for _, inputs := range candidates.inputs {
 					boundInvocation = boundInvocation || inputs.invocation == node

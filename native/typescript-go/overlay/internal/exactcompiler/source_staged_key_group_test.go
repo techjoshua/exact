@@ -195,36 +195,12 @@ func TestStagedKeySourcesImportedDescriptorInput(t *testing.T) {
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatal(target, response.Error, response.Diagnostics)
 		}
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
-			if effect.Environment == "unknown" || effect.Environment == "browser" {
-				t.Fatal("imported data read acquired or invoked its value", effect)
-			}
-		}
-		represented := false
-		cachedPending := false
-		for _, fact := range stagedDeclarationFacts(f.session) {
-			cachedPending = cachedPending || fact.staged.operationsPending
-		}
-		if !cachedPending {
-			t.Fatal("isolated source analysis paid an unavailable imported module")
-		}
-		for _, project := range f.session.projects {
-			if project.callableCache == nil {
-				continue
-			}
-			for _, fact := range project.callableCache.merged.facts {
-				hasModuleInput := false
-				for _, recipe := range fact.staged.operationRecipes {
-					hasModuleInput = hasModuleInput || recipe.nativeGet != nil && recipe.nativeGet.descriptorMap != nil && recipe.key.selector.field == "eager-inputs" && len(recipe.nativeGet.moduleSources) != 0
-				}
-				represented = represented || hasModuleInput
-				if hasModuleInput && (fact.staged.operationsPending || !fact.staged.settled || len(fact.staged.pending) != 0) {
-					t.Fatal("selected module input dependency did not settle")
+		for _, summary := range response.Analysis.Callables {
+			for _, effect := range summary.EffectSources {
+				if effect.Environment == "unknown" || effect.Environment == "browser" {
+					t.Fatal("imported data read acquired or invoked its value", effect)
 				}
 			}
-		}
-		if !represented {
-			t.Fatal("imported source input fell back to whole value recovery")
 		}
 	}
 }

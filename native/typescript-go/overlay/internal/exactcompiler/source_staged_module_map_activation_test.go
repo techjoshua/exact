@@ -263,81 +263,75 @@ func TestStagedModuleMapActivationOriginalPartition(t *testing.T) {
 		}
 		f.files[name] = contents
 	}
-	for _, target := range []Target{TargetClient, TargetServer} {
-		request := f.request("compile", "component-abi/opaque-operation.ts")
-		request.Target = target
-		response := f.session.Execute(request)
-		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
-			t.Fatal(target, response.Error, response.Diagnostics)
-		}
-		mapOwned, deferredWrite, reflectiveWrite, deferredProtocol, outerNotEntered, imported, fieldPrefix, entryPrefix := false, false, false, false, false, false, false, false
-		for _, project := range f.session.projects {
-			if project.callableCache == nil {
-				continue
+	emitted := map[Target]string{}
+	for _, unrelated := range []bool{false, true} {
+		if unrelated {
+			const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true},"files":["entry.ts","unrelated.ts"]}`
+			const component = `export function Unrelated() { return () => "unrelated"; }`
+			for name, source := range map[string]string{"tsconfig.json": config, "unrelated.ts": component} {
+				if err := os.WriteFile(filepath.Join(f.root, name), []byte(source), 0600); err != nil {
+					t.Fatal(err)
+				}
 			}
-			for _, fact := range project.callableCache.merged.facts {
-				if runtimeModuleEvaluation(fact.node) && fact.sourceFile.FileName() == request.ID {
-					if !fact.staged.settled || fact.staged.operationsPending {
-						t.Fatal("original module consumer did not settle")
-					}
-					for _, effect := range fact.summary.EffectSources {
-						if effect.Environment == "browser" || effect.Environment == "unknown" {
-							t.Fatal("module enum entered a deferred original writer", effect)
+			f.session = NewSession()
+		}
+		for _, target := range []Target{TargetClient, TargetServer} {
+			request := f.request("compile", "component-abi/opaque-operation.ts")
+			request.Target = target
+			response := f.session.Execute(request)
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+				t.Fatal(target, response.Error, response.Diagnostics)
+			}
+			hasComponent := false
+			for _, project := range f.session.projects {
+				hasComponent = hasComponent || len(project.callableCache.owner.values.components) != 0
+				for _, fact := range project.callableCache.merged.facts {
+					if runtimeModuleEvaluation(fact.node) && fact.sourceFile.FileName() == request.ID {
+						if !fact.staged.settled || fact.staged.operationsPending {
+							t.Fatal("original module consumer did not settle")
+						}
+						for _, effect := range fact.summary.EffectSources {
+							if effect.Environment == "browser" || effect.Environment == "unknown" {
+								t.Fatal("module enum entered a deferred original writer", effect)
+							}
 						}
 					}
 				}
-				for _, recipe := range fact.staged.operationRecipes {
-					if recipe.nativeGet != nil && recipe.nativeGet.descriptorMap != nil && recipe.key == recipe.nativeGet.descriptorMap.protocol.producer && runtimeModuleEvaluation(recipe.key.declaration) {
-						mapOwned = mapOwned || recipe.mapProtocol != nil && recipe.delta.extracted && len(recipe.mapProtocol.entries) == 2
-					}
-					s := recipe.memberSource
-					if s == nil || s.moduleExcluded == nil || !runtimeModuleEvaluation(s.parent.consumer) || s.candidate.region == nil && !s.candidate.protocol {
-						continue
-					}
-					proof := s.moduleExcluded
-					if !proof.supported || !proof.accounted || proof.source.cut != s.candidate.cut || !sameOperationRequest(proof.source.request, s.parent) || len(proof.required) == 0 {
-						t.Fatal("original exclusion lost its exact prefix/required producers")
-					}
-					imported = imported || len(s.moduleImports) != 0
-					fieldPrefix = fieldPrefix || strings.HasPrefix(s.parent.producer.selector.field, "field-member:")
-					entryPrefix = entryPrefix || s.parent.producer.selector.field == "descriptor-entry-get"
-					if s.parent.producer.selector != (sourceStagedOperationSelector{}) || !ast.IsCallExpression(proof.source.read) {
-						continue
-					}
-					operation := s.candidate.operation
-					deferredWrite = deferredWrite || s.candidate.region != nil && ast.IsAssignmentExpression(operation, false)
-					reflectiveWrite = reflectiveWrite || s.candidate.region != nil && !s.candidate.protocol && ast.IsCallExpression(operation)
-					deferredProtocol = deferredProtocol || s.candidate.region != nil && s.candidate.protocol
-					outerNotEntered = outerNotEntered || s.candidate.region == nil && ast.IsCallExpression(operation) && nodeInside(proof.source.read, operation) && operation != proof.source.read && proof.notEntered == operation
-				}
 			}
-		}
-		if !mapOwned || !deferredWrite || !reflectiveWrite || !deferredProtocol || !outerNotEntered || !imported || !fieldPrefix || !entryPrefix {
-			t.Fatal("original map conversion lost an enum/entry/field source connection", mapOwned, deferredWrite, reflectiveWrite, deferredProtocol, outerNotEntered, imported, fieldPrefix, entryPrefix)
-		}
-		// The imports retain their real module boundary in emitted source.
-		outputRoot := t.TempDir()
-		dependency := filepath.Join(outputRoot, "component")
-		if err := os.MkdirAll(dependency, 0700); err != nil {
-			t.Fatal(err)
-		}
-		// The output is written in the same relative partition as its input.
-		module := filepath.Join(outputRoot, "component-abi", "opaque-operation.mts")
-		if err := os.MkdirAll(filepath.Dir(module), 0700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(module, []byte(response.Code), 0600); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dependency, "contract-versions.js"), []byte(`export const componentContractVersion=6;`), 0600); err != nil {
-			t.Fatal(err)
-		}
-		runner := `import assert from'node:assert/strict';import{pathToFileURL}from'node:url';globalThis.window=new Proxy({},{get(){throw new Error('deferred browser work')}});globalThis.document=new Proxy({},{get(){throw new Error('deferred callback')}});const m=await import(pathToFileURL(process.argv[1]).href);const p=m.invoke();assert.equal(Object.isFrozen(p),true);assert.equal(p[Symbol.for('@exactjs/opaque-target-operation')],true);assert.equal(p[Symbol.for('@exactjs/opaque-component-input-generation')],6);`
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		output, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, module).CombinedOutput()
-		cancel()
-		if err != nil {
-			t.Fatal(err, string(output))
+			if hasComponent != unrelated {
+				t.Fatal("unrelated component did not enter the project inventory")
+			}
+			if unrelated {
+				if response.Code != emitted[target] {
+					t.Fatal(target, "the unrelated component changed the helper artifact")
+				}
+				continue
+			}
+			emitted[target] = response.Code
+			// The imports retain their real module boundary in emitted source.
+			outputRoot := t.TempDir()
+			dependency := filepath.Join(outputRoot, "component")
+			if err := os.MkdirAll(dependency, 0700); err != nil {
+				t.Fatal(err)
+			}
+			// The output is written in the same relative partition as its input.
+			module := filepath.Join(outputRoot, "component-abi", "opaque-operation.mts")
+			if err := os.MkdirAll(filepath.Dir(module), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(module, []byte(response.Code), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dependency, "contract-versions.js"), []byte(`export const componentContractVersion=6;`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			runner := `import assert from'node:assert/strict';import{pathToFileURL}from'node:url';globalThis.window=new Proxy({},{get(){throw new Error('deferred browser work')}});assert.equal(typeof document,'undefined');const m=await import(pathToFileURL(process.argv[1]).href);const p=m.invoke();assert.equal(Object.isFrozen(p),true);assert.equal(p[Symbol.for('@exactjs/opaque-target-operation')],true);assert.equal(p[Symbol.for('@exactjs/opaque-component-input-generation')],6);`
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			output, err := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", runner, module).CombinedOutput()
+			cancel()
+			if err != nil {
+				t.Fatal(err, string(output))
+			}
 		}
 	}
 }
@@ -375,6 +369,15 @@ func TestStagedModuleMapActivationUnrepresentedEntry(t *testing.T) {
 				response := f.session.Execute(request)
 				if response.Error == "" && !hasErrorDiagnostic(response.Diagnostics) || response.Code != "" {
 					t.Fatal("unrepresented user entry acquired ordinary module completion", target, response.Error, response.Diagnostics)
+				}
+				if row.name == "runtime import entry" {
+					found := false
+					for _, diagnostic := range response.Diagnostics {
+						found = found || diagnostic.Code == "EXACT2101" && diagnostic.FileName == filepath.Join(f.root, "contract.ts") && strings.Contains(diagnostic.Message, "unresolved call moduleEntry")
+					}
+					if !found {
+						t.Fatal("unresolved module entry lost its source", response.Error, response.Diagnostics)
+					}
 				}
 				for _, project := range f.session.projects {
 					if project.callableCache == nil {

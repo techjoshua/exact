@@ -883,6 +883,7 @@ func moduleInitializerDiagnostics(
 	if target == TargetDefault {
 		return diagnostics
 	}
+	var importedModules map[*ast.SourceFile]bool
 	for _, fact := range callables.facts {
 		if fact.sourceFile != sourceFile {
 			continue
@@ -896,6 +897,12 @@ func moduleInitializerDiagnostics(
 		// of the values this initializer uses, without executing dormant bodies.
 		sources := append([]EnvironmentEffectSource(nil), callable.EffectSources...)
 		definition := newModuleDefinitionAnalysis(callables.owner.checker, callables.owner)
+		definition.descriptorModuleInput = func(input sourceStagedModuleInput) {
+			if importedModules == nil {
+				importedModules = make(map[*ast.SourceFile]bool)
+			}
+			importedModules[ast.GetSourceFileOfNode(input.declaration)] = true
+		}
 		definition.expression(fact.node, false)
 		if definition.browser {
 			sources = append(sources, environmentSource("browser", "required module definition", callable.Name))
@@ -936,6 +943,26 @@ func moduleInitializerDiagnostics(
 			})
 		}
 	}
+	// A runtime descriptor input uses the selected module's entry, including
+	// earlier statements outside the binding's own initializer. Report opaque
+	// entry at the original source without copying its effects to the helper.
+	if len(importedModules) != 0 {
+		for _, fact := range callables.facts {
+			if fact.sourceFile == sourceFile || !importedModules[fact.sourceFile] || !fact.staged.ready || !runtimeModuleEvaluation(fact.node) ||
+				!containsOpaqueEnvironment(fact.summary.EffectSources) || artifactTargetsInclude(fact.summary.ArtifactTargets, target) {
+				continue
+			}
+			diagnostics = append(diagnostics, Diagnostic{
+				Severity: "error",
+				Code:     "EXACT2101",
+				Message:  "error: executable module initializer depends on an opaque call or side-effect import" + placementDiagnosticContext(fact.summary.EffectSources),
+				FileName: fact.sourceFile.FileName(),
+				source:   fact.sourceFile.Text(),
+				Start:    fact.node.Pos(), Length: fact.node.End() - fact.node.Pos(),
+			})
+		}
+	}
+
 	return diagnostics
 }
 

@@ -134,6 +134,7 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 		return false
 	}
 	actuals := restrictedInvocationArguments(child.AsCallExpression())
+	var ordinaryInputs []sourceStagedModuleInput
 	switch kind {
 	case sourceNativeObjectCreate:
 		if len(actuals) != 1 || ast.IsSpreadElement(actuals[0]) || sourceCopyMember(child) != "create" {
@@ -144,12 +145,14 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 		q.reflectiveCopy = &projection
 		defer func() { q.reflectiveCopy = prior }()
 	case sourceNativeObjectDefineProperties:
-		// Component placement has the ordinary module Effects collector.
-		// Source-only queries still need their original staged input proof.
-		if len(q.owner.components) != 0 && runtimeModuleEvaluation(site.Parent) &&
-			originalFreezeDescriptorParent(child, q.owner.checker) == site && q.freezeChildArgumentsOwned(actuals, result) {
+		// The original module Effects walker owns the child Call and its
+		// eager argument work. The allocation relationship itself only
+		// needs to establish that Freeze receives an ordinary object.
+		if q.ownsModuleDescriptorEffects(site) &&
+			originalFreezeDescriptorParent(child, q.owner.checker) == site && q.freezeChildArgumentsOwned(actuals, result, &ordinaryInputs) {
 			break
 		}
+		ordinaryInputs = nil
 		if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) ||
 			!sourceInertObjectFields(actuals[0], func(name *ast.Node) bool {
 				return q.freezeChildInertComputedName(name, result)
@@ -168,7 +171,30 @@ func (q *sourceValueQuery) freezeArgumentFromNativeAllocation(
 		return false
 	}
 	native := selected.values[0].native
-	return native != nil && native.kind == kind && !native.referencesIncomplete
+	if native == nil || native.kind != kind || native.referencesIncomplete {
+		return false
+	}
+	for _, input := range ordinaryInputs {
+		q.sourceEffects.moduleInput(input)
+	}
+	return true
+}
+
+// ownsModuleDescriptorEffects limits the relaxed allocation proof to the
+// original module occurrence and the definition walk of its own binding.
+func (q *sourceValueQuery) ownsModuleDescriptorEffects(site *ast.Node) bool {
+	if q.sourceEffects.issuer != q || q.dependencyUse != site || q.operation != nil {
+		return false
+	}
+	if q.effectOwner != nil {
+		return q.reading == site && runtimeModuleEvaluation(q.effectOwner) && sourceStagedOccurrenceOwned(site, q.effectOwner)
+	}
+	binding := site.Parent
+	if !ast.IsVariableDeclaration(binding) || binding.Initializer() != site {
+		return false
+	}
+	module := sourceStagedModuleOwner(site)
+	return module != nil && (q.reading == binding || q.reading == module)
 }
 
 // freezeChildInertComputedName admits represented primitive keys. Checked
@@ -247,10 +273,17 @@ func originalFreezeDescriptorParent(child *ast.Node, c *checker.Checker) *ast.No
 
 // freezeChildArgumentsOwned bounds the fresh-literal case to descriptor maps
 // whose eager phases the original argument walk and DefineProperties cover.
-func (q *sourceValueQuery) freezeChildArgumentsOwned(actuals []*ast.Node, result *accessorCandidates) bool {
+func (q *sourceValueQuery) freezeChildArgumentsOwned(actuals []*ast.Node, result *accessorCandidates, imports *[]sourceStagedModuleInput) bool {
 	keyAccounted := func(name *ast.Node) bool {
-		return q.freezeChildInertComputedName(name, result) ||
-			nestedDescriptorArgumentKey(name, q.owner.checker) != nil
+		if q.freezeChildInertComputedName(name, result) {
+			return true
+		}
+		operand := nestedDescriptorArgumentKey(name, q.owner.checker)
+		if operand == nil {
+			return false
+		}
+		literal := singleUseLiteral(operand, q.owner, ast.KindObjectLiteralExpression)
+		return literal != nil && q.privateDescriptorKeyMethod(literal, result) != nil
 	}
 	if len(actuals) != 2 || !ast.IsObjectLiteralExpression(actuals[0]) || !ast.IsObjectLiteralExpression(actuals[1]) ||
 		!sourceInertObjectFields(actuals[0], keyAccounted) {
@@ -277,9 +310,16 @@ func (q *sourceValueQuery) freezeChildArgumentsOwned(actuals []*ast.Node, result
 				return false
 			}
 			initializer := unwrapSourceCallableReference(field.Initializer())
-			if !sourceInertValueCreation(initializer) &&
-				(callableNameText(field.Name()) != "value" || !ast.IsIdentifier(initializer)) {
+			if sourceInertValueCreation(initializer) {
+				continue
+			}
+			if callableNameText(field.Name()) != "value" || !ast.IsIdentifier(initializer) {
 				return false
+			}
+			if q.sourceEffects.moduleInput != nil && q.executable != nil && q.executable.values != nil {
+				if input, selected := selectedModuleInput(initializer, q.effectOwner, q.executable, q); selected {
+					*imports = append(*imports, input)
+				}
 			}
 		}
 	}
