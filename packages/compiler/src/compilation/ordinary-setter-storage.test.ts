@@ -14,6 +14,82 @@ const assign = `box.other = ${browserValue};`;
 const forwarded = `function install(value: { value: string }) { box.other = value; } install(${browserValue});`;
 const scenarios = [
 	{ name: 'direct Set', before: assign, browser: true },
+	{
+		name: 'returning the stored field after the Set',
+		before: assign,
+		browser: true,
+		helperReturn: 'box.field',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning the receiver after the Set',
+		before: assign,
+		browser: true,
+		helperReturn: 'box',
+		componentRead: 'read().field.value'
+	},
+	{
+		name: 'returning a field saved after the Set',
+		before: assign,
+		browser: true,
+		helperReturn: 'saved',
+		after: 'const saved = box.field;',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning a field saved before the Set',
+		before: 'const saved = box.field;',
+		after: assign,
+		helperReturn: 'saved',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning the field after a forwarded Set',
+		before: forwarded,
+		browser: true,
+		helperReturn: 'box.field',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning the receiver after a forwarded Set',
+		before: forwarded,
+		browser: true,
+		helperReturn: 'box',
+		componentRead: 'read().field.value'
+	},
+	{
+		name: 'returning the field after a definite overwrite',
+		before: `${assign} box.field = { value: 'safe' };`,
+		helperReturn: 'box.field',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning a saved field after a definite overwrite',
+		before: assign,
+		after: "const saved = box.field; box.field = { value: 'safe' };",
+		browser: true,
+		helperReturn: 'saved',
+		componentRead: 'read().value'
+	},
+	{
+		name: 'returning the receiver after a definite overwrite',
+		before: `${assign} box.field = { value: 'safe' };`,
+		helperReturn: 'box',
+		componentRead: 'read().field.value'
+	},
+	{
+		name: 'returning the receiver after a disjoint Set',
+		before: assign,
+		field: 'disjoint',
+		helperReturn: 'box',
+		componentRead: 'read().field.value'
+	},
+	{
+		name: 'returning the receiver with a dormant installer',
+		before: `function install() { ${assign} }`,
+		helperReturn: 'box',
+		componentRead: 'read().field.value'
+	},
 	{ name: 'literal index Get', before: assign, browser: true, read: "selected['value']" },
 	{
 		name: 'helper declared after field acquisition',
@@ -58,6 +134,11 @@ const scenarios = [
 it.each(scenarios)('renders storage written through $name', async (scenario) => {
 	const root = await createCompilerTestWorkspace('.exact-setter-storage-', process.cwd());
 	const entry = path.join(root, 'page.tsx');
+	const helperTail = scenario.helperReturn
+		? `${scenario.after ?? ''} return ${scenario.helperReturn};`
+		: `const selected = box.field;
+			${scenario.after ?? ''}
+			return ${scenario.read ?? 'selected.value'};`;
 	await writeFile(
 		entry,
 		`
@@ -68,11 +149,9 @@ it.each(scenarios)('renders storage written through $name', async (scenario) => 
 				set other(value: { value: string }) { this.${scenario.field ?? 'field'} = value; }
 			};
 			${scenario.before ?? ''}
-			const selected = box.field;
-			${scenario.after ?? ''}
-			return ${scenario.read ?? 'selected.value'};
+			${helperTail}
 		}
-		export function Page() { return () => <p>{read()}</p>; }
+		export function Page() { return () => <p>{${scenario.componentRead ?? 'read()'}}</p>; }
 	`
 	);
 
@@ -104,6 +183,7 @@ it.each(scenarios)('renders storage written through $name', async (scenario) => 
 		const reports: unknown[] = [];
 		const title = browserDocument.title;
 		onTestFinished(() => unmount(host));
+		const readTitle = vi.spyOn(browserDocument, 'title', 'get');
 		try {
 			browserDocument.title = 'browser value';
 			render(receipt(client.Page as never, {}), host, {
@@ -111,7 +191,9 @@ it.each(scenarios)('renders storage written through $name', async (scenario) => 
 			});
 			expect(host.textContent).toBe(scenario.browser ? 'browser value' : 'safe');
 			expect(reports).toEqual([]);
+			expect(readTitle).toHaveBeenCalledTimes(scenario.browser ? 1 : 0);
 		} finally {
+			readTitle.mockRestore();
 			browserDocument.title = title;
 		}
 	}

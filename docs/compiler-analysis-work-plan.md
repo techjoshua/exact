@@ -1458,6 +1458,13 @@ can be removed after the ordinary effects caller migrates.
 | Native callbacks, promise settlement, construction, reflection and installed Get/normal-output consumers | Selected callback, receiver, return or completion **if** the supported algorithm consumes it. | Preserve authored effects and abruptness only as far as they change a surviving component decision. Do not materialize a complete descriptor, cache, array, iterator history or object graph just to emit the original expression. |
 | Migration-only replacement mode | The former all-body harness required stronger results than public requests consume. | Removed in item 6. The ordinary demand, recovery and publication paths still serve production callers. |
 
+For a local object setter that stores its input in a field, a downstream component read
+can reach the stored value through a helper return. The original field acquisition
+bounds earlier writes when the helper returns the field or a saved alias. When the
+helper returns the receiver itself, the downstream read can observe writes made before
+the return. The original assignment owns setter selection and RHS acquisition, and
+a definite intervening overwrite can supersede a possible setter write.
+
 ## Implementation order and acceptance
 
 Placement now uses an executable definition edge when a stable lexical call forwards an

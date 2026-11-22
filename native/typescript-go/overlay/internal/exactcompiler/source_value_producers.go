@@ -685,7 +685,16 @@ func (query *sourceValueQuery) replacesSourceValue(origin *ast.Node, written []s
 	if len(written) == 1 && query.dependenciesOnly && ast.IsNewExpression(origin) {
 		data = query.sourceConstructedDataSlot(origin, written[0], bindings)
 	}
-	return data && query.sourceWritePrecedes(left, producer, bindings)
+	if !data {
+		return false
+	}
+	if query.dependenciesOnly && producer == nil && ast.IsObjectLiteralExpression(origin) {
+		owner := enclosingCallableNode(origin)
+		if owner != nil && enclosingCallableNode(left) == owner && query.creators[owner].returning != nil {
+			return query.sourceWritePrecedesAt(left, nil, query.localMemberReadBoundary(owner), bindings)
+		}
+	}
+	return query.sourceWritePrecedes(left, producer, bindings)
 }
 
 // sourceWritePrecedes shares performed-write ordering without granting data-slot
@@ -699,6 +708,10 @@ func (query *sourceValueQuery) sourceWritePrecedes(left, producer *ast.Node, bin
 	if at == nil && query.moduleRead() != nil {
 		at = query.reading
 	}
+	return query.sourceWritePrecedesAt(left, producer, at, bindings)
+}
+
+func (query *sourceValueQuery) sourceWritePrecedesAt(left, producer, at *ast.Node, bindings sourceValueBindings) bool {
 	if at == nil || left.Parent == nil || !ast.IsBinaryExpression(left.Parent) || left.Parent.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken {
 		return false
 	}

@@ -210,6 +210,13 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
 			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
 		}
+		var localOwner, localRead *ast.Node
+		if query.dependenciesOnly && len(query.creators) != 0 && ast.IsObjectLiteralExpression(origin) && query.moduleRead() == nil {
+			localOwner = enclosingCallableNode(origin)
+			if localOwner != nil && query.creators[localOwner].returning != nil {
+				localRead = query.localMemberReadBoundary(localOwner)
+			}
+		}
 		constructorTask := query.promiseConstructorTaskPlacement(get, projection, name, mode)
 		for _, index := range indexes {
 			// The existing source-relative producer and occurrence checks below decide
@@ -290,7 +297,13 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					if query.dependenciesOnly && query.privateDirectAssignmentExcluded(&index, operation, result) {
 						continue
 					}
-					inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
+					if localRead != nil && enclosingCallableNode(assignment.left) == localOwner && operation.End() <= localRead.Pos() {
+						// This activation is already selected by the return projection.
+						// Its direct writes use the same captured inputs as the receiver.
+						inputs = []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: query.creators}}}
+					} else {
+						inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
+					}
 					if disjointRHS {
 						continue
 					}
@@ -321,7 +334,14 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 						if query.dependenciesOnly && get != nil && get.receiver.native == nil && get.receiver.node != nil && ast.IsNewExpression(get.receiver.node) && get.lookupOwner != nil && get.lookupOwner.node == origin && len(get.lookupOwner.path) == 0 {
 							receivers = []sourceValue{get.receiver}
 						}
-						origins := query.occurrenceOrigins(root, assignment.left, origin, assignmentBindings, &temporary, receivers...)
+						var origins []sourceValue
+						if input.implicitMember != nil {
+							// The selected Set already bound this writer's receiver.
+							// A return projection may still have the enclosing helper's inputs.
+							origins = assignmentBindings[0]
+						} else {
+							origins = query.occurrenceOrigins(root, assignment.left, origin, assignmentBindings, &temporary, receivers...)
+						}
 						for _, value := range origins {
 							if sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result) && sourceProjectionOverlap([]string{key}, demand) {
 								result.opaque = true

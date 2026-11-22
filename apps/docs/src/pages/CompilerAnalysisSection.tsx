@@ -21,6 +21,12 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				runs if the function reads that property.
 			</p>
 			<p>
+				A helper can store an object through a local setter and return it to a component.
+				If the component reads a getter on that stored object, the getter’s dependencies
+				affect where the component can render. A getter that reads <code>document.title</code>
+				requires the browser. Saving the field before calling the setter keeps the earlier object.
+			</p>
+			<p>
 				When a task has no platform requirement or explicit placement, its analysis explains the
 				scheduling default. Writing component state lets initial work run on the server. Without a
 				state write, the default is the client. Data residency can further constrain that choice.

@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"strings"
 	"testing"
 )
 
@@ -127,5 +128,33 @@ func TestSourceSetterOpenLibrary(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("observed safe caller erased the open-library unknown callable")
+	}
+}
+
+// A component's downstream read follows the setter's stored value across the
+// helper return while keeping the field's original acquisition position.
+func TestComponentReadsReturnedSetterStorage(t *testing.T) {
+	const definition = "function read() { const box = { field: { value: 'safe' }, other: { value: 'safe' }, set store(value: { value: string }) { this.SLOT = value; } }; "
+	const store = "box.store = { get value() { return document.title; } }; "
+	const overwrite = "box.field = { value: 'safe' }; "
+	for _, row := range []struct {
+		name, slot, statements, use string
+		browser                     bool
+	}{
+		{"read inside helper", "field", store + "return box.field.value;", "read()", true},
+		{"returned field", "field", store + "return box.field;", "read().value", true},
+		{"returned receiver", "field", store + "return box;", "read().field.value", true},
+		{"saved after Set", "field", store + "const saved = box.field; return saved;", "read().value", true},
+		{"saved before Set", "field", "const saved = box.field; " + store + "return saved;", "read().value", false},
+		{"saved receiver", "field", "const saved = box; " + store + "return saved;", "read().field.value", true},
+		{"overwritten field", "field", store + overwrite + "return box.field;", "read().value", false},
+		{"overwritten receiver", "field", store + overwrite + "return box;", "read().field.value", false},
+		{"disjoint field", "other", store + "return box;", "read().field.value", false},
+		{"dormant installer", "field", "function install() { " + store + " } return box;", "read().field.value", false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := strings.Replace(definition, "SLOT", row.slot, 1) + row.statements + " }"
+			checkFormalGetterComponent(t, source, row.use, row.browser)
+		})
 	}
 }

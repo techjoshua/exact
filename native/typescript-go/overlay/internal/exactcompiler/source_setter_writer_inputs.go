@@ -80,16 +80,16 @@ func (q *sourceValueQuery) localSetterWriterInputs(write, origin *ast.Node, cut 
 		return inputs
 	}
 	writer := enclosingCallableNode(write)
-	caller := enclosingCallableNode(getter)
-	if writer == nil || !ast.IsSetAccessorDeclaration(writer) || q.active[writer] || writer.Parent != origin || caller == nil || enclosingCallableNode(origin) != caller {
+	caller := enclosingCallableNode(origin)
+	if writer == nil || !ast.IsSetAccessorDeclaration(writer) || q.active[writer] || writer.Parent != origin || caller == nil {
 		return inputs
 	}
 	if receiver, _ := accessorReceiver(write); receiver == nil || receiver.Kind != ast.KindThisKeyword {
 		return inputs
 	}
-	boundary := getter
-	if read := q.readPosition(); read != nil && enclosingCallableNode(read) == caller && read.Pos() < boundary.Pos() {
-		boundary = read
+	boundary := q.localMemberReadBoundary(caller)
+	if boundary == nil {
+		return inputs
 	}
 	q.active[writer] = true
 	defer delete(q.active, writer)
@@ -132,6 +132,23 @@ func (q *sourceValueQuery) localSetterWriterInputs(write, origin *ast.Node, cut 
 		}
 	}
 	return inputs
+}
+
+// localMemberReadBoundary keeps the member's acquisition position in the
+// creating helper. A downstream Get can observe the selected return even when
+// the original Get belongs to the component. A saved field keeps its earlier cut.
+func (q *sourceValueQuery) localMemberReadBoundary(owner *ast.Node) *ast.Node {
+	boundary := q.protectedMember
+	if boundary == nil || enclosingCallableNode(boundary) != owner {
+		boundary = q.creators[owner].returning
+		if boundary == nil {
+			return nil
+		}
+	}
+	if read := q.readPosition(); read != nil && enclosingCallableNode(read) == owner && read.Pos() < boundary.Pos() {
+		boundary = read
+	}
+	return boundary
 }
 
 func (q *sourceValueQuery) localSetterWriterRow(writer, origin, target, occurrence *ast.Node, bindings sourceValueBindings, result *accessorCandidates, inputs []sourceMemberWriterInput) []sourceMemberWriterInput {
