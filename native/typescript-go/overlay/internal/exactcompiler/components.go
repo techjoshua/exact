@@ -450,34 +450,41 @@ func lexicalMicroComponentSymbols(
 
 func rawComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	var candidates []componentCandidate
-	walkNode(sourceFile.AsNode(), func(statement *ast.Node) bool {
-		switch {
-		case ast.IsFunctionDeclaration(statement):
-			name := statement.Name()
-			if name != nil {
-				candidates = append(candidates, componentCandidate{
-					name:     name.Text(),
-					node:     statement,
-					exported: ast.HasSyntacticModifier(statement, ast.ModifierFlagsExport),
-				})
-			}
-		case ast.IsVariableDeclaration(statement):
-			declaration := statement.AsVariableDeclaration()
-			if declaration.Name() != nil && ast.IsIdentifier(declaration.Name()) &&
-				declaration.Initializer != nil &&
-				(ast.IsArrowFunction(declaration.Initializer) ||
-					ast.IsFunctionExpression(declaration.Initializer)) {
-				variableStatement := enclosingVariableStatement(statement)
-				candidates = append(candidates, componentCandidate{
-					name: declaration.Name().Text(),
-					node: declaration.Initializer,
-					exported: variableStatement != nil &&
-						ast.HasSyntacticModifier(variableStatement, ast.ModifierFlagsExport),
-				})
-			}
-		}
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		candidates = appendRawComponentCandidate(candidates, node)
 		return true
 	})
+	return candidates
+}
+
+// appendRawComponentCandidate records candidates at declaration entry. For a
+// variable it records the initializer before visiting any children, preserving
+// declaration order even when a type annotation contains recovered syntax.
+// The parser's parent links retain lexical ownership on the same tree.
+func appendRawComponentCandidate(candidates []componentCandidate, node *ast.Node) []componentCandidate {
+	switch {
+	case ast.IsFunctionDeclaration(node):
+		if name := node.Name(); name != nil {
+			return append(candidates, componentCandidate{
+				name:     name.Text(),
+				node:     node,
+				exported: ast.HasSyntacticModifier(node, ast.ModifierFlagsExport),
+			})
+		}
+	case ast.IsVariableDeclaration(node):
+		declaration := node.AsVariableDeclaration()
+		name, initializer := declaration.Name(), declaration.Initializer
+		if name != nil && ast.IsIdentifier(name) && initializer != nil &&
+			(ast.IsArrowFunction(initializer) || ast.IsFunctionExpression(initializer)) {
+			variableStatement := enclosingVariableStatement(node)
+			return append(candidates, componentCandidate{
+				name: name.Text(),
+				node: initializer,
+				exported: variableStatement != nil &&
+					ast.HasSyntacticModifier(variableStatement, ast.ModifierFlagsExport),
+			})
+		}
+	}
 	return candidates
 }
 

@@ -1294,6 +1294,14 @@ operation were 1,155,031 and 342,033. Text and authored offsets matched. This be
 measures normalization on one input. The earlier SDK replay and full-build timeout describe
 their original compiler revisions.
 
+The JSX syntax walk records callable declarations in their existing discovery order.
+Canonical return planning and supplied props share that inventory and its durable-component
+filter while the parsed source stays unchanged. A shorthand or casing edit discards the
+provisional inventory and discovers callables on the reparsed source. Canonical return edits
+also require fresh candidates before supplied props planning. On the captured no-edit Intl input,
+normalization root walks fell from seven to five. The timing and allocation measurements above
+predate this change.
+
 In the same SDK session sequence, the callable demand queue links `IntlLocale` setup through
 catalog initialization and pattern validation to `validateFormatter`. The first observed
 `requireRecord` writer search begins while collecting effects of `validateOptions`. It

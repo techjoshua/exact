@@ -8,13 +8,20 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // spread attribute with a missing `...`; the exact raw span distinguishes that
 // recoverable shorthand from a valid spread or another malformed expression. Standard DOM
 // casing shares this syntax pass so synchronized and individual sources bind identically.
-func planJSXAttributeSyntax(sourceFile *ast.SourceFile) []sourceEdit {
+// When requested, collect candidates only for reuse on the unedited tree.
+func planJSXAttributeSyntax(sourceFile *ast.SourceFile, candidates *[]componentCandidate) []sourceEdit {
+	if ast.IsJsonSourceFile(sourceFile) {
+		candidates = nil
+	}
 	source := sourceFile.Text()
 	edits := []sourceEdit{}
 	native := !usesForeignJSXRuntime(sourceFile)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if native {
 			edits = append(edits, standardNativePropCasing(sourceFile, node)...)
+		}
+		if candidates != nil && len(edits) == 0 {
+			*candidates = appendRawComponentCandidate(*candidates, node)
 		}
 		if !ast.IsJsxSpreadAttribute(node) {
 			return true
@@ -35,5 +42,8 @@ func planJSXAttributeSyntax(sourceFile *ast.SourceFile) []sourceEdit {
 		edits = append(edits, sourceEdit{start: start, end: start, text: name + "="})
 		return true
 	})
+	if candidates != nil && len(edits) != 0 {
+		*candidates = nil
+	}
 	return edits
 }

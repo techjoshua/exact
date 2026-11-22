@@ -59,10 +59,55 @@ func TestPlanPropPunningRejectsNonShorthandBraceForms(t *testing.T) {
 		"const text = `<Card {value} />`;",
 		`// <Card {value} />`,
 	} {
-		edits := planJSXAttributeSyntax(parseNormalizationSource(normalizationTestFile(t, "unchanged.tsx"), source))
+		edits := planJSXAttributeSyntax(parseNormalizationSource(normalizationTestFile(t, "unchanged.tsx"), source), nil)
 		if len(edits) != 0 {
 			t.Fatalf("non-shorthand source produced edits %#v:\n%s", edits, source)
 		}
+	}
+}
+
+func TestNormalizationCollectsCallablesInDeclarationOrder(t *testing.T) {
+	const authored = `// 😀
+		export const View: (x = <Card value={(() => {
+			function InType() {}
+			return 1;
+		})()} />) => void = () => {
+			const Micro = () => <strong />;
+			return () => <Micro />;
+		};
+		function After() {}`
+	fileName := normalizationTestFile(t, "candidate-order.tsx")
+	sourceFile := parseNormalizationSource(fileName, authored)
+	var candidates []componentCandidate
+	if edits := planJSXAttributeSyntax(sourceFile, &candidates); len(edits) != 0 {
+		t.Fatalf("unexpected JSX edits: %#v", edits)
+	}
+	want := []string{"View", "InType", "Micro", "After"}
+	if len(candidates) != len(want) {
+		t.Fatalf("got %d candidates, want %d", len(candidates), len(want))
+	}
+	for index, candidate := range candidates {
+		if candidate.name != want[index] || candidate.exported != (index == 0) {
+			t.Fatalf("candidate %d = %q (exported %t), want %q", index, candidate.name, candidate.exported, want[index])
+		}
+	}
+	if !directlyDeclaredInSetup(candidates[2].node, candidates[0].node) {
+		t.Fatal("setup-local candidate lost its lexical owner")
+	}
+
+	edited := strings.Replace(authored, "<strong />", "<strong {value} />", 1)
+	normalized, err := normalizeAuthoredSource(fileName, edited)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const generated = "<strong value={value} />"
+	start := strings.Index(normalized.text, generated)
+	if start < 0 || !strings.Contains(normalized.text, "const Micro = () => "+generated) {
+		t.Fatalf("JSX recovery changed the setup-local callable: %s", normalized.text)
+	}
+	gotStart, gotLength := normalized.authoredSpan(start, len(generated))
+	if gotStart != strings.Index(edited, "<strong") || gotLength != len("<strong {value} />") {
+		t.Fatalf("recovered JSX authored span = %d:%d", gotStart, gotLength)
 	}
 }
 

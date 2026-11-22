@@ -49,9 +49,25 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 			sourceFile = parseNormalizationSource(fileName, result.text)
 		}
 	}
-	applyAndParse(planJSXAttributeSyntax(sourceFile))
-	applyAndParse(planCanonicalComponentReturns(sourceFile))
-	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(sourceFile)
+	var candidates []componentCandidate
+	if jsxEdits := planJSXAttributeSyntax(sourceFile, &candidates); len(jsxEdits) != 0 {
+		// Recovery can change both node shape and spans, so collect from
+		// the repaired tree when JSX normalization changed the source.
+		applyAndParse(jsxEdits)
+		if !ast.IsJsonSourceFile(sourceFile) {
+			candidates = rawComponentCandidates(sourceFile)
+		}
+	}
+	durable := filterDurableComponentCandidates(candidates, sourceFile)
+	canonicalEdits := planCanonicalComponentReturns(sourceFile, candidates, durable)
+	candidates = nil
+	if len(canonicalEdits) != 0 {
+		durable = nil
+		applyAndParse(canonicalEdits)
+		durable = componentCandidates(sourceFile)
+	}
+	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(sourceFile, durable)
+	durable = nil
 	if err != nil {
 		return normalizedSource{}, err
 	}
@@ -78,17 +94,16 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 // authoring convenience while ensuring every compiled durable component
 // reaches analysis and runtime with a synchronous render closure. Lexical
 // micro-components remain direct view helpers and are intentionally excluded.
-func planCanonicalComponentReturns(sourceFile *ast.SourceFile) []sourceEdit {
-	if ast.IsJsonSourceFile(sourceFile) {
-		return nil
-	}
-	candidates := rawComponentCandidates(sourceFile)
+func planCanonicalComponentReturns(
+	sourceFile *ast.SourceFile,
+	candidates, durable []componentCandidate,
+) []sourceEdit {
 	callables := make(map[string]*ast.Node)
 	for _, candidate := range candidates {
 		callables[candidate.name] = candidate.node
 	}
 	edits := []sourceEdit{}
-	for _, candidate := range filterDurableComponentCandidates(candidates, sourceFile) {
+	for _, candidate := range durable {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
