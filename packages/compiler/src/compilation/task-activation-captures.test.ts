@@ -393,14 +393,26 @@ export function readLabel(label: string) { return publish(label); }
 		if (mode === 'resource-optional')
 			source = source.replace('void resource;', 'resource.dispose?.();');
 		if (mode === 'resource-subscription')
-			source = source.replace(
-				'const resource=await acquire();void resource;',
-				'const store={subscribe(){return ()=>{disposed++;};}};const unsubscribe=store.subscribe();void unsubscribe;'
-			);
+			source =
+				'export let subscriptions=0;\n' +
+				source.replace(
+					'const resource=await acquire();void resource;',
+					'const store={subscribe(){subscriptions++;return ()=>{disposed++;};},ordinary(){return ()=>{disposed+=100;};}};const unsubscribe=store.subscribe();void unsubscribe;const callback=store.ordinary();void callback;'
+				);
 		if (mode === 'resource-signal')
 			source =
-				'async function selected(signal?:AbortSignal){if(!(signal instanceof AbortSignal))throw new Error("missing task signal");}\n' +
-				source.replace('void resource;', 'void resource;await selected();');
+				'async function selected(signal?:AbortSignal){if(arguments.length!==1 || !(signal instanceof AbortSignal))throw new Error("expected one task signal");return signal;}\n' +
+				'function choose(active:boolean){return active ? {selected} : undefined;}\n' +
+				'async function unrelated(value?:number){if(arguments.length!==0 || value!==undefined)throw new Error("unexpected task signal");}\n' +
+				source.replace(
+					'void resource;',
+					'void resource;const controller=new AbortController();let reads=0;const nextSignal=()=>{reads++;return controller.signal;};' +
+						'await selected();const explicit=await selected(nextSignal());controller.abort();' +
+						'if(!explicit.aborted)throw new Error("expected authored signal cancellation");' +
+						'const present=choose(true);await present?.selected();' +
+						'const absent=choose(false);await absent?.selected(nextSignal());await unrelated();' +
+						'if(reads!==1)throw new Error("expected one authored signal evaluation");'
+				);
 		if (mode === 'resource-timer')
 			source = source.replace(
 				'void resource;',
@@ -478,6 +490,10 @@ export function readLabel(label: string) { return publish(label); }
 		const initialHTML = String(receiverInteraction ? 0 : initial);
 		expect(host.querySelector('[data-result]')?.textContent).toBe(initialHTML);
 		expect(host.querySelector('[data-status]')?.textContent).toBe(initialHTML);
+		if (mode === 'resource-subscription') {
+			expect(server.subscriptions).toBe(1);
+			expect(server.disposed).toBe(1);
+		}
 		if (receiverSSR) return;
 		const contract = composeExactExecutorContract(serverComponents);
 		const contextRuntime = createExactContextRuntime({
@@ -604,6 +620,102 @@ export function readLabel(label: string) { return publish(label); }
 		await view.action(() => run.click());
 		expect(requests).toBe(before);
 		expect(reports).toEqual([]);
+		if (mode === 'resource-subscription') expect(server.subscriptions).toBe(requests + 1);
 		if (resourceMode) await expect.poll(() => server.disposed).toBe(requests + 1);
 	}
 );
+
+it('server subscription signal and cleanup on ordinary acquisition', async () => {
+	const root = await createCompilerTestWorkspace('.exact-subscription-signal-', process.cwd());
+	const entry = path.join(root, 'page.tsx');
+	await writeFile(
+		entry,
+		`import { TaskContext, type Component } from '@exactjs/core';
+export const subscriptions: unknown[] = [];
+const store = {
+	subscribe(signal?: AbortSignal) {
+		if (arguments.length !== 1 || !(signal instanceof AbortSignal) || signal.aborted)
+			throw new Error('expected one active task signal');
+		const subscription = { signal, releases: 0 };
+		subscriptions.push(subscription);
+		return () => { subscription.releases++; };
+	}
+};
+export function Page(this: Component<{ value: number }>) {
+	this.state.value = 0;
+	const run = (task: TaskContext = TaskContext.server().blocking()) => {
+		void task;
+		const unsubscribe = store.subscribe();
+		void unsubscribe;
+		this.state.value++;
+	};
+	void run();
+	return () => <button onClick={() => run()}>{this.state.value}</button>;
+}`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated'),
+		generatedValidation: 'semantic'
+	});
+	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const Client = client.Page as AnyComponentFunction;
+	const Server = server.Page as AnyComponentFunction;
+	const subscriptions = server.subscriptions as Array<{ signal: AbortSignal; releases: number }>;
+	const expectSettledSubscriptions = (count: number) => {
+		expect(subscriptions.map(({ releases }) => releases)).toEqual(Array<number>(count).fill(1));
+		expect(new Set(subscriptions.map(({ signal }) => signal)).size).toBe(count);
+	};
+	const host = document.createElement('div');
+	host.innerHTML = (await renderToString(receipt(Server, {}))).html;
+	expect(host.querySelector('button')?.textContent).toBe('1');
+	expectSettledSubscriptions(1);
+	host.innerHTML = '';
+
+	const contract = composeExactExecutorContract([Server]);
+	const reports: unknown[] = [];
+	let requests = 0;
+	const view = await mountClientServerTest({
+		container: host,
+		server: { html: '' },
+		islands: {},
+		hydrate: {
+			...composeExactComponentContracts([Client], 'client'),
+			resumptions: [],
+			endpoint: '/__exact',
+			batch: false,
+			onErrorReport: (report) => reports.push(report.error),
+			onDiagnostic: (report) => reports.push(report)
+		},
+		handle: async (request) => {
+			requests++;
+			const response = await handleExactRequest(request, {
+				contract,
+				logger: { log: (event) => reports.push(event) }
+			});
+			expect(response.status).toBe(200);
+			expectSettledSubscriptions(requests + 1);
+			return response;
+		}
+	});
+	onTestFinished(() => {
+		view.unmount();
+		unmount(host);
+	});
+	render(
+		withComponentDomain(view.client.domain, () => receipt(Client, {})),
+		host
+	);
+	await view.settle();
+	const button = host.querySelector('button')!;
+	expect(reports).toEqual([]);
+	const before = requests;
+	expectSettledSubscriptions(before + 1);
+	for (const dispatched of [1, 2]) {
+		await view.action(() => button.click());
+		expect(requests).toBe(before + dispatched);
+		expectSettledSubscriptions(requests + 1);
+		expect(reports).toEqual([]);
+	}
+});

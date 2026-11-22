@@ -4,7 +4,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // pendingOptionalRead leaves native short-circuiting, receiver selection and iterator behavior
 // intact. Only the chain's base crosses the invocation facade, and its result regains authored identity.
-func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visitor *ast.NodeVisitor, signals taskSignalLowering) *ast.Node {
 	source := node
 	deleting := ast.IsDeleteExpression(node)
 	if deleting {
@@ -42,6 +42,7 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 			for _, argument := range callArguments(part) {
 				arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 			}
+			arguments = signals.arguments(lowering, part, arguments)
 			callee := lowering.pendingPrivateHelperSelection(call.Expression, context, visitor, true)
 			if callee == nil {
 				callee = chain.VisitNode(call.Expression)

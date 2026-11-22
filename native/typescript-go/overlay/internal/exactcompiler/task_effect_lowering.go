@@ -207,6 +207,8 @@ func (lowering *jsxLowering) manageTaskWork(
 		signal, work = lowering.taskSignalExpression(work, dependencyCount)
 		context = taskContextExpression(work, dependencyCount)
 	}
+	resourcePlan.signals.signal = signal
+	resourcePlan.signals.directServer = directServer
 	var pendingState *ast.Node
 	// Immediate setup writes directly to its component. It has no task
 	// generation or signal against which to stage a pending transaction.
@@ -256,8 +258,8 @@ func (lowering *jsxLowering) manageTaskWork(
 						return lowering.factory.NewExpressionStatement(visitor.VisitNode(expression))
 					}
 				}
-				if operation := lowering.pendingStateOperation(node, pendingState, visitor); operation != nil {
-					return operation
+				if operation := lowering.pendingStateOperation(node, pendingState, visitor, resourcePlan.signals); operation != nil {
+					return lowering.lowerPendingTaskResource(node, operation, signal, context, resourcePlan)
 				}
 			}
 			if local := locals.reads[nodeSpanKey(node)]; local != nil && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
@@ -772,7 +774,22 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 	}
 	visited := visitor.VisitEachChild(node)
 	call := visited.AsCallExpression()
-	arguments := callArguments(visited)
+	arguments := lowering.lowerTaskSignalArguments(callArguments(visited), signalCall, signal, directServer)
+	if directServer && lowering.importedTaskRuntimeHelper(call.Expression, "taskTimeout") {
+		return lowering.call(lowering.names.serverTaskTimeout, arguments)
+	}
+	return lowering.factory.NewCallExpression(
+		call.Expression,
+		call.QuestionDotToken,
+		call.TypeArguments,
+		lowering.factory.NewNodeList(arguments),
+		call.Flags,
+	)
+}
+
+// lowerTaskSignalArguments adapts one authored argument after its expression
+// has been lowered. Native and pending calls use the same cancellation policy.
+func (lowering *jsxLowering) lowerTaskSignalArguments(arguments []*ast.Node, signalCall TaskSignalCall, signal *ast.Node, directServer bool) []*ast.Node {
 	for len(arguments) <= signalCall.Parameter {
 		arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
 	}
@@ -813,16 +830,7 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 			)
 		}
 	}
-	if directServer && lowering.importedTaskRuntimeHelper(call.Expression, "taskTimeout") {
-		return lowering.call(lowering.names.serverTaskTimeout, arguments)
-	}
-	return lowering.factory.NewCallExpression(
-		call.Expression,
-		call.QuestionDotToken,
-		call.TypeArguments,
-		lowering.factory.NewNodeList(arguments),
-		call.Flags,
-	)
+	return arguments
 }
 
 func sameSimpleExpression(left *ast.Node, right *ast.Node) bool {
@@ -1014,25 +1022,7 @@ func (lowering *jsxLowering) lowerTaskResource(
 			[]*ast.Node{signal, visited},
 		)
 	case "owned":
-		arguments := []*ast.Node{signal, visited}
-		if resource.Disposal != "" {
-			arguments = append(
-				arguments,
-				lowering.factory.NewStringLiteral(
-					resource.Disposal,
-					ast.TokenFlagsNone,
-				),
-			)
-		}
-		if len(resource.ReleaseCalls) != 0 {
-			arguments[0] = context
-			return lowering.taskHelperCall("ownReleasableTaskResource", lowering.names.taskReleasableResource, arguments)
-		}
-		return lowering.taskHelperCall(
-			"ownTaskResource",
-			lowering.names.taskResource,
-			arguments,
-		)
+		return lowering.lowerOwnedTaskResource(visited, signal, context, resource)
 	default:
 		return visited
 	}

@@ -39,6 +39,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		)
 		work = lowering.updateTaskWorkParameters(work, parameters)
 	}
+	resourcePlan.signals.signal = signal
 	var pendingState *ast.Node
 	if lowering.target == TargetServer && lowering.taskNeedsPendingState(task) {
 		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
@@ -75,8 +76,8 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				return released
 			}
 			if pendingState != nil {
-				if operation := lowering.pendingStateOperation(current, pendingState, visitor); operation != nil {
-					return operation
+				if operation := lowering.pendingStateOperation(current, pendingState, visitor, resourcePlan.signals); operation != nil {
+					return lowering.lowerPendingTaskResource(current, operation, signal, context, resourcePlan)
 				}
 			}
 			if !lowering.checking {

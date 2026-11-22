@@ -80,6 +80,7 @@ func TestTaskSubsystemInvokedResourceSources(t *testing.T) {
 		`const handle=setTimeout(()=>{},1);clearTimeout(handle);`,
 		`const response=await fetch('/data');void response;`,
 		`await custom();`,
+		`const store={subscribe(signal?:AbortSignal){return ()=>{};}};const unsubscribe=store.subscribe();void unsubscribe;`,
 		`const resource=await acquire();task.cleanup(()=>resource.dispose());`,
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
@@ -87,6 +88,11 @@ func TestTaskSubsystemInvokedResourceSources(t *testing.T) {
 				r := NewSession().Execute(Request{Kind: "compile", Target: target, Diagnostics: "semantic", ID: "invoked-resource.tsx", Source: `import {TaskContext} from '@exactjs/core';class Resource{value=1;dispose(){}}/** @exact cleanup=dispose */ async function acquire(){return new Resource();}declare function custom(signal?:AbortSignal):Promise<void>;export function Page(){const run=async(task:TaskContext=TaskContext.server().blocking())=>{` + body + `};return()=> <button onClick={()=>run()}>Run</button>;}`})
 				if r.Error != "" || len(r.Diagnostics) != 0 || len(r.Analysis.Tasks) != 1 || !r.Analysis.Tasks[0].Invoked {
 					t.Fatalf("invoked ownership rejected: %s %#v", r.Error, r.Diagnostics)
+				}
+				if target == TargetServer && strings.Contains(body, "store.subscribe()") {
+					if !strings.Contains(r.Code, "__exactTaskResource(") || !strings.Contains(r.Code, "store.subscribe(") || strings.Contains(r.Code, "store.subscribe()") {
+						t.Fatal("ordinary subscription must receive a signal and retain ownership", r.Code)
+					}
 				}
 			})
 		}

@@ -158,8 +158,10 @@ platform calls such as `fetch()` and `addEventListener()` directly and combines
 the generation signal with an authored signal or event options rather than
 discarding either. Boolean capture flags are preserved for typed DOM event targets as well as
 global listeners. Signal injection follows the selected call overload, so an unrelated overload
-or a same-named method cannot authorize changing a call. Resource signals close when their
-generation settles, while a successfully completed task retains its successful outcome.
+or a same-named method cannot authorize changing a call. This also applies to helpers called
+during server task startup and later server invocations. An optional call that short-circuits
+skips evaluation of its arguments. Resource signals close when their generation settles, while
+a successfully completed task retains its successful outcome.
 Fetch cancellation remains connected while a response body is being read,
 even after headers have arrived. A signal carried by a Request is retained unless an explicit
 RequestInit signal replaces it, following native fetch precedence.
@@ -176,7 +178,12 @@ timers, animation and idle callbacks, observers, sockets, workers,
 subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
-contract. An escape is a diagnostic rather than an inferred longer lifetime. For an async factory annotated with `@exact own` or `@exact cleanup`, awaiting the call
+contract. Keep the typed cleanup function from a synchronous `subscribe()` call in a local
+binding. If its signature declares an optional `AbortSignal`, the compiler supplies the signal on
+the same call. The task calls the cleanup when its generation settles, including when
+the task starts during server rendering or runs in response to a request. A resource that escapes
+the task produces a diagnostic. For an async factory annotated with `@exact own` or `@exact cleanup`,
+awaiting the call
 assigns ownership to the resolved resource. The factory must expose a recognized disposal contract.
 An ordinary async factory without that annotation does not infer resource ownership. Simple local aliases retain
 this ownership. Local helper results, including immediately invoked helpers, retain ownership

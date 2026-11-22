@@ -290,7 +290,7 @@ func pendingCollectionWrite(write StateWrite) bool {
 
 // pendingStateOperation keeps receivers and eager awaits in the authored function. Only the
 // context owns publication, so results and later reads use the same pending cells.
-func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visitor *ast.NodeVisitor, signals taskSignalLowering) *ast.Node {
 	// A super reference is lexical syntax, never a value that can be passed
 	// as a pending receiver. Keep its selected member and evaluate keys normally.
 	if ast.IsPropertyAccessExpression(node) && node.AsPropertyAccessExpression().Expression.Kind == ast.KindSuperKeyword {
@@ -316,7 +316,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	if ast.IsIdentifier(node) && node.Parent != nil && lowering.pendingOwnedValues[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
 		return lowering.helperContextCall(context, "own", []*ast.Node{node})
 	}
-	if result := lowering.pendingOptionalRead(node, context, visitor); result != nil {
+	if result := lowering.pendingOptionalRead(node, context, visitor, signals); result != nil {
 		return result
 	}
 	plan := planMutationOperation(node)
@@ -404,6 +404,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		for _, argument := range callArguments(node) {
 			arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 		}
+		arguments = signals.arguments(lowering, node, arguments)
 		result := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
 		lowering.importedPolicy.recordPendingHelper(node, result, selected, lowering.emitContext)
 		if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil {

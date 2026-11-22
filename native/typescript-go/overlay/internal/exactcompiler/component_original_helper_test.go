@@ -16,6 +16,8 @@ func TestComponentOriginalHelperMutation(t *testing.T) {
 		{"collection-direct", `function apply(state:{value:number}){state.value=2;return state;}`, `this.state.values.push(2);return this.state.values.length`},
 		{"nested-only", `function apply(state:{value:number}){state.value=2;return state;}`, `function scalar(value:number){return value+1}return scalar(this.state.value)`},
 		{"async", `async function apply(state:{value:number}){await Promise.resolve();state.value=2;return state;}`, `await apply(this.state);return this.state.value`},
+		{"signal", `function observe(state:{value:number}){return state.value;}async function apply(signal?:AbortSignal){await Promise.resolve();return signal?.aborted;}function unrelated(value?:number){return value;}function choose(active:boolean){return active?{apply}:undefined;}`, `observe(this.state);await apply();await apply(task.signal);const present=choose(true);await present?.apply();unrelated();return this.state.value`},
+		{"subscription", `function apply(state:{value:number}){return state.value;}`, `apply(this.state);const store={subscribe(){return ()=>{};},ordinary(){return ()=>{};}};const owned=store.subscribe();void owned;const ordinary=store.ordinary();void ordinary;return this.state.value`},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			root, err := os.MkdirTemp(".", ".component-original-helper-")
@@ -53,6 +55,28 @@ func TestComponentOriginalHelperMutation(t *testing.T) {
 			} else if !strings.Contains(r.Code, ".helper(") || !strings.Contains(r.Code, ".read(") {
 				t.Fatal("component lost pending invocation/read", r.Code)
 			}
+			if row.name == "signal" {
+				if len(r.Analysis.Tasks) != 1 || len(r.Analysis.Tasks[0].SignalCalls) != 3 ||
+					strings.Count(r.Code, ".helper(apply)(") < 2 ||
+					strings.Contains(r.Code, ".helper(apply)()") ||
+					strings.Contains(r.Code, "?.apply()") ||
+					!strings.Contains(r.Code, ".helper(unrelated)()") {
+					t.Fatal("pending helper lost task cancellation", r.Analysis.Tasks, r.Code)
+				}
+			}
+			if row.name == "subscription" {
+				for _, line := range strings.Split(r.Code, "\n") {
+					if strings.Contains(line, `helperMember(store, "subscribe"`) && !strings.Contains(line, "__exactTaskResource(") {
+						t.Fatal("pending subscription lost generation ownership", line, r.Code)
+					}
+					if strings.Contains(line, `helperMember(store, "ordinary"`) && strings.Contains(line, "__exactTaskResource(") {
+						t.Fatal("ordinary pending callable acquired generation ownership", line, r.Code)
+					}
+				}
+				if !strings.Contains(r.Code, `helperMember(store, "subscribe"`) || !strings.Contains(r.Code, `helperMember(store, "ordinary"`) {
+					t.Fatal("expected pending member calls", r.Code)
+				}
+			}
 			if !strings.Contains(r.Code, "function apply(") {
 				t.Fatal("ordinary helper binding lost", r.Code)
 			}
@@ -64,8 +88,20 @@ func TestComponentOriginalHelperMutation(t *testing.T) {
 // separately from setup-owned task activation. The selected JS body remains ordinary.
 func TestComponentOriginalImportedInvokedHelper(t *testing.T) {
 	f := newExecutableFixture(t, map[string]string{
-		"entry.ts":  `export {};`,
-		"entry.tsx": `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export function Page(this:Component<{value:number}>){this.state.value=0;async function save(task:TaskContext=TaskContext.server()){apply(this.state);return this.state.value;}return()=> <button onClick={()=>save()}>save</button>;}`,
+		"entry.ts": `export {};`,
+		"entry.tsx": `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';
+async function selected(signal?:AbortSignal){return signal?.aborted;}
+export function Page(this:Component<{value:number}>){
+	this.state.value=0;
+	async function save(task:TaskContext=TaskContext.server()){
+		apply(this.state);
+		await selected();
+		const store={subscribe(){return ()=>{};}};
+		const unsubscribe=store.subscribe();void unsubscribe;
+		return this.state.value;
+	}
+	return()=> <button onClick={()=>save()}>save</button>;
+}`,
 		"helper.ts": `export function apply(state:{value:number}){state.value=2;}`,
 		"helper.js": `/** @param {{value:number}} state */ export function apply(state){state.value=99;}`,
 	})
@@ -98,6 +134,17 @@ func TestComponentOriginalImportedInvokedHelper(t *testing.T) {
 	// through their caller-owned context and retain the later pending read.
 	if strings.Count(r.Code, ".helper(") < 2 || strings.Count(r.Code, ".read(") < 2 {
 		t.Fatal("invoked executor bypassed pending helper/read", r.Code)
+	}
+	if strings.Contains(r.Code, ".helper(selected)()") || !strings.Contains(r.Code, ".helper(selected)(") {
+		t.Fatal("invoked helper lost task cancellation", r.Code)
+	}
+	for _, line := range strings.Split(r.Code, "\n") {
+		if strings.Contains(line, `helperMember(store, "subscribe"`) && !strings.Contains(line, "__exactTaskResource(") {
+			t.Fatal("invoked helper lost subscription ownership", line, r.Code)
+		}
+	}
+	if !strings.Contains(r.Code, `helperMember(store, "subscribe"`) {
+		t.Fatal("expected invoked pending subscription", r.Code)
 	}
 }
 

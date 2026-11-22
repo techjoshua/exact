@@ -37,6 +37,12 @@ export function TaskResourceGuidance() {
 				explicitly with <code>task.own()</code>.
 			</p>
 			<p>
+				When a synchronous <code>subscribe()</code> call returns a typed cleanup function,
+				keep the function in a local binding. The same call can receive a signal when its signature
+				declares an optional <code>AbortSignal</code>. The task invokes the cleanup when that run
+				finishes or is canceled, including runs during server rendering and requests.
+			</p>
+			<p>
 				Automatic resource cleanup requires a local resource with a recognized cleanup method. Typed{' '}
 				<code>Symbol.dispose</code> and <code>Symbol.asyncDispose</code> methods are recognized
 				independently of the class name. Local aliases retain the resource's generation lifetime,

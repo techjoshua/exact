@@ -16,8 +16,24 @@ it('isolates overlapping helper owners and fences cancelled HTTP work after susp
 		'helper.ts': `export const gates=new Map<string,()=>void>();let commits='';export function committed(){return commits;}function wait(label:string){return new Promise<void>(resolve=>gates.set(label,resolve));}
  export async function apply(state:{request:string;left:{value:string}}){const label=state.request;await wait(label);state.left.value=label;commits+=label;return state.left;}`,
 		'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';import {apply} from './helper.js';export {gates,committed} from './helper.js';export const cleaned:string[]=[];
+ /** Observes each subscription's injected signal and release count. */
+ export const subscriptions = new Map<string, unknown>();
  export function Page(this:Component<{request:string;left:{value:string}}>){this.state.request='';this.state.left={value:'before'};
- async function save(task:TaskContext=TaskContext.server().parallel()){task.cleanup(()=>{void this.state.left.value;cleaned.push(this.state.request);});const result=await apply(this.state);return result.value;}
+ async function save(task:TaskContext=TaskContext.server().parallel()){
+   task.cleanup(()=>{void this.state.left.value;cleaned.push(this.state.request);});
+   const label = this.state.request;
+   const store = {
+     subscribe(key: string, signal?: AbortSignal) {
+       if (!signal) throw new Error('Missing subscription signal');
+       const subscription = { signal, releases: 0 };
+       subscriptions.set(key, subscription);
+       return () => { subscription.releases++; };
+     }
+   };
+   const unsubscribe = store.subscribe(label);
+   void unsubscribe;
+   const result=await apply(this.state);return result.value;
+ }
  return()=> <button onClick={()=>save()}>save</button>;}`
 	});
 	const artifacts = await compileProjectArtifacts([files['page.tsx']!], {
@@ -28,7 +44,8 @@ it('isolates overlapping helper owners and fences cancelled HTTP work after susp
 	const module = await importArtifact(page.serverFile, path.join(root, 'server.mjs'));
 	const gates = module.gates as Map<string, () => void>,
 		cleaned = module.cleaned as string[],
-		committed = module.committed as () => string;
+		committed = module.committed as () => string,
+		subscriptions = module.subscriptions as Map<string, { signal: AbortSignal; releases: number }>;
 	const contract = composeExactExecutorContract([module.Page as AnyComponentFunction]);
 	const [operation] = Object.values(contract.invocations);
 	expect(Object.keys(contract.invocations)).toHaveLength(1);
@@ -97,9 +114,19 @@ it('isolates overlapping helper owners and fences cancelled HTTP work after susp
 	const controller = new AbortController();
 	const cancelled = send('C', controller.signal).catch((error) => error);
 	await expect.poll(() => gates.has('C')).toBe(true);
+	const subscription = subscriptions.get('C');
+	expect(subscription?.signal.aborted).toBe(false);
+	expect(subscription?.releases).toBe(0);
 	controller.abort();
 	expect(await cancelled).toMatchObject({ name: 'AbortError' });
 	await expect.poll(() => cleaned.includes('C')).toBe(true);
+	// Request cancellation must release the subscription even while the provider is suspended.
+	await expect
+		.poll(() => ({
+			aborted: subscription?.signal.aborted,
+			releases: subscription?.releases
+		}))
+		.toEqual({ aborted: true, releases: 1 });
 	gates.get('C')!();
 	await new Promise<void>((resolve) => setImmediate(resolve));
 	expect(committed()).toBe('BA');
@@ -109,5 +136,6 @@ it('isolates overlapping helper owners and fences cancelled HTTP work after susp
 	expect(await following).toMatchObject({ ok: true, value: 'F', state: { left: { value: 'F' } } });
 	expect(committed()).toBe('BAF');
 	expect(cleaned.sort()).toEqual(['A', 'B', 'C', 'F']);
+	expect(subscription?.releases).toBe(1);
 	expect(reports).toEqual([]);
 });

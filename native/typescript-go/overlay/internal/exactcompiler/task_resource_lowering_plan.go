@@ -9,7 +9,7 @@ import (
 // invoked work. Only analyzed source sites authorize ownership or signal injection.
 type taskResourceLoweringPlan struct {
 	resources map[string]TaskResource
-	signals   map[string]TaskSignalCall
+	signals   taskSignalLowering
 	releases  map[string]taskResourceRelease
 }
 
@@ -28,7 +28,24 @@ func newTaskResourceLoweringPlan(resourcesInput []TaskResource, signalsInput []T
 	for _, call := range signalsInput {
 		signals[fmt.Sprintf("%d:%d", call.Start, call.Length)] = call
 	}
-	return taskResourceLoweringPlan{resources: resources, signals: signals, releases: releases}
+	return taskResourceLoweringPlan{resources: resources, signals: taskSignalLowering{calls: signals}, releases: releases}
+}
+
+// taskSignalLowering applies analyzed cancellation arguments inside an existing
+// pending call. The pending call still owns selection and optional short-circuiting.
+type taskSignalLowering struct {
+	calls        map[string]TaskSignalCall
+	signal       *ast.Node
+	directServer bool
+}
+
+func (signals taskSignalLowering) arguments(lowering *jsxLowering, source *ast.Node, arguments []*ast.Node) []*ast.Node {
+	if len(signals.calls) != 0 {
+		if call, exists := signals.calls[nodeSpanKey(source)]; exists {
+			return lowering.lowerTaskSignalArguments(arguments, call, signals.signal, signals.directServer)
+		}
+	}
+	return arguments
 }
 
 // lowerTaskResourceRelease relinquishes fallback ownership only after the
@@ -49,7 +66,7 @@ func (lowering *jsxLowering) lowerTaskResourceRelease(node, signal, pendingState
 		// letting either transformation bypass the other's ownership work.
 		var call *ast.Node
 		if pendingState != nil {
-			call = lowering.pendingStateOperation(node, pendingState, visitor)
+			call = lowering.pendingStateOperation(node, pendingState, visitor, plan.signals)
 		}
 		if call == nil {
 			call = visitor.VisitEachChild(node)
@@ -59,13 +76,58 @@ func (lowering *jsxLowering) lowerTaskResourceRelease(node, signal, pendingState
 	return nil
 }
 
+// lowerPendingTaskResource keeps the already-lowered acquisition and registers
+// its result when the source site has an analyzed disposal contract.
+func (lowering *jsxLowering) lowerPendingTaskResource(source, value, signal, context *ast.Node, plan taskResourceLoweringPlan) *ast.Node {
+	if !ast.IsCallExpression(source) || len(plan.resources) == 0 {
+		return value
+	}
+	if resource, exists := plan.resources[nodeSpanKey(source)]; exists && resource.Kind == "owned" {
+		return lowering.lowerOwnedTaskResource(value, signal, context, resource)
+	}
+	return value
+}
+
+// lowerOwnedTaskResource registers the evaluated value with its generation.
+// Resources with authored release sites use the context to track relinquishment.
+func (lowering *jsxLowering) lowerOwnedTaskResource(value, signal, context *ast.Node, resource TaskResource) *ast.Node {
+	arguments := []*ast.Node{signal, value}
+	if resource.Disposal != "" {
+		arguments = append(
+			arguments,
+			lowering.factory.NewStringLiteral(
+				resource.Disposal,
+				ast.TokenFlagsNone,
+			),
+		)
+	}
+	if len(resource.ReleaseCalls) != 0 {
+		arguments[0] = context
+		return lowering.taskHelperCall("ownReleasableTaskResource", lowering.names.taskReleasableResource, arguments)
+	}
+	return lowering.taskHelperCall(
+		"ownTaskResource",
+		lowering.names.taskResource,
+		arguments,
+	)
+}
+
 // lowerPlannedTaskResource supplies the same disposal and cancellation helpers
 // to every execution path without changing the authored operation's result.
 func (lowering *jsxLowering) lowerPlannedTaskResource(node, signal, context *ast.Node, visitor *ast.NodeVisitor, directServer bool, plan taskResourceLoweringPlan) *ast.Node {
-	if resource, exists := plan.resources[nodeSpanKey(node)]; exists {
+	key := nodeSpanKey(node)
+	if resource, exists := plan.resources[key]; exists {
+		if resource.Kind == "owned" {
+			// A typed acquisition may require both argument adaptation and cleanup.
+			// Lower the authored call once before registering its returned resource.
+			if call, takesSignal := plan.signals.calls[key]; takesSignal {
+				value := lowering.lowerTaskSignalCall(node, call, signal, visitor, directServer)
+				return lowering.lowerOwnedTaskResource(value, signal, context, resource)
+			}
+		}
 		return lowering.lowerTaskResource(node, resource, signal, context, visitor, directServer)
 	}
-	if call, exists := plan.signals[nodeSpanKey(node)]; exists {
+	if call, exists := plan.signals.calls[key]; exists {
 		return lowering.lowerTaskSignalCall(node, call, signal, visitor, directServer)
 	}
 	return nil
