@@ -1,7 +1,9 @@
 import { stateWriteFacts } from '../test-support/generated-contracts.js';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import type { AnyComponentFunction } from '@exactjs/core';
+import { composeExactExecutorContract, createExactContinuationHandler } from '@exactjs/server';
 import {
 	assertExactArtifactTarget,
 	compileFile,
@@ -361,7 +363,7 @@ describe('@exactjs/compiler: artifacts', () => {
 	});
 
 	it('infers a server continuation from an ordinary async component assignment', async () => {
-		const root = await createTestWorkspace('exact-inferred-async-server-');
+		const root = await createCompilerTestWorkspace('.exact-inferred-async-server-', process.cwd());
 		const input = path.join(root, 'src', 'options.tsx');
 		const outDir = path.join(root, 'dist');
 		await mkdir(path.dirname(input), { recursive: true });
@@ -393,33 +395,80 @@ describe('@exactjs/compiler: artifacts', () => {
 			rootDir: path.join(root, 'src')
 		});
 		const client = await readFile(result.clientFile, 'utf8');
-		const server = await readFile(result.serverFile, 'utf8');
-
 		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
 		expect(client).toContain('__exactDispatchContinuation');
 		expect(client).toContain('readiness: "blocking"');
-		expect(server).toContain('executors: [');
-		expect(server).toContain('getOptions(');
-		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
-		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(stateWriteFacts(server)).toContainEqual(
-			expect.objectContaining({
-				path: ['options'],
-				awaited: true,
-				activationState: true,
-				taskGuarded: true
-			})
-		);
-		expect(server).toContain('__exactServerTaskAwait');
-		expect(stateWriteFacts(server)).toContainEqual(
-			expect.objectContaining({
-				path: ['settled'],
-				value: 'true',
-				activationState: true,
-				taskGuarded: true
-			})
-		);
-		expect(server).not.toContain('__exactWriteState');
+
+		const namespace = await importArtifact(result.serverFile, path.join(root, 'server.mjs'));
+		const contract = composeExactExecutorContract([
+			namespace.ShippingOptions as AnyComponentFunction
+		]);
+		const executors = Object.values(contract.executors ?? {});
+		expect(executors).toHaveLength(1);
+		const executor = executors[0]!;
+		const execute = vi.fn(executor.execute);
+		const handler = createExactContinuationHandler(contract.invocations[executor.id]!, {
+			...executor,
+			execute
+		});
+
+		const getOptions = vi.fn<(destination: string) => Promise<string[]>>();
+		vi.stubGlobal('getOptions', getOptions);
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+		for (const { cancelled, rejection } of [
+			{ cancelled: false, rejection: false },
+			{ cancelled: false, rejection: true },
+			{ cancelled: true, rejection: false },
+			{ cancelled: true, rejection: true }
+		]) {
+			let resolve!: (value: string[]) => void;
+			let reject!: (error: Error) => void;
+			const provider = new Promise<string[]>((complete, fail) => {
+				resolve = complete;
+				reject = fail;
+			});
+			getOptions.mockClear().mockReturnValue(provider);
+
+			const state = { destination: 'first', options: ['initial'], settled: false };
+			const request = new AbortController();
+			execute.mockClear();
+			const response = handler(
+				{ type: 'invoke', id: executor.id, payload: { dependencies: ['first'] }, state },
+				{ contract, signal: request.signal }
+			);
+			onTestFinished(async () => {
+				resolve([]);
+				await response.catch(() => undefined);
+			});
+			expect(getOptions).toHaveBeenCalledExactlyOnceWith('first');
+			const [activation, execution] = execute.mock.calls[0]!;
+			const producer = execute.mock.results[0]!.value;
+
+			const failure = new Error('provider failed');
+			if (cancelled) {
+				request.abort('superseded');
+				expect(execution.signal.aborted).toBe(true);
+				await expect(response).rejects.toMatchObject({ name: 'AbortError', reason: 'superseded' });
+			}
+			if (rejection) reject(failure);
+			else resolve(['fresh']);
+
+			if (cancelled) {
+				// The frame can reject while the producer is still unwinding its catch and finally.
+				await Promise.resolve(producer).catch(() => undefined);
+				expect(activation.state).toEqual({
+					destination: 'first',
+					options: ['initial'],
+					settled: false
+				});
+			} else {
+				await expect(response).resolves.toMatchObject({
+					state: { options: rejection ? [String(failure)] : ['fresh'], settled: true }
+				});
+			}
+		}
 	});
 
 	it('keeps direct server-context dependencies out of client activation records', async () => {
