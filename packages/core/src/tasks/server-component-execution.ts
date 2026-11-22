@@ -214,6 +214,9 @@ export function createServerComponentExecutionFrame(
 		get blockingVersion() {
 			return frame.readiness.version;
 		},
+		get publicationVersion() {
+			return frame.settledContinuations.size;
+		},
 		blockingWork(transitions?: ReadonlySet<string>) {
 			return frame.readiness.wait(transitions);
 		},
@@ -270,10 +273,7 @@ export function activateServerComponentTaskForHost<Args extends unknown[], Resul
 		outputSlot(frame, port);
 		registerOutputPath(frame, path.join('.'), port);
 	}
-	const settlement = executeSlice(frame, slice, work, authored).then((result) => {
-		frame.settledContinuations.add(transitionId);
-		return result;
-	});
+	const settlement = executeSlice(frame, slice, transitionId, work, authored);
 	frame.active.push(settlement);
 	void settlement.catch(() => undefined);
 	if (slice[2] === 'blocking' || frame.options.publicationDependencies?.has(transitionId)) {
@@ -346,6 +346,7 @@ export function readServerComponentOutputForHost<T>(host: object, read: () => T)
 function executeSlice<Args extends unknown[], Result>(
 	frame: MutableServerExecutionFrame,
 	slice: ServerComponentTaskSlice,
+	transitionId: string,
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
 	authored: Args
 ): Promise<Result> {
@@ -365,13 +366,14 @@ function executeSlice<Args extends unknown[], Result>(
 			);
 	}
 	return pending.length
-		? Promise.all(pending).then(() => invokeSlice(frame, slice, work, inputs))
-		: invokeSlice(frame, slice, work, inputs);
+		? Promise.all(pending).then(() => invokeSlice(frame, slice, transitionId, work, inputs))
+		: invokeSlice(frame, slice, transitionId, work, inputs);
 }
 
 async function invokeSlice<Args extends unknown[], Result>(
 	frame: MutableServerExecutionFrame,
 	slice: ServerComponentTaskSlice,
+	transitionId: string,
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
 	inputs: Args
 ): Promise<Result> {
@@ -380,9 +382,14 @@ async function invokeSlice<Args extends unknown[], Result>(
 			frame.controller.signal,
 			frame.options.runTask,
 			work,
-			inputs
+			inputs,
+			() => {
+				for (const [port, path] of slice[1])
+					publishPort(frame, port, readPath(frame.host.state, path));
+				// Capture must observe committed state and the successful transition together.
+				frame.settledContinuations.add(transitionId);
+			}
 		);
-		for (const [port, path] of slice[1]) publishPort(frame, port, readPath(frame.host.state, path));
 		return result;
 	} catch (error) {
 		for (const [port] of slice[1]) failPort(frame, port, error);

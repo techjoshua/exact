@@ -214,7 +214,10 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	// Every setup execution route owns publication of its assigned result. The client
 	// server-continuation stub receives its write from transport instead of invoking this body.
 	if len(task.ResultWritePath) != 0 && !(lowering.target == TargetClient && task.Placement == "server") {
-		rewrittenWork = lowering.stageTaskResult(rewrittenWork, task.ResultWritePath, lowering.target != TargetServer, !lowering.synchronousPrimitiveTaskResult(task))
+		stageServerResult := directServerSlice && task.Placement == "isomorphic" &&
+			task.Readiness == "nonblocking" && !lowering.taskWorkCallsDefinition(work)
+		rewrittenWork = lowering.stageTaskResult(rewrittenWork, task.ResultWritePath,
+			lowering.target != TargetServer || stageServerResult, !lowering.synchronousPrimitiveTaskResult(task))
 	}
 	if initialization, registered := lowering.registerComponentInputUpdate(
 		task,

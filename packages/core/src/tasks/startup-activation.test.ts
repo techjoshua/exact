@@ -72,3 +72,31 @@ it('suppresses startup after restoration and releases a pending activation on di
 		activation[Symbol.dispose]();
 	}
 });
+
+it.each([false, true])(
+	'starts pending resumptions after attachment unless disposed (%s)',
+	async (disposed) => {
+		const owner = createTaskOwnerRecord('adopting-startup');
+		onTestFinished(() => owner[Symbol.asyncDispose]());
+		const host = {};
+		registerTaskOwnerHost(host, owner);
+		deferTaskOwnerActivations(owner);
+		const runs: string[] = [];
+		const observed: Promise<unknown>[] = [];
+		owner.observeSettlement = (settlement) => observed.push(settlement);
+		const work = defineTask({}, (_task: TaskContext) => runs.push('started'));
+		const activation = activateTaskOnceForHost(host, work);
+		releaseTaskOwnerActivations(
+			owner,
+			() => false,
+			() => true
+		);
+
+		expect(runs).toEqual([]);
+		if (disposed) activation[Symbol.dispose]();
+		expect(observed).toHaveLength(1);
+		await observed[0];
+		if (disposed) expect(runs).toEqual([]);
+		else await expect.poll(() => runs).toEqual(['started']);
+	}
+);

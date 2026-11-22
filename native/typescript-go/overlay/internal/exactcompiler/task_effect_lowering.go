@@ -212,7 +212,12 @@ func (lowering *jsxLowering) manageTaskWork(
 	var pendingState *ast.Node
 	// Immediate setup writes directly to its component. It has no task
 	// generation or signal against which to stage a pending transaction.
-	if mode != taskImmediateServerSetupWork && lowering.taskNeedsPendingState(task) {
+	// The browser can resume an isomorphic setup task whose server generation is
+	// still pending. Keep its state writes private until that generation succeeds.
+	stageResumableSlice := !lowering.checking && mode == taskServerSliceWork &&
+		task.Placement == "isomorphic" && task.Readiness == "nonblocking" &&
+		len(task.Writes) > 0 && !callsTaskDefinition
+	if mode != taskImmediateServerSetupWork && (stageResumableSlice || lowering.taskNeedsPendingState(task)) {
 		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
 	}
 	lowering.pendingStates = append(lowering.pendingStates, pendingState)

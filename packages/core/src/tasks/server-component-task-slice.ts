@@ -10,7 +10,8 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 	signal: AbortSignal,
 	runTask: ServerExecutionOptions['runTask'],
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
-	inputs: Args
+	inputs: Args,
+	publish?: () => void
 ): Promise<Result> {
 	if (signal.aborted) throw signal.reason;
 	const cleanups: (() => void | Promise<void>)[] = [];
@@ -90,13 +91,12 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 		throw signal.reason;
 	}
 	// Output ports read the host immediately after this slice settles.
-	if (generation) {
-		try {
-			publishTaskMutations(generation.signal);
-		} catch (error) {
-			generation.abort(error);
-			throw error;
-		}
+	try {
+		if (generation) publishTaskMutations(generation.signal);
+		publish?.();
+	} catch (error) {
+		generation?.abort(error);
+		throw error;
 	}
 	return result;
 }

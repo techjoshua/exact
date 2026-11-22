@@ -404,6 +404,12 @@ export function TasksPage(this: Component<{}>) {
 					a task holds that boundary. Both still report pending status. Awaiting a task does not
 					override its explicit loading policy.
 				</p>
+				<p>
+					A nonblocking initialization task can still be pending when the server renders the page.
+					The browser can start that task after adopting the server HTML. If the server has already
+					published the task's successful result, hydration uses the result and skips that initial
+					run.
+				</p>
 				<CodeBlock
 					source={taskSources.readinessSource}
 					language="tsx"

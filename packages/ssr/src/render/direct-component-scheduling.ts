@@ -256,6 +256,8 @@ function constructDirectScheduledSsrComponent(
 	const owner = selectedDirectSsrOwner(context, blueprint.contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let renderedVersion = -1;
+	let renderedPublication = -1;
+	const capture = options.resumptionCapture;
 	const changed = () => renderedVersion !== execution.blockingVersion;
 	const drain = (): boolean | Promise<boolean> => {
 		const pending = settleSsrReadiness(execution, options, context.maxTaskPasses);
@@ -271,6 +273,7 @@ function constructDirectScheduledSsrComponent(
 								: drain();
 						const complete = () => {
 							renderedVersion = execution.blockingVersion;
+							renderedPublication = execution.publicationVersion;
 							return execution.run(() => inComponentDomain(context, read));
 						};
 						return pending instanceof Promise ? pending.then(complete) : complete();
@@ -313,6 +316,7 @@ function constructDirectScheduledSsrComponent(
 		},
 		render: () => {
 			renderedVersion = execution.blockingVersion;
+			renderedPublication = execution.publicationVersion;
 			const started = lifecycle ? performanceNow() : 0;
 			const issued = renderIssuedServerComponentChildren(
 				context,
@@ -323,8 +327,9 @@ function constructDirectScheduledSsrComponent(
 			lifecycle?.rendered(frame, performanceNow() - started);
 			return issued;
 		},
-		drain() {
-			return drain();
+		drain,
+		publicationChanged() {
+			return capture !== undefined && renderedPublication !== execution.publicationVersion;
 		},
 		async [Symbol.asyncDispose]() {
 			let primary: unknown = noPrimaryFailure;

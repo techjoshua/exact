@@ -3,6 +3,7 @@ import {
 	releaseTaskOwnerActivations
 } from '../tasks/owner-activations.js';
 import { componentContinuationTaskId } from '../tasks/component-continuation.js';
+import type { TaskOwnerRecord } from '../tasks/frame-contracts.js';
 import { createTaskOwnerRecord, withTaskOwnerRecord } from '../tasks/frame-runtime.js';
 import { releaseTaskObserver, retainTaskObserver } from '../tasks/observers.js';
 import type { AnyComponentInstance } from './contracts.js';
@@ -35,10 +36,15 @@ const taskCapability: ComponentTaskCapability = Object.freeze({
 	},
 	resume(state: ComponentTaskCapabilityState | undefined, settled: ReadonlySet<string>): void {
 		if (!state) return;
-		releaseTaskOwnerActivations(state.owner as never, (task) => {
-			const continuationId = componentContinuationTaskId(task);
-			return continuationId !== undefined && settled.has(continuationId);
-		});
+		const owner = state.owner as TaskOwnerRecord;
+		releaseTaskOwnerActivations(
+			owner,
+			(task) => {
+				const continuationId = componentContinuationTaskId(task);
+				return continuationId !== undefined && settled.has(continuationId);
+			},
+			(task) => componentContinuationTaskId(task) !== undefined
+		);
 	},
 	retain(state: ComponentTaskCapabilityState | undefined, instance: AnyComponentInstance): void {
 		const observer = state?.observer as

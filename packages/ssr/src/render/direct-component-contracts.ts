@@ -32,6 +32,8 @@ export type DirectScheduledSsrComponent = AsyncDisposable &
 		props: Record<string, unknown>;
 		snapshot: DirectSsrComponentSnapshot;
 		render(): DirectIssuedRender | Promise<DirectIssuedRender>;
+		/** Checks for successful task publication since this attempt read its render values. */
+		publicationChanged(): boolean;
 		/** Returns whether blocking work existed and the completed output must be rendered again. */
 		drain(): boolean | Promise<boolean>;
 	}>;

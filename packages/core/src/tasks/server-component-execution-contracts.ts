@@ -13,6 +13,8 @@ export type ServerComponentExecutionFrame = AsyncDisposable &
 	Readonly<{
 		run<T>(work: () => T): T;
 		readonly blockingVersion: number;
+		/** Counts successful transitions whose state and output ports have been published. */
+		readonly publicationVersion: number;
 		/** Selects already-issued blocking work by opaque compiler transition identity. */
 		blockingWork(transitions?: ReadonlySet<string>): Promise<void> | undefined;
 		/** Request-local change token for the selected task completions. */

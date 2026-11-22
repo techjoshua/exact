@@ -119,7 +119,10 @@ independent nested operations to enter the shared bounded request scheduler imme
 
 Hydration reconstructs the durable client instance, adopts the existing DOM,
 restores public component state/context, and arms future task generations.
-Settled SSR work is not repeated merely to rediscover the same initial data.
+When a nonblocking initialization task is still pending at buffered SSR publication, the
+browser receives the fallback and can run that initialization after adoption. A successfully
+published result travels with its completion ID so hydration can skip the initial activation.
+The completion ID does not suppress later reactive activations or fresh mounts.
 
 Task placement does not contaminate indivisible component initialization placement. When
 an otherwise isomorphic component owns client tasks plus server continuations,

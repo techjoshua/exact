@@ -325,7 +325,12 @@ async function writeScheduledFrame<Publication>(
 				return publishFrame(execution, frame, html, scheduled.snapshot);
 			}
 			const readiness = scheduled.drain();
-			if (readiness instanceof Promise ? await readiness : readiness) {
+			// A successful nonblocking commit can cross the attempt while the sink is
+			// suspended. Reuse the buffered retry path without adding it to readiness.
+			if (
+				(readiness instanceof Promise ? await readiness : readiness) ||
+				(frame.resumptionToken !== undefined && scheduled.publicationChanged())
+			) {
 				if (resumptionCheckpoint !== undefined)
 					execution.options.resumptionCapture?.rollback(resumptionCheckpoint);
 				execution.context.onComponentAttemptRollback?.(renderCheckpoint);
