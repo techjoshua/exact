@@ -6024,11 +6024,7 @@ func TestSessionEmitsEmptyInvocationArgumentsAsAnArray(t *testing.T) {
 }
 
 func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:     "component.tsx",
-		Kind:   "compile",
-		Target: TargetServer,
-		Source: `
+	source := `
 			import { TaskContext } from "@exactjs/core";
 			import { readFileSync } from "node:fs";
 			declare class Component<State> { state: State }
@@ -6044,43 +6040,59 @@ func TestSessionTreatsNestedChildTaskCallsAsPlacementBoundaries(t *testing.T) {
 				) {
 					localStorage.setItem(
 						"values",
-						JSON.stringify(await Promise.all(this.state.ids.map(id => load(id))))
+						JSON.stringify(await Promise.all(INVOCATION))
 					);
 				}
 				refresh();
 				return () => <output />;
 			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 2 {
-		t.Fatalf(
-			"nested child tasks were not classified: %#v %#v",
-			response.Analysis.Tasks,
-			response.Diagnostics,
-		)
-	}
-	for _, task := range response.Analysis.Tasks {
-		if task.RequestedPlacement == "client" &&
-			(task.ServerEffects || task.EnvironmentEffect == "mixed") {
-			t.Fatalf("server child effects escaped into client parent: %#v", task)
-		}
-	}
-	if strings.Contains(response.Code, "task: TaskContext, { signal:") {
-		t.Fatalf(
-			"server task work received a second synthetic context parameter:\n%s",
-			response.Code,
-		)
-	}
-	if !strings.Contains(response.Code, "markComponentContinuationTask as") ||
-		strings.Contains(response.Code, "bindTaskForHost") ||
-		strings.Contains(response.Code, "defineTask") {
-		t.Fatalf("direct server render did not isolate invoked task executor work:\n%s", response.Code)
-	}
-	if strings.Contains(response.Code, "localStorage") {
-		t.Fatalf("client parent work escaped into the server artifact:\n%s", response.Code)
+		`
+	for _, fixture := range []struct {
+		name       string
+		invocation string
+	}{
+		{"direct", "[await load(this.state.ids[0])]"},
+		{"checked-array", "(['first', 'second'] as readonly string[]).map(id => load(id))"},
+		{"bound-state-array", "this.state.ids.map(id => load(id))"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			response := NewSession().Execute(Request{
+				ID:     "component.tsx",
+				Kind:   "compile",
+				Target: TargetServer,
+				Source: strings.Replace(source, "INVOCATION", fixture.invocation, 1),
+			})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if len(response.Diagnostics) != 0 || len(response.Analysis.Tasks) != 2 {
+				t.Fatalf(
+					"nested child tasks were not classified: %#v %#v",
+					response.Analysis.Tasks,
+					response.Diagnostics,
+				)
+			}
+			for _, task := range response.Analysis.Tasks {
+				if task.RequestedPlacement == "client" &&
+					(task.ServerEffects || task.EnvironmentEffect == "mixed") {
+					t.Fatalf("server child effects escaped into client parent: %#v", task)
+				}
+			}
+			if strings.Contains(response.Code, "task: TaskContext, { signal:") {
+				t.Fatalf(
+					"server task work received a second synthetic context parameter:\n%s",
+					response.Code,
+				)
+			}
+			if !strings.Contains(response.Code, "markComponentContinuationTask as") ||
+				strings.Contains(response.Code, "bindTaskForHost") ||
+				strings.Contains(response.Code, "defineTask") {
+				t.Fatalf("direct server render did not isolate invoked task executor work:\n%s", response.Code)
+			}
+			if strings.Contains(response.Code, "localStorage") {
+				t.Fatalf("client parent work escaped into the server artifact:\n%s", response.Code)
+			}
+		})
 	}
 }
 

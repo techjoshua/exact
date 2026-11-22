@@ -356,6 +356,12 @@ selected reference and value, so repeated loop iterations publish in their autho
 A client event sends data to a server task. For example, `save(document.title)` sends the title.
 Passing a function such as `save(() => document.title)` is a compile-time error when the compiler can identify the function at the client call site. Even an unused argument crosses the transport. This rule also applies when the client selects a function-valued default before dispatch. Supplying a data value bypasses that default. To run client code after completion, await the server task’s result and call the function locally. For updates during the operation, use a [progress reporter](#server-task-progress).
 
+A client task can call an explicitly placed server task from an inline array mapper, for example
+`await Promise.all(paths.map(path => load(path)))`. The client runs the mapper and evaluates
+each argument. Each call dispatches the server task with those values, and its result resolves
+back in the client task. Give `load` a `TaskContext.server().parallel()` policy when every item
+should complete independently. Keep server-only operations inside the server task body.
+
 An invoked server task can pass a captured prop to an ordinary helper and assign its result to component state. The executor reads the prop value supplied with that invocation. A read such as `props.title` sends only the selected title, even if another prop is a callback. To use a function-valued prop, call it on the client and send its data. Calling `props.read()` in a server task dispatched by the client would require transmitting the callback.
 
 A task can call a module helper when its module bindings are available on that task's target.

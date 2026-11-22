@@ -138,6 +138,13 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					Server tasks follow the same rule. eXact transfers the allowed inputs and validates the
 					returned state changes before applying them in the browser.
 				</p>
+				<p>
+					To load several records from a client task, call a server task for each item with
+					<code>await Promise.all(ids.map(id =&gt; load(id)))</code>. The mapper and its argument
+					expressions run in the browser. Each <code>load</code> body runs on the server and returns
+					its result to the client task. Use <code>TaskContext.server().parallel()</code> for the
+					server task when each item should complete independently.
+				</p>
 			</section>
 			<section>
 				<h2>Sequential control flow stays TypeScript</h2>

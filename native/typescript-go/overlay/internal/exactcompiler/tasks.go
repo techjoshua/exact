@@ -488,75 +488,16 @@ func taskBodyEffectSources(
 		}
 		sources = body
 	}
-	if len(caller.targets) == 0 {
-		return displayEnvironmentSources(sources)
-	}
-	targets := make(map[string]*callableFacts, len(caller.targets))
-	for _, index := range caller.targets {
-		target := &callables.facts[index]
-		targets[target.summary.ID] = target
-	}
-	children := map[string]bool{}
-	var retainedBindings []EnvironmentEffectSource
-	seenBindings := make(map[*ast.Node]bool)
-	for _, edge := range caller.summary.Calls {
-		target := targets[edge.TargetID]
-		if !edge.Resolved || target == nil || target.sourceFile != sourceFile {
-			continue
+	filtered, bindings, changed := (taskPlacementEffects{
+		analysis: callables, source: sourceFile, checker: typeChecker, policies: taskPolicyBindings, availability: availability,
+	}).project(caller, sources)
+	if !changed && task.keyOperand == nil {
+		if len(bindings) == 0 {
+			return published
 		}
-		operation := caller.fieldEdgeOperations[edge.ID]
-		if operation == nil || !ast.IsCallExpression(operation) || enclosingCallableNode(operation) != work {
-			continue
-		}
-		if _, explicit := functionTaskPolicy(target.node, sourceFile, taskPolicyBindings); !explicit {
-			if !seenBindings[operation] {
-				seenBindings[operation] = true
-				if source, retained := availability.taskCallBindingRequirement(work, operation, caller.summary.Name); retained {
-					retainedBindings = append(retainedBindings, source)
-				}
-			}
-			continue
-		}
-		summary, resolved := callables.expressionSummary(operation.Expression(), typeChecker)
-		if resolved && summary.ID == edge.TargetID {
-			children[edge.ID] = true
-		}
+		return displayEnvironmentSources(append(published, bindings...))
 	}
-	if len(children) == 0 {
-		if task.keyOperand == nil {
-			if len(retainedBindings) == 0 {
-				return published
-			}
-			return displayEnvironmentSources(append(published, retainedBindings...))
-		}
-		return displayEnvironmentSources(append(sources[:len(sources):len(sources)], retainedBindings...))
-	}
-	// A donor shared by a child and its caller stays in the caller: an eager
-	// getter can execute there even if the child body reads the same global.
-	owned := map[string]bool{}
-	key := func(source EnvironmentEffectSource) string {
-		return source.Environment + ":" + source.Description + fieldSourceIdentity(source)
-	}
-	for _, source := range caller.summary.DirectEffectSources {
-		owned[key(source)] = true
-	}
-	for _, edge := range caller.summary.Calls {
-		target := targets[edge.TargetID]
-		if !edge.Resolved || target == nil || target.progressReceiver {
-			continue
-		}
-		for _, source := range appendCallableEdgeEffectSources(nil, caller, target, edge, callables.owner) {
-			id := key(source)
-			owned[id] = owned[id] || !children[edge.ID]
-		}
-	}
-	filtered := make([]EnvironmentEffectSource, 0, len(sources))
-	for _, source := range sources {
-		if keep, recognized := owned[key(source)]; !recognized || keep {
-			filtered = append(filtered, source)
-		}
-	}
-	return displayEnvironmentSources(append(filtered, retainedBindings...))
+	return displayEnvironmentSources(append(filtered[:len(filtered):len(filtered)], bindings...))
 }
 
 func functionTaskActivationDependencies(

@@ -15,7 +15,13 @@ type callableCallEffects struct {
 // A consumer without the live installed-current callback keeps that debt; stored
 // recipes and completed source descriptions never substitute for an ACK.
 func appendCallableEdgeEffectSources(into []EnvironmentEffectSource, caller, target *callableFacts, edge CallEdge, owner *executableBodyOwner, installed ...func(*sourceInstalledMemberRequirement) bool) []EnvironmentEffectSource {
-	for _, source := range target.summary.EffectSources {
+	return appendProjectedCallableEdgeEffects(into, target.summary.EffectSources, caller, target, edge, owner, installed...)
+}
+
+// appendProjectedCallableEdgeEffects applies the same transfer to a placement
+// consumer's subset of the target summary without changing the original graph.
+func appendProjectedCallableEdgeEffects(into, sources []EnvironmentEffectSource, caller, target *callableFacts, edge CallEdge, owner *executableBodyOwner, installed ...func(*sourceInstalledMemberRequirement) bool) []EnvironmentEffectSource {
+	for _, source := range sources {
 		if transferred, covered := stagedRelativeCoercionTransfer(caller, edge, source); covered {
 			into = append(into, transferred...)
 			continue
