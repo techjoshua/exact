@@ -57,20 +57,3 @@ func TestNestedReactivePayloadKeepsCompilerLayer(t *testing.T) {
 		t.Fatalf("nested selection lost its compiler layer: %s", response.Code)
 	}
 }
-
-func TestHelperMemberComponentInputsKeepTrackedReader(t *testing.T) {
-	for _, access := range []string{"record.value", `record["value"]`, "1"} {
-		t.Run(access, func(t *testing.T) {
-			response := NewSession().Execute(Request{Kind: "compile", Target: TargetClient, ID: "helper-member-input.tsx", Source: `
-function Leaf(props:{value:number}){return()=> <i>{props.value}</i>}
-export function renderChild(record:{value:number}){return <div><Leaf value={` + access + `}/></div>}`})
-			if response.Error != "" || len(response.Diagnostics) != 0 {
-				t.Fatalf("compile: %s %#v", response.Error, response.Diagnostics)
-			}
-			closed := strings.Contains(response.Code, "[2, 0, [], 0]")
-			if closed != (access == "1") {
-				t.Fatalf("helper member input lost its complete tracked reader:\n%s", response.Code)
-			}
-		})
-	}
-}

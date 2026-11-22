@@ -1160,6 +1160,14 @@ known getter. The parser's result type does not establish that any subsequent re
 
 ### Forwarding object inputs through helpers
 
+The JSX helper that forwards a state object's member to a native child has a
+paired SDK regression for full hydration. Application and library output renders the same initial
+value and strictly adopts the SSR output. A nested mutation, object replacement
+and another nested mutation update the same child element with both named and
+indexed reads. Direct JSX follows the same updates, and a literal input stays
+fixed. This replaces the native check for a particular generated slot tuple,
+whose literal case failed even though the rendered behavior was correct.
+
 A render helper that reads a top-level field of the original component state
 facade receives that facade through its actual argument. The direct and
 substituted field reads use the same receiver proof. Replacing the state root
