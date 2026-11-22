@@ -1105,6 +1105,28 @@ known getter. The parser's result type does not establish that any subsequent re
 
 ### Forwarding object inputs through helpers
 
+The reduced Workspace render helper reads the top-level `items` field of the
+component's original state facade, passed as lexical `this` with the path
+`state`. The direct and substituted Get use the same state receiver proof.
+A replaced or exposed component instance cannot supply that proof. The read
+contributes effects coverage for that field alone. Authored getters,
+independent unknown fields and nested Gets keep their own obligations.
+The reduced application and library artifacts agree on identity, placement
+and targets. Explicit hydration adopts the SSR button, preserves the
+facade received by the helper and applies two successive clicks.
+
+Original Workspace acceptance remains open. Recheck the full direct and
+barrel routes in application and library modes, including semantic validation,
+automatic registration, SSR adoption and a live update. The original
+`filter().map()` control still reports unknown placement. The saved
+`.tmp/workspace-placement.2NdjOj/differential-effects.log` shows the first
+collection opacity at possible-element acquisition, before callback body
+consumption. Follow the first name-form `bindingPropertyAtGet` read,
+`arrayValues` wildcard handling, and the `nativeCallbackInputEffects`
+construction-opacity join. The filter result still takes the ordinary
+call-return route. Compare literal map and local filtered map before composing
+the fixes with Workspace.
+
 Theme's other color branch forwards the object input to `parseDtcgColor`, where destructuring
 and indexed reads can invoke getters. Intl passes `formatter.options` to `validateOptions`,
 which forwards it to `requireRecord`. Eager evaluation owns the read of `formatter.options`.

@@ -1217,6 +1217,10 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			return
 		}
 		if value.Kind == ast.KindThisKeyword {
+			if query.componentStateFieldRead(value, projection, name, mode) {
+				result.sourceOwned = true
+				return
+			}
 			if query.readBoundComponentProtocol(value, projection, name, mode, arguments, &result, visitMember, get, readCut) {
 				return
 			}

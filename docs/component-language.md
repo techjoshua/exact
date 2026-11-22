@@ -411,6 +411,10 @@ through a state alias. This is transparent to application code and inspection: n
 values remain deeply reactive, dynamically indexed fields remain supported, and snapshots,
 DevTools, optimistic rollback, and server resumption continue to observe an ordinary state object.
 
+A render helper can receive `this.state` and read its fields. It receives the
+component's live state object, so a view that reads a field in the helper can
+update when that field changes.
+
 ### Supported writes
 
 The compiler preserves JavaScript evaluation order and expression results for:

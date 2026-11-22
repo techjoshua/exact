@@ -125,6 +125,10 @@ export function StatePage(this: Component<{}>) {
 					changing an input updates its dependents. Nested object fields are reactive too.
 				</p>
 				<p>
+					You can pass <code>this.state</code> to a render helper. The helper receives the
+					component's live state object, and the view follows the fields the helper reads.
+				</p>
+				<p>
 					For dynamic records, expressions such as <code>Object.keys(this.state.record)</code>
 					follow added and deleted keys. A property whose value is <code>undefined</code> still
 					counts as present.
