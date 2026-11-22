@@ -614,9 +614,10 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 		return normalOutputCandidates(normalGetOutput(slot))
 	}
 	read, write := accessorEvaluationMode(node)
-	registryDataRead := read && !write && componentRegistryDataRead(node, query.owner.checker)
+	primitiveRead := read && !write && checkedPrimitiveMemberRead(node, query.owner.checker)
+	accountedRead := primitiveRead || read && !write && componentRegistryDataRead(node, query.owner.checker)
 	if slot == nil {
-		if registryDataRead {
+		if accountedRead {
 			return accessorCandidates{sourceOwned: true, valueIncomplete: true}
 		}
 		return query.accessors(node, nil, "", accessorAcquire, bindings, nil)
@@ -634,7 +635,7 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 			result = ownedResult
 			return
 		}
-		if registryDataRead {
+		if accountedRead {
 			result = accessorCandidates{sourceOwned: true, valueIncomplete: true}
 			return
 		}
@@ -678,6 +679,9 @@ func (query *sourceValueQuery) consumeNormalGet(node *ast.Node, bindings sourceV
 		slot.output.values = append(slot.output.values, sourceObservedValue{value: value, inputs: query.inputs, scope: scope})
 	}
 	slot.writeEffect = query.nativeGetWriteEffect(node, &result)
+	if primitiveRead {
+		slot.writeEffect = sourceWriteNoWrites
+	}
 	if slot.writeEffect != sourceWriteNoWrites && query.ordinaryAdapterDataGet(node, &result) {
 		slot.writeEffect = sourceWriteNoWrites
 	}
