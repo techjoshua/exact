@@ -2949,6 +2949,23 @@ Use the [necessity tests](compiler-architecture-completion-plan.md#necessity-tes
 | Setup, reactive render, callback invocation and composition (inventory and scoped earlier controls) | State readers and guarded DOM lowering need invalidation relations; context ordering needs required token origins; receipt creation/redemption needs creation origin and occurrence. Hidden required tokens lack established delivery. Optional lookup is no substitute. Registration effects and later execution have separate readers. Complete event and disposer paths, nested mounted dependency switching, cross-site keys and paired hydration ownership have no new end-to-end trace here. |
 | Public Analyze, SDK artifact selection and inspection | The paired SDK decision below consumes callable neutrality. Analyze also promises published records independently of that decision. Live inspection and all individual tooling fields have not been traced back to their producers. Suppressing their serialization has not isolated inspection-only analysis. |
 
+**Server continuation context calls.** At `7367f9922`, the direct private-context control
+passes, but the five nullable task cases and guarded-render controls fail on the first setup
+request. Pending-state lowering turns the durable receiver's `getContext` into an ordinary
+member selection before continuation reconstruction can project it through the request context.
+Keep direct context calls on the established component receiver visible to the executor.
+Request scope, activation metadata and token partitioning continue to come from the existing
+contracts. The paired SDK checks exercise SSR, setup dispatch, retained clicks, response state
+and shared context publication in an application, with a guarded library control. Destructured
+server optimistic activation and the independent inline optional-call lowering case remain
+separate acceptance items. Installed-package and adapter-specific execution remain open.
+
+The scoped native counter run reaches the pending-lane bypass and ordinary member lane, optional
+and nonoptional selection, request lookup, and shared publication. Unchecked source variants
+include a non-context method on `this`, a matching name on nested ordinary `this`, and the
+unchanged direct shared-read and private-write executor arms. Wrong-arity `Component` calls and
+a missing lookup projection have no valid source witness in this run.
+
 **Published task concurrency.** For a button invoking a component-owned function task, changing the final parameter policy from `TaskContext.client().latest()` to `TaskContext.client().queue()` must change three independently observable results. Changing only the number assigned to component state inside the queued task from 1 to 9 must preserve its concurrency. Omitting the concurrency facet on this invoked task selects parallel.
 
 | Decision | Trigger, minimum fact and stopping rule |

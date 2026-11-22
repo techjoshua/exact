@@ -183,3 +183,49 @@ run();return()=> <output>{this.state.result}</output>;
 		}
 	}
 }
+
+// TestPendingServerContinuationContextCalls retains direct component context operations
+// while ordinary member calls in the same task keep their pending receiver.
+func TestPendingServerContinuationContextCalls(t *testing.T) {
+	const source = `
+import { createContext, TaskContext, type Component } from '@exactjs/core';
+export const ServerValue = createContext<number>('server-value', { keep: 'server', scope: 'request' });
+const PublicValue = createContext<number>('public-value', { keep: 'shared' });
+function read(state: { value: number }) { return state.value; }
+export function Page(this: Component<{ value: number }>) {
+	this.state.value = 1;
+	this.setContext(PublicValue, 0);
+	async function run(task: TaskContext = TaskContext.server().blocking()) {
+		void task;
+		const reader = { getContext() { return 2; } };
+		const value = read(this.state) + this.getContext(ServerValue) + reader.getContext();
+		this.setContext(PublicValue, value);
+		this.state.value = value;
+	}
+	void run();
+	return () => <button onClick={() => run()}>{this.state.value}</button>;
+}`
+	for _, target := range []Target{TargetClient, TargetServer} {
+		t.Run(string(target), func(t *testing.T) {
+			f := newExecutableFixture(t, map[string]string{"entry.ts": "export {};", "entry.tsx": source})
+			request := f.request("compile", "entry.tsx")
+			request.Target = target
+			r := f.session.Execute(request)
+			if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) || r.Code == "" {
+				t.Fatal(r.Error, r.Diagnostics, r.Code)
+			}
+			if target == TargetClient {
+				if strings.Contains(r.Code, "server-value") {
+					t.Fatal("private token reached the client", r.Code)
+				}
+				return
+			}
+			if !strings.Contains(r.Code, `.getContext(ServerValue, "ServerValue")`) ||
+				!strings.Contains(r.Code, `["PublicValue"] = value`) ||
+				!strings.Contains(r.Code, `.helperMember(reader, "getContext",`) ||
+				strings.Contains(r.Code, `"getContext", false)(ServerValue)`) {
+				t.Fatal("context and ordinary calls lost their respective receivers", r.Code)
+			}
+		})
+	}
+}

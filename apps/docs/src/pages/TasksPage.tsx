@@ -317,9 +317,11 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<p>
 					A server task can pass a captured prop to a helper and assign the result to
-					<code>this.state</code>. It can also read server-owned contexts inside its body. A
-					parameter default that reads a server-owned context is rejected because it is captured
-					before dispatch. A shared context used only by a default is passed as the captured value.
+					<code>this.state</code>. A direct <code>this.getContext(Token)</code> read in the task
+					body uses the server context for the render or task request, including when the task
+					works with collections in state. A server-owned context read in a parameter default is
+					rejected because capture happens before dispatch. A shared context used only by a default
+					is passed as the captured value.
 					If the body also reads the context, the executor receives one shared context binding.
 					To publish shared context updates to descendants, establish the provider during component
 					setup and update it inside the task.

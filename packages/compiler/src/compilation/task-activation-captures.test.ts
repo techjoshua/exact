@@ -127,6 +127,12 @@ it.each([
 		mode: 'nullable-absent'
 	},
 	{ name: 'null server collection', statement: '', value: undefined, mode: 'nullable-null' },
+	...['null', 'optional', 'parameter', 'null-library'].map((variant) => ({
+		name: 'guarded nullable render ' + variant,
+		statement: '',
+		value: undefined,
+		mode: 'nullable-' + variant + '-guarded-render'
+	})),
 	{
 		name: 'optional null server receiver',
 		statement: '',
@@ -160,7 +166,11 @@ it.each([
 	{ name: 'unused context helper', statement: '', value: undefined, mode: 'helper-unused' }
 ])(
 	'preserves captured defaults with local helpers and server context ($name result)',
-	async ({ statement, value, mode }) => {
+	async ({ statement, value, mode: scenario }) => {
+		const guardedRender = scenario.endsWith('-guarded-render');
+		const libraryMode = scenario.includes('-library');
+		const mode = guardedRender ? scenario.replace(/(?:-library)?-guarded-render$/, '') : scenario;
+		const nullableMode = mode.startsWith('nullable-');
 		const root = await createCompilerTestWorkspace('.exact-activation-captures-', process.cwd());
 		const bindMode = mode.startsWith('bind-');
 		const entry = path.join(root, 'page.tsx');
@@ -318,7 +328,7 @@ export function readLabel(label: string) { return publish(label); }
 			source = source.replace('const read = () => this.state.revision;', helperVariants[mode]);
 		if (mode === 'helper-immediate')
 			source = source.replace(' + shared + privateValue', ' + privateValue');
-		if (mode.startsWith('nullable-'))
+		if (nullableMode)
 			source = source
 				.replace('result: number }', 'result: number;nested?:{lookup:Map<string,number>} }')
 				.replace(
@@ -358,6 +368,11 @@ export function readLabel(label: string) { return publish(label); }
 					"function readOptional(value:{lookup:Map<string,number>}|null){return value?.lookup.get('missing')??0;}\n" +
 					source;
 		}
+		if (guardedRender)
+			source = source.replace(
+				"this.state.nested?.lookup.get('result')",
+				"this.state.nested ? this.state.nested.lookup.get('result') : undefined"
+			);
 		if (mode === 'helper-state-alias')
 			source = source
 				.replace('result: number }', 'result: number;nested:{revision:number} }')
@@ -442,8 +457,7 @@ export function readLabel(label: string) { return publish(label); }
 						return { code: source };
 					}
 				: undefined,
-			packageType:
-				(receiverHelper || bindMode) && mode.endsWith('-library') ? 'library' : 'application',
+			packageType: libraryMode ? 'library' : 'application',
 			session
 		}).finally(() => session?.dispose());
 		if (bindMode) {
@@ -466,6 +480,10 @@ export function readLabel(label: string) { return publish(label); }
 		}
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		if (nullableMode) {
+			expect(client).not.toHaveProperty('CapturePrivate');
+			expect(await readFile(artifact!.clientFile, 'utf8')).not.toContain('capture-private');
+		}
 		if (mode === 'bind-shadow') {
 			const readLabel = client.readLabel as (publish: string) => string;
 			expect(readLabel('label')).toBe('label');
@@ -496,8 +514,19 @@ export function readLabel(label: string) { return publish(label); }
 		}
 		if (receiverSSR) return;
 		const contract = composeExactExecutorContract(serverComponents);
+		let providerCalls = 0;
 		const contextRuntime = createExactContextRuntime({
-			requestContexts: [[server.CapturePrivate as ContextToken<number>, { value: 7 }]]
+			requestContexts: [
+				[
+					server.CapturePrivate as ContextToken<number>,
+					{
+						create: () => {
+							providerCalls++;
+							return 7;
+						}
+					}
+				]
+			]
 		});
 		onTestFinished(() => contextRuntime.dispose());
 		const reports: unknown[] = [];
@@ -518,6 +547,10 @@ export function readLabel(label: string) { return publish(label); }
 			},
 			handle: async (request) => {
 				requests++;
+				if (nullableMode)
+					expect(JSON.stringify(decodeReactiveProtocolValue(request.body))).not.toMatch(
+						/CapturePrivate|capture-private/
+					);
 				if (receiverInteraction) {
 					const submitted = decodeReactiveProtocolValue(request.body) as { state: unknown };
 					expect(submitted.state).toEqual({ revision: requests < 5 ? 1 : 2 });
@@ -534,6 +567,7 @@ export function readLabel(label: string) { return publish(label); }
 				const fetchResponse = exactResponseToFetchResponse(response);
 				const result = decodeReactiveProtocolValue(await fetchResponse.clone().json()) as {
 					error?: string;
+					contexts?: Record<string, unknown>;
 					value?: unknown;
 					state?: {
 						result: unknown;
@@ -541,6 +575,11 @@ export function readLabel(label: string) { return publish(label); }
 				};
 				expect(response.status, JSON.stringify(result.error)).toBe(200);
 				if (receiverInteraction) expect(Number.isFinite(result.state?.result)).toBe(true);
+				if (nullableMode) {
+					const expected = [24, 24, 26, 28, 30, 31][requests - 1];
+					expect(result.state?.result).toBe(expected);
+					expect(result.contexts).toEqual({ CaptureStatus: { value: expected } });
+				}
 				expect(result.value).toBe(value === 'result' ? result.state!.result : value);
 				return response;
 			}
@@ -620,6 +659,10 @@ export function readLabel(label: string) { return publish(label); }
 		await view.action(() => run.click());
 		expect(requests).toBe(before);
 		expect(reports).toEqual([]);
+		if (nullableMode) {
+			expect(requests).toBe(6);
+			expect(providerCalls).toBe(requests);
+		}
 		if (mode === 'resource-subscription') expect(server.subscriptions).toBe(requests + 1);
 		if (resourceMode) await expect.poll(() => server.disposed).toBe(requests + 1);
 	}

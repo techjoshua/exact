@@ -68,6 +68,9 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		if ast.IsCallExpression(node) {
 			callee := node.AsCallExpression().Expression
+			if lowering.target == TargetServer && lowering.directContinuationContextCall(node, callee) {
+				return true
+			}
 			symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker)
 			// Factory results and expression-selected callables have no binding symbol.
 			// Their call signatures identify ordinary helpers whose inputs may need
@@ -188,6 +191,23 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			delete(lowering.pendingHelperCalls, call)
 		}
 	}
+}
+
+// directContinuationContextCall leaves durable receiver calls visible to the
+// executor, which projects the token through the existing request contract.
+// Ordinary receiver methods still need pending helper selection.
+func (lowering *jsxLowering) directContinuationContextCall(node, callee *ast.Node) bool {
+	if !ast.IsPropertyAccessExpression(callee) || node.Flags&ast.NodeFlagsOptionalChain != 0 {
+		return false
+	}
+	member := callee.AsPropertyAccessExpression()
+	if member.Expression.Kind != ast.KindThisKeyword {
+		return false
+	}
+	name := member.Name().Text()
+	arity := len(callArguments(node))
+	return (name == "getContext" && arity == 1 || name == "setContext" && arity == 2) &&
+		lowering.insideComponent(node)
 }
 
 func (lowering *jsxLowering) taskNeedsPendingState(task Task) bool {
