@@ -37,6 +37,45 @@ export function Page(this:Component<{label:string}>){
 	}
 }
 
+// A task can settle a Promise through the resolver saved by its eager executor.
+// A descriptor on a fresh object must leave the task's placement available.
+func TestComponentTaskSavedPromiseResolver(t *testing.T) {
+	const isolated = `Object.defineProperty({}, "Promise", {value: class Foreign{}});`
+	for _, row := range []struct {
+		name, setup, executor string
+		browser               bool
+	}{
+		{"portable", "", "", false},
+		{"isolated descriptor", isolated, "", false},
+		{"dormant browser work", isolated, "const dormant=()=>{document.title='dormant'};", false},
+		{"reached browser work", isolated, "document.title='executor';", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {type Component, TaskContext} from '@exactjs/core';
+function select(){` + row.setup + `
+	let notify:()=>void=()=>undefined;
+	void new Promise<void>(resolve=>{` + row.executor + `notify=resolve});
+	notify();
+	return 'done';
+}
+export function Page(this:Component<{label:string}>){
+	this.state.label='';
+	const run=(task:TaskContext=TaskContext.server())=>{this.state.label=select()};
+	return ()=> <button onClick={()=>run()}>{this.state.label}</button>
+}`
+			f := newPublicAwaitRequiredFixture(t, source)
+			for _, kind := range []string{"application", "library"} {
+				t.Run(kind, func(t *testing.T) {
+					request := f.request("compile", "entry.tsx")
+					request.Target, request.PackageType = TargetServer, kind
+					r := NewSession().Execute(request)
+					assertComponentCallbackPolicy(t, r, row.browser)
+				})
+			}
+		})
+	}
+}
+
 // Standard executor inputs retain their callable origin across module assignments.
 // Every initial/replacement alternative and the executor's actual body still matters.
 func TestPromiseExecutorCallableProvenance(t *testing.T) {

@@ -375,6 +375,34 @@ checks a single startup publication, strict adoption, an input change and a fres
 Nonblocking startup permits SSR fallback. Blocking startup publishes the result during SSR
 and skips replay on adoption.
 
+At `18f5da418`, a rendered task that saves the native Promise executor's resolver
+and invokes it after construction emits in application and library builds with
+explicit server placement. The portable case, an own `Promise` descriptor on a
+fresh unrelated object and a dormant browser callback all run. A browser write
+executed by the eager executor still refuses server placement and runs with
+client placement. Paired artifacts preserve executor order, deferred fulfillment
+and the fulfillment object's identity within the task. The qualified unsaved
+executor and public Await nested resolve/reject controls also pass.
+
+The historical saved-resolver aggregate concealed a separate inferred-placement
+failure. Switching the same task to inferred placement rejects the two quiet
+descriptor cases in both package modes. The unknown effect points to the original
+`Object.defineProperty` call. Removing Promise construction and the resolver call
+still reproduces it, including with a numeric descriptor value. A browser write
+in an eager class static block remains a separate known effect. Continue at the
+direct property-definition call's descriptor conversion, retaining its authored
+Has/Get and eager input effects. A correction needs an inferred task that emits
+for a quiet fresh descriptor and still keeps reached descriptor getters and
+unknown replacement inputs. The explicit-placement results leave this defect
+open.
+
+The historical global writes before and after Promise acquisition and the
+resolver's prototype adapter cases still require separate component witnesses.
+The focused return-settlement controls pass for emitted getter and finally
+ordering, child task ownership, returned versus discarded objects, and inherited
+Await receivers. Selected-import settlement and the same-owner task-status
+result alias still need independent qualification.
+
 The artifact projection family has three component-backed acceptance checks on integration
 `4e5adf90f`. An ordinary JSX helper renders a host-classified native import through a
 compiled root. The portable CommonJS consumer renders in document-free SSR and mounts

@@ -287,3 +287,60 @@ it('uses a peeked setup value without subscribing to its source', async () => {
 	expect(host.querySelector('output')).toBe(output);
 	expect(reports).toEqual([]);
 });
+
+it.each([
+	['portable', '', ''],
+	['isolated descriptor', 'Object.defineProperty({}, "Promise", {value: class Foreign{}});', ''],
+	[
+		'dormant browser work',
+		'Object.defineProperty({}, "Promise", {value: class Foreign{}});',
+		"const dormant=()=>{document.title='dormant'};"
+	],
+	[
+		'reached browser work',
+		'Object.defineProperty({}, "Promise", {value: class Foreign{}});',
+		"document.title='executor';"
+	]
+])('runs a saved Promise resolver with %s', async (name, setup, executor) => {
+	const source = (placement: 'server' | 'client') => `
+		import {type Component, TaskContext} from '@exactjs/core';
+		function select(){${setup}
+			const value={};
+			const steps:string[]=[];
+			let notify:(value:object)=>void=()=>undefined;
+			const pending=new Promise<object>(resolve=>{
+				${executor}
+				steps.push('executor');
+				notify=resolve;
+			});
+			steps.push('constructed');
+			const observed=pending.then(result=>steps.push(result===value?'same':'different'));
+			notify(value);
+			steps.push('notified');
+			return observed.then(()=>steps.join(','));
+		}
+		export function Page(this:Component<{label:string}>){
+			this.state.label='';
+			const run=async(task:TaskContext=TaskContext.${placement}())=>{this.state.label=await select()};
+			return ()=> <main><button onClick={()=>run()}>Run</button><output>{this.state.label}</output></main>
+		}`;
+	const reached = name === 'reached browser work';
+	if (reached) {
+		await expect(compilePage(source('server'))).rejects.toThrow(/browser-only globals/);
+	}
+	const title = document.title;
+	onTestFinished(() => {
+		document.title = title;
+	});
+	document.title = 'before';
+	const { host, mounted, output, reports, requests } = await hydratePage(
+		source(reached ? 'client' : 'server')
+	);
+	host.querySelector('button')!.click();
+	await expect.poll(() => output.textContent).toBe('executor,constructed,notified,same');
+	await mounted.whenSettled();
+	expect(host.querySelector('output')).toBe(output);
+	expect(requests).toHaveLength(reached ? 0 : 1);
+	expect(reports).toEqual([]);
+	expect(document.title).toBe(reached ? 'executor' : 'before');
+});
