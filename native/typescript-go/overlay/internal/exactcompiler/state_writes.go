@@ -394,8 +394,8 @@ func unsupportedStateWriteDiagnostic(node *ast.Node, message string) Diagnostic 
 	}
 }
 
-// stateWriteDynamicSegments retains authored computed keys while the public
-// analysis path uses "*" to describe their conservative state contract.
+// stateWriteDynamicSegments retains authored computed keys for lowering even
+// when the state path represents a statically known key.
 func stateWriteDynamicSegments(
 	target *ast.Node,
 	path []string,
@@ -829,13 +829,16 @@ func statePath(
 			return nil, false
 		}
 		argument := member.ArgumentExpression
-		if !ast.IsStringLiteral(argument) && !ast.IsNumericLiteral(argument) {
-			if allowBroad {
-				return append(path, "*"), true
-			}
-			return nil, false
+		if ast.IsStringLiteral(argument) || ast.IsNumericLiteral(argument) {
+			return append(path, argument.Text()), true
 		}
-		return append(path, argument.Text()), true
+		if allowBroad {
+			if key := stateLiteralKeyBinding(argument, typeChecker); key != nil {
+				return append(path, key.Text()), true
+			}
+			return append(path, "*"), true
+		}
+		return nil, false
 	case ast.IsIdentifier(node):
 		symbol := typeChecker.GetSymbolAtLocation(node)
 		if symbol == nil {
@@ -856,6 +859,30 @@ func statePath(
 	default:
 		return nil, false
 	}
+}
+
+// stateLiteralKeyBinding proves the path of a same-file const initialized by a
+// string literal. Emission still evaluates the authored subscript at the write.
+func stateLiteralKeyBinding(argument *ast.Node, typeChecker *checker.Checker) *ast.Node {
+	reference := unwrapSourceCallableReference(argument)
+	if !ast.IsIdentifier(reference) {
+		return nil
+	}
+	symbol := typeChecker.GetSymbolAtLocation(reference)
+	if symbol == nil || len(symbol.Declarations) != 1 {
+		return nil
+	}
+	declaration := symbol.Declarations[0]
+	if !ast.IsVariableDeclaration(declaration) || declaration.Parent == nil ||
+		declaration.Parent.Flags&ast.NodeFlagsConst == 0 ||
+		ast.GetSourceFileOfNode(declaration) != ast.GetSourceFileOfNode(reference) {
+		return nil
+	}
+	initializer := unwrapSourceCallableReference(declaration.Initializer())
+	if initializer != nil && ast.IsStringLiteral(initializer) {
+		return initializer
+	}
+	return nil
 }
 
 // componentAliasReceiver recognizes aliases by symbol and stops ownership at reassignment.

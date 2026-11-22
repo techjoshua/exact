@@ -375,7 +375,9 @@ collection type or assign its enclosing statically named state value. Server Map
 `null`, booleans, finite numbers, or strings. Object, Array, function, symbol, bigint and
 undefined keys cannot cross that publication boundary. When setup runs entirely on the server, a
 local task can select its write destination with an input such as `props.index`. An invokable server
-continuation needs a representable publication path on both targets. Guarded nullable containers
+continuation needs a representable publication path on both targets. A computed state key may
+refer to a same-file `const` initialized directly from a string literal, such as
+`const key = 'value'; this.state.item[key] += await load();`. Guarded nullable containers
 keep their guard inside the task body, including in named function tasks. Optional reads transport
 the short-circuit receiver. Server state inputs preserve an own `undefined` value and the numeric constants `NaN`,
 `Infinity`, `-Infinity`, and `-0` through the shared transport codec. Value-only reads of missing leaf properties are captured as `undefined`. Reads of an enclosing

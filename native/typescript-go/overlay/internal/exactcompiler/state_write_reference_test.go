@@ -26,6 +26,8 @@ func TestSelectedStateWriteSourcePaths(t *testing.T) {
 		{"delete", `delete this.state.item.optional;`},
 		{"pending", `function select(item:{value:number}){return item;}select(this.state.item);const key="value" as const;this.state.item[key]+=await Promise.resolve(2);`},
 		{"computed", `const key='value' as const;this.state.item[key]+=2;`},
+		{"mutable-key", `let key:"value"|"other"="value";if(this.state.n)key="other";this.state.item[key]+=2;`},
+		{"unknown-key", `const key=this.state.n?"value":"other";this.state.item[key]+=2;`},
 		{"await", `this.state.item.value=await Promise.resolve(2);`},
 	}
 	for _, target := range []Target{TargetClient, TargetServer} {
@@ -50,12 +52,12 @@ func TestSelectedStateWriteSourcePaths(t *testing.T) {
 					if lane == "lean" {
 						render = `run();return()=>this.state.n;`
 					}
-					source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{n:number;item:{value:number;optional?:number}}>){this.state.n=0;this.state.item={value:1};` + body + render + `}`
+					source := `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{n:number;item:{value:number;other:number;optional?:number}}>){this.state.n=0;this.state.item={value:1,other:10};` + body + render + `}`
 					response := NewSession().Execute(Request{Kind: "compile", ID: "selected-reference.tsx", Target: target, Source: source})
-					if target == TargetServer && (candidate.name == "computed" || candidate.name == "pending") && (lane == "sync" || lane == "task" || lane == "blocking") {
+					if target == TargetServer && (candidate.name == "mutable-key" || candidate.name == "unknown-key") && (lane == "sync" || lane == "task" || lane == "blocking") {
 						found := false
 						for _, diagnostic := range response.Diagnostics {
-							found = found || diagnostic.Code == "EXACT2001"
+							found = found || diagnostic.Code == "EXACT2001" && strings.Contains(diagnostic.Message, "(item.*)")
 						}
 						if !found || response.Error != "" {
 							t.Fatalf("dynamic server path lost its rejection: %#v %s", response.Diagnostics, response.Error)
@@ -66,8 +68,19 @@ func TestSelectedStateWriteSourcePaths(t *testing.T) {
 					if len(response.Analysis.StateWrites) < 3 {
 						t.Fatalf("lost mutation analysis: %#v", response.Analysis.StateWrites)
 					}
-					// A publishable scalar task must retain its operation owner even in a lean artifact.
-					if lane == "lean" && !strings.Contains(response.Code, "@exactjs/core/runtime/reactivity") {
+					if candidate.name == "computed" || candidate.name == "pending" {
+						found := false
+						for _, write := range response.Analysis.StateWrites {
+							found = found || len(write.Path) == 2 && write.Path[0] == "item" &&
+								write.Path[1] == "value" && write.DynamicSegments[1] != nil
+						}
+						if !found {
+							t.Fatalf("lost exact path or authored key: %#v", response.Analysis.StateWrites)
+						}
+					}
+					// Lean output still needs an owned write. Pending state selects its own task mutation path.
+					if lane == "lean" && !strings.Contains(response.Code, "@exactjs/core/runtime/reactivity") &&
+						!strings.Contains(response.Code, "taskMutation as") {
 						t.Fatalf("lean task omitted performed operation: %s", response.Code)
 					}
 				})

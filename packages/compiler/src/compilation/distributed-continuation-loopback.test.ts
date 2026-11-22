@@ -26,6 +26,108 @@ import { importArtifact } from '../test-support/import-artifact.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { artifactAnalysis } from './analysis-results.js';
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each(['application', 'library'] as const)(
+		'publishes an awaited compound write through a literal key binding (%s)',
+		async (packageType) => {
+			const root = await createCompilerTestWorkspace('.exact-task-computed-write-', process.cwd());
+			const source = path.join(root, 'page.tsx');
+			await writeFile(
+				source,
+				`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{item:{value:number;other:number}}>){
+ this.state.item={value:1,other:10};
+ async function prepare(task:TaskContext=TaskContext.server().blocking()){
+  function select(item:{value:number}){return item;}
+  select(this.state.item);
+  const key='value' as const;
+  this.state.item[key]+=await Promise.resolve(2);
+ }
+ async function extend(amount:number,task:TaskContext=TaskContext.server().latest()){
+  const key='value' as const;
+  this.state.item[key]+=await Promise.resolve(amount);
+ }
+ prepare();
+ return()=> <main><button data-extend onClick={()=>extend(4)}>Extend</button><button data-replace onClick={()=>extend(8)}>Replace</button><output>{this.state.item.value}:{this.state.item.other}</output></main>;
+}`
+			);
+			const compiled = await compileFileArtifacts(source, {
+				rootDir: root,
+				outDir: path.join(root, 'generated'),
+				generatedValidation: 'semantic',
+				packageType
+			});
+			const ClientPage = componentExport(
+				await importArtifact(compiled.clientFile, path.join(root, 'client.mjs')),
+				'Page'
+			);
+			const ServerPage = componentExport(
+				await importArtifact(compiled.serverFile, path.join(root, 'server.mjs')),
+				'Page'
+			);
+			const registration = composeExactComponentContracts([ClientPage], 'client');
+			const endpoint = '/__exact';
+			const server: ExactServerContext = {
+				contract: composeExactExecutorContract([ServerPage], { endpoint }),
+				invocations: {}
+			};
+			const rendered = await renderToHydratableString(
+				createCompiledComponentInputReceipt(ServerPage, {}),
+				{ endpoint, continuations: registration.continuations }
+			);
+			const container = document.createElement('div');
+			container.innerHTML = rendered.htmlWithHydration;
+			const output = container.querySelector('output')!;
+			expect(output.textContent).toBe('3:10');
+
+			const reports: unknown[] = [];
+			const requests: ExactInvocationRequest[] = [];
+			const send = loopbackFetch(server, requests);
+			let holdResponse = false;
+			let releaseResponse: (() => void) | undefined;
+			let heldSignal: AbortSignal | undefined;
+			const client = hydrate(createCompiledComponentInputReceipt(ClientPage, {}), container, {
+				...registration,
+				endpoint,
+				resumptions: rendered.resumptions,
+				onMismatch: 'throw',
+				onErrorReport: (report) => reports.push(report.error),
+				batch: false,
+				fetch: async (input, init) => {
+					const held = holdResponse;
+					holdResponse = false;
+					const response = await send(input, init);
+					if (held) {
+						heldSignal = init.signal;
+						await new Promise<void>((resolve) => {
+							releaseResponse = resolve;
+						});
+					}
+					return response;
+				}
+			});
+			onTestFinished(() => {
+				releaseResponse?.();
+				client.dispose();
+			});
+			click(container, '[data-extend]');
+			await expect.poll(() => output.textContent).toBe('7:10');
+			expect(container.querySelector('output')).toBe(output);
+			expect(requests).toHaveLength(1);
+
+			holdResponse = true;
+			click(container, '[data-extend]');
+			await expect.poll(() => releaseResponse).toBeTypeOf('function');
+			click(container, '[data-replace]');
+			await expect.poll(() => output.textContent).toBe('15:10');
+			expect(heldSignal?.aborted).toBe(true);
+			releaseResponse!();
+			await client.whenSettled();
+			expect(output.textContent).toBe('15:10');
+			expect(container.querySelector('output')).toBe(output);
+			expect(requests).toHaveLength(3);
+			expect(reports).toEqual([]);
+		}
+	);
 	it.each([
 		{ invocation: 'optimistic()', clientEffect: false },
 		{ invocation: 'helper.optimistic()', clientEffect: false },

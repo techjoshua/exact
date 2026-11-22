@@ -364,12 +364,13 @@ export function StatePage(this: Component<{}>) {
 					selects the result. An assignment retains its selected receiver across an awaited right
 					side, even if another operation replaces that receiver&apos;s parent. Computed keys keep
 					JavaScript expression and conversion order. Destructuring may mix local and state targets,
-					including defaults and rest. A server continuation still needs a statically transportable
-					write path, so publish an enclosing state value instead of a dynamic path such as{' '}
-					<code>rows[index].value</code> at that boundary. Selecting a collection dynamically, such
-					as <code>rows[index].set(key, value)</code>, has the same restriction in both named
-					function tasks and arrow tasks. During server-only setup, a local write can select its
-					destination with a prop such as <code>rows[props.index]</code>.
+					including defaults and rest. A server continuation needs a statically known write path.
+					For example, <code>const key = 'value'</code> lets a task publish a write to
+					<code>this.state.item[key]</code>. Publish an enclosing state value when the key is
+					dynamic, as in <code>rows[index].value</code> at that boundary. Selecting a collection
+					dynamically, such as <code>rows[index].set(key, value)</code>, has the same restriction in
+					both named function tasks and arrow tasks. During server-only setup, a local write can
+					select its destination with a prop such as <code>rows[props.index]</code>.
 				</p>
 				<p>
 					Array methods preserve native getter and setter behavior. When an indexed accessor could

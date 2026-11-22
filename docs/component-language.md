@@ -469,6 +469,8 @@ Fixed state aliases retain their receiver when used by a server task, including 
 local helper. Array holes create no binding and preserve the indices of later aliases. A defaulted
 binding may select independently owned storage, so it cannot authorize a server state write.
 Keep mutable fallback data in a named state field when it must participate in task publication.
+For a computed state key in a server continuation, a same-file `const` initialized directly
+from a string literal supplies a statically known path while preserving evaluation of the key.
 
 State may not be the assignment target of a `for-in` or `for-of` header. Assign
 the iteration value explicitly inside the body. Reflective mutation through
