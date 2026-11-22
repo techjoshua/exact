@@ -344,3 +344,42 @@ it.each([
 	expect(reports).toEqual([]);
 	expect(document.title).toBe(reached ? 'executor' : 'before');
 });
+
+it.each([
+	['inferred dormant value', 'latest', '() => { document.title = "dormant"; }', 'before', 0],
+	['inferred static class', 'latest', 'class { static { document.title += "!"; } }', 'before!!', 0],
+	['explicit server', 'server', 'class {}', 'before', 2]
+] as const)(
+	'publishes a task after a discarded property definition with %s',
+	async (_name, placement, value, expectedTitle, requestCount) => {
+		const title = document.title;
+		onTestFinished(() => {
+			document.title = title;
+		});
+		document.title = 'before';
+		const { host, mounted, output, reports, requests } = await hydratePage(`
+		import {type Component, TaskContext} from '@exactjs/core';
+		function select() {
+			Object.defineProperty({}, 'item', {value: ${value}});
+			return 'done';
+		}
+		export function Page(this: Component<{label: string}>) {
+			this.state.label = 'initial';
+			function run(task: TaskContext = TaskContext.${placement}()) {
+				this.state.label = select();
+			}
+			return () => <main><button onClick={() => run()}>Run</button><output>{this.state.label}</output></main>;
+		}`);
+		expect(output.textContent).toBe('initial');
+		const button = host.querySelector('button')!;
+		for (let click = 0; click < 2; click++) {
+			button.click();
+			await expect.poll(() => output.textContent).toBe('done');
+			await mounted.whenSettled();
+			expect(host.querySelector('output')).toBe(output);
+		}
+		expect(document.title).toBe(expectedTitle);
+		expect(requests).toHaveLength(requestCount);
+		expect(reports).toEqual([]);
+	}
+);

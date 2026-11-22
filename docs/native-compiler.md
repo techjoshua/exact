@@ -4211,6 +4211,16 @@ edge. The current library method candidate is a typed possible target, without a
 runtime-native callback-slot identity. Generic default donors therefore remain conservative,
 and borrowed-method length behavior is not fully modeled.
 
+A discarded direct standard `Object.defineProperty` call on a fresh `{}` can
+be placed from its operand effects when the property key is a string or numeric
+literal and the descriptor uses only noncomputed data property assignments.
+The compiler leaves the call and descriptor validation in the emitted program.
+A class static initializer still contributes its effects during argument
+evaluation. Storing a function in a data field leaves its body dormant.
+The source member reader still contributes effects from any authored prototype
+getters reached by the conversion. Other targets, custom descriptor prototypes,
+and unresolved alternatives retain their own analysis.
+
 Reflective descriptor conversion has a separate effect origin from callee selection. A generic
 function summary retains uncertainty when it lacks an actual caller prefix. An entered normal
 Call can account for that exact origin only after its target alternatives, descriptor fields,

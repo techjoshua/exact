@@ -5,6 +5,61 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
+// discardedFreshDataDescriptor identifies a direct, effects-only definition on a
+// fresh target. Its descriptor reads retain authored lookup effects without
+// requiring a normal conversion or mutation record. The eager walk evaluates
+// the original callee and all operands.
+func (q *sourceValueQuery) discardedFreshDataDescriptor(node *ast.Node, prepared sourcePreparedInvocation, result *accessorCandidates) *ast.Node {
+	if !q.dependenciesOnly || q.operation != nil || q.sourceEffects.issuer != q ||
+		q.dependencyUse != node || q.reading != node {
+		return nil
+	}
+	acquired := prepared.acquired
+	if result.opaque || result.selected || acquired.opaque || acquired.receiverIncomplete ||
+		acquired.valueIncomplete || len(acquired.values) != 1 {
+		return nil
+	}
+	native := acquired.values[0].native
+	// The acquired standard alternative supplies the algorithm. Missing
+	// external reference history does not imply a custom implementation.
+	if native == nil || native.kind != sourceNativeObjectDefineProperty {
+		return nil
+	}
+	call := node.AsCallExpression()
+	_, method := sourceLiteralMemberReference(call.Expression)
+	args := restrictedInvocationArguments(call)
+	if method != "defineProperty" || call.QuestionDotToken != nil || len(args) != 3 || q.invocationValueConsumed(node, result) {
+		return nil
+	}
+	target := unwrapSourceCallableReference(args[0])
+	descriptor := unwrapSourceCallableReference(args[2])
+	if !ast.IsObjectLiteralExpression(target) || len(target.AsObjectLiteralExpression().Properties.Nodes) != 0 ||
+		!sourceMemberKey(args[1]).resolved || !ast.IsObjectLiteralExpression(descriptor) {
+		return nil
+	}
+	for _, field := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+		if !q.charge(result, field) || !ast.IsPropertyAssignment(field) ||
+			ast.IsComputedPropertyName(field.Name()) || callableNameText(field.Name()) == "__proto__" {
+			return nil
+		}
+	}
+	return descriptor
+}
+
+// retainFreshDescriptorReads retains the original conversion's possible inherited
+// getters through the usual source member reader. Both objects are ordinary,
+// and only placement consumes this Call, so Has and value output need no frame.
+func (q *sourceValueQuery) retainFreshDescriptorReads(call, descriptor *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
+	for _, key := range reflectiveDescriptorKeys {
+		if !q.charge(result, call) {
+			return
+		}
+		get := &sourceGetInputs{operation: call, receiver: sourceValue{node: descriptor}, propertyKey: key, freshDescriptorEffects: true}
+		field := q.accessorsAtGet(descriptor, []string{key}, "", accessorRead, bindings, nil, get)
+		q.publishDescriptorMayEffects(field, result)
+	}
+}
+
 // definePropertiesCallEffects retains getter dependencies for standard property
 // definition and creation calls. It supplies neither an installed field nor a
 // completed descriptor conversion.

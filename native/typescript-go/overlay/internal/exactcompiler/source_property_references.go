@@ -540,7 +540,11 @@ func (query *sourceValueQuery) propertyReferenceEffects(get *sourceGetInputs, ke
 			result.valueIncomplete = true
 			return propertyUnknown
 		}
-		result.opaque = true
+		// A fresh descriptor's Effects-only reader already retained indexed
+		// authored alternatives. It needs no normal prototype absence result.
+		if !get.freshDescriptorEffects {
+			result.opaque = true
+		}
 		return propertyUnknown
 	}
 	presence := propertyUnknown

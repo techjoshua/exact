@@ -27,6 +27,9 @@ type sourceGetInputs struct {
 	// enumerableString is the original entries algorithm's conditional own
 	// enumerable string-key Get, separate from result and completion.
 	enumerableString bool
+	// freshDescriptorEffects permits a source-only Get of a fresh data descriptor.
+	// Indexed authored writers still contribute to the original effect query.
+	freshDescriptorEffects bool
 	// Presence is an actual HasProperty result, distinct from a Get value.
 	presence      *sourcePropertyPresence
 	propertyKey   string

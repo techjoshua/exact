@@ -205,6 +205,12 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	}
 	mergeAccessorCandidates(&result, prepared.base.candidates())
 	query.publishPendingMemberSelection(node, bindings, prepared)
+	if descriptor := query.discardedFreshDataDescriptor(node, prepared, &result); descriptor != nil {
+		query.retainFreshDescriptorReads(node, descriptor, bindings, &result)
+		complete = true
+		result.invocationOwned, result.replacedInvocation = true, true
+		return result
+	}
 	query.definePropertiesCallEffects(node, prepared, bindings, &result)
 	if consumer.callbackInputs != nil && query.dependenciesOnly {
 		consumer.callbackInputs(node, bindings, prepared, &result)

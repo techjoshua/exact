@@ -374,6 +374,11 @@ export function TasksPage(this: Component<{}>) {
 					task uses. When the compiler can trace a callback, invoking it contributes the resources
 					its body uses. This includes calling a getter saved into a local constant from a property
 					descriptor.
+					A direct <code>Object.defineProperty</code> call on a fresh empty object adds no
+					platform requirement when the result is unused, the key is a literal, and the descriptor
+					uses plain properties such as <code>{'{ value: 2 }'}</code>. Argument evaluation,
+					including class static initialization, and any authored descriptor getters still contribute
+					the resources they use.
 					A literal lane key such as <code>key("search")</code> adds no platform requirement.
 					A button can call a server task with <code>key(location.pathname)</code> because the
 					browser selects the lane before dispatch. Use an argument like a document ID when
