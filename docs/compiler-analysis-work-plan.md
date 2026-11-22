@@ -426,13 +426,15 @@ strict hydration, retains both child nodes through a parent-driven prop update,
 and observes the receiving component and its state at setup and mount.
 
 The agreed ownership boundary is JSX for independent components and ordinary
-setup helpers for shared receiver work. Audit the authored
-`EXACT_BORROWED_COMPONENT` error on direct `.call(this, …)` and
-`.apply(this, …)` with different state layouts in client and server targets,
-for both application and library builds. Positive controls cover JSX and ordinary
-helper forwarding. Rerun the paired SSR, strict hydration, mount, and prop-update
-controls from the original reproduction and validate Intl scalar presentation
-and resource release with freshly compiled client and server artifacts.
+setup helpers for shared receiver work. At `36c8aa6f1`, all eight borrowed
+`.call(this, …)` and `.apply(this, …)` cases report `EXACT_BORROWED_COMPONENT`
+at the authored call across both targets and package modes. All 16 positive
+controls compile. Five Intl formatter cases pass in both package modes with
+freshly compiled isolated wrappers, covering SSR scalar output, strict
+hydration identity, reactive updates and release on unmount. The full Intl
+build still timed out in `components.ts` after 242 seconds with a 240-second
+request deadline. Full-package and installed-island acceptance remain open.
+Preserve the timeout for the performance phase.
 
 The canonical SDK run used source and built adapters at `85cbeccc6`, native inputs equal to `2d642dc7f`, and retained runtime providers. It reported 2,535 passes, 364 failures and one skip. All 160 Time cases that failed on missing runtime entries passed on a focused rerun with the complete retained distribution. A fresh Time library compile reached the request deadline on `packages/time/src/components.ts`. The control compiler at `1b31bc5b0` reproduces native process exits in server-bundle isolation and task parameter defaults under the same SDK setup. Distributed continuation setup also failed when transforming Microfrontends.
 
