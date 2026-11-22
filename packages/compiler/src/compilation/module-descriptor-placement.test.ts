@@ -404,10 +404,38 @@ it.each([
 	await expectDescriptorPlacement(test, ['application', 'library']);
 });
 
+it.each([
+	{
+		name: 'an inert imported initializer',
+		contract: scalarContract,
+		expected: '6:true:true'
+	},
+	{
+		name: 'a browser imported initializer',
+		contract: 'export const version = document.title.length;',
+		browser: true,
+		expected: '13:true:true'
+	}
+])('renders a frozen descriptor from a separate helper with $name', async (test) => {
+	await expectDescriptorPlacement(
+		{
+			...test,
+			helper: `${frozenVersion(importVersion)}
+export function read() {
+	return [prototype[generation], Object.isFrozen(prototype), prototype[identity]].join(':');
+}`,
+			declaration: "import { read } from './helper.js';",
+			value: 'read()'
+		},
+		['application', 'library']
+	);
+});
+
 /** Compiles the same component source and logical path for each requested package type. */
 async function expectDescriptorPlacement(
 	test: {
 		declaration: string;
+		helper?: string;
 		contract?: string;
 		value: string;
 		browser?: boolean;
@@ -422,6 +450,11 @@ async function expectDescriptorPlacement(
 		`${test.declaration}\nexport function Page() { return () => <p>{${test.value}}</p>; }`
 	);
 	const sources = [entry];
+	if (test.helper) {
+		const helper = path.join(root, 'helper.ts');
+		await writeFile(helper, test.helper);
+		sources.push(helper);
+	}
 	if (test.contract) {
 		const contract = path.join(root, 'contract.ts');
 		await writeFile(contract, test.contract);

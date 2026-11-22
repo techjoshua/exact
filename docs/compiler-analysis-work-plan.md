@@ -743,6 +743,51 @@ every module declaration settle with an exact construction recipe. They cover
 rules 1, 2, 3, 4 and 6. Eager module `WeakMap#set` still reaches `EXACT2101`
 in a separate component fixture and remains open.
 
+At `30b4cba30`, the single-module descriptor batch exercised eager nested
+descriptor reads, authored key conversion, and imported initializer effects.
+The imported-helper follow-up reached the ordinary helper from a different
+component module. Both the small Symbol-keyed descriptor and the original
+map with deferred writers produced the frozen record and its scalar in
+application and library-mode project artifacts. Published library builds
+with one public component also passed. With an inert initializer, SSR
+rendered `6:true:true` and the client rendered the same value. A browser
+initializer rendered a boundary with `document` absent on the server and
+`13:true:true` on the client. The Node client export inspection received a
+fixture document. An unresolved initializer was rejected at the binding's
+own module.
+
+Independent helper compilation is still defective. The public single-file
+API and the project API given the helper and its initializer owner both
+reject the inert and browser variants with `EXACT2101` at the outer freeze.
+An unrelated component with no import of the helper changes the outcome.
+The helper then emits executable artifacts, and the unresolved initializer
+is rejected at its owner when that source is explicitly included. The
+nested allocation proof currently consults the presence of any component in
+the source owner. This is insufficient evidence of who covers the original
+descriptor operation and its module inputs.
+
+The native `TestStagedKeySourcesImportedDescriptorInput` and
+`TestStagedModuleMapActivationOriginalPartition` reproduce the independent
+compilation error. The first also requires a callable summary for an
+undemanded export. The second requires exact recipe relationships that are
+already examined by the dedicated original source queue and per-file import
+comparison. Both dedicated checks and the unrepresented-entry control pass.
+Keep the two failing checks until the emitted helper succeeds independently
+and equivalent staged delivery coverage has been verified. Removing the
+component-presence gate alone admits the native unsupported coercion and
+unresolved module-entry controls. Forcing the staged outer call through the
+ordinary module path leaves an original input contribution pending in the
+larger fixture. Acceptance still requires an occurrence-owned proof in the
+existing collector, matching helper artifacts with or without unrelated
+components, correct diagnostics for the unresolved owner, and a fresh
+native branch audit.
+
+The next distinct correctness family is eager module `WeakMap#set`. A
+component rendering `map.get(key)` after a module initializes that entry
+using a fresh WeakMap and local object key still receives `EXACT2101` at
+the eager `set`. The eventual acceptance check must render the stored value
+and preserve effects when the selected method is authored.
+
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 
 ### Acceptance by traversal rule
