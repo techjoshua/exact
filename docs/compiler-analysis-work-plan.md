@@ -327,6 +327,41 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
+**Family qualification through `bb3425ab3`**
+
+The fixed review population is the 366 failing groups in the restored-recipe
+`8c1125377` replay. Joining the matched inventory by test group to the
+`306a8d71a` failure-family qualification catalog yields 118 of its 131
+historical families. The semantic-owners catalog covers 145 of these groups
+and supplies routing labels. Count each historical family once.
+
+| Disposition from recorded evidence | Families |
+| --- | ---: |
+| Scoped family requirements verified through component controls | 3 |
+| Open with a demonstrated component defect | 2 |
+| Partial evidence with remaining qualification or replay | 4 |
+| Still needs a component witness or replay | 109 |
+
+The verified families cover receiver forwarding at the agreed component
+boundary, tracked helper-forwarded inputs, and selected Await alternatives.
+Reached descriptor invocations and later Gets or Calls on created prototypes
+still have demonstrated placement gaps in public task controls. The adversarial
+getter replacement, real Core receiver work, deferred root coverage and isolated
+Intl wrappers supply partial evidence for their respective families. The two
+demonstrated defect counts are a lower bound. Other historical failures still
+need their own dispositions, and the focused runs leave the current native
+suite total unmeasured.
+
+Track newer component findings separately. Forwarded event dispatch and
+private-context continuation lookup have scoped fixes. Standalone Workspace
+placement, destructured server optimistic activation and inline optional
+signal calls retain separate acceptance checks. For the
+[architecture roadmap](compiler-architecture-completion-plan.md#first-integrated-delivery-boundary),
+finish component and operation qualification, rebuild Core and downstream
+providers on the integrated source, and run the canonical SDK and affected
+installed-package, adapter and runtime checks. Measure normal-deadline
+performance after correctness qualification.
+
 Later focused results do not change the matched inventory totals.
 `deff9657d` replaces the failing `TestHelperMemberComponentInputsKeepTrackedReader`
 slot-tuple assertion with paired SDK hydration and retained DOM updates.
