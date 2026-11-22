@@ -276,6 +276,15 @@ against the original visit before accepting its test or performance results. If 
 design cannot express a required behavior, bring that specific conflict to the user
 before adopting another traversal.
 
+Capture and release are part of the same traversal. On descent, scope provisional
+information to the node or operation that needs it. On ascent, after accounting
+for reachable effects, discard any value detail that no remaining reader needs.
+If a later sibling, forward reference or artifact decision still needs a relationship,
+transfer the minimum fact to that owner and release the child’s temporary state.
+Release the retained fact when its last required use is resolved. A reusable
+definition summary has its own lifetime and validity rules. Review what keeps each
+fact reachable, including references from indexes, closures and caches.
+
 Use these rules together. They cover the decisions represented above and in the [requested-artifact table](#uncertainty-and-requested-artifact-decision-table). No rule requires annotating every visited node.
 
 1. **Start from the consumer.** Index declarations and bindings cheaply. Request deeper analysis from component setup, a render reader, handler, task, selected module initializer, artifact boundary or requested tooling fact. Use the checker for typing and the configured host for module selection and erasure. A declaration appearing in the source is insufficient reason to analyze its body.
