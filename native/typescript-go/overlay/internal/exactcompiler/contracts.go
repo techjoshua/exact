@@ -239,6 +239,7 @@ type EnhancementContextEffects struct {
 
 // RenderEdge describes one local component dependency authored as a JSX tag.
 type RenderEdge struct {
+	clientInputOwner         *ast.Node // Opening element of the local client render owner.
 	providerActivationInputs []string
 
 	ID              string `json:"id"`

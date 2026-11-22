@@ -80,6 +80,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					path covers TSX helpers outside component definitions.
 				</p>
 				<p>
+					A child can read a field from an object passed in JSX. When the compiler can see that a
+					setup or reactive read reaches a browser getter on an inline object, that use of the child
+					renders in the browser. The parent creates the object there. Other uses of the same child
+					can still render on the server, and a getter read only by an event handler waits for the
+					event.
+				</p>
+				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
 					once, including destructured parameters and defaults that reference earlier parameters.
 					A component can share module-level lookup tables created with <code>Object.freeze</code>

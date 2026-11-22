@@ -31,8 +31,15 @@ func indexClientElementIslands(
 			continue
 		}
 		var providerSites map[string][]string
+		var clientInputOwners map[*ast.Node]struct{}
 		if serverComponents {
 			for _, edge := range component.RenderEdges {
+				if edge.clientInputOwner != nil {
+					if clientInputOwners == nil {
+						clientInputOwners = make(map[*ast.Node]struct{})
+					}
+					clientInputOwners[edge.clientInputOwner] = struct{}{}
+				}
 				if len(edge.providerActivationInputs) > 0 {
 					if providerSites == nil {
 						providerSites = make(map[string][]string)
@@ -52,6 +59,11 @@ func indexClientElementIslands(
 					element.interactive = true
 					promotedProvider = true
 				}
+				// Even a passive parent needs to adopt the input-free placeholder
+				// and construct the receipt in its client render.
+				if _, ownsInput := clientInputOwners[element.node]; ownsInput {
+					element.interactive = true
+				}
 				owned = append(owned, element)
 			}
 		}
@@ -63,7 +75,7 @@ func indexClientElementIslands(
 			islandCapturedStateWrites(owned, candidates[componentIndex].node, stateWrites, typeChecker),
 		)
 		islands := outerClientIslandElements(owned)
-		if promotedProvider {
+		if promotedProvider || len(clientInputOwners) != 0 {
 			component.ClientIslandCount = len(islands)
 			components[componentIndex].ClientIslandCount = len(islands)
 		}

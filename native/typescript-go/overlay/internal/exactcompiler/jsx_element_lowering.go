@@ -103,6 +103,14 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		return lowering.lowerMicroComponent(tag, opening, children)
 	}
 	intrinsic := jsxIntrinsic(tagText)
+	var edge RenderEdge
+	var linked bool
+	if !intrinsic {
+		edge, linked = lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]
+	}
+	if edge.clientInputOwner != nil && lowering.target == TargetServer {
+		return lowering.clientLocalInputPlaceholder(edge)
+	}
 	partitionEdge, partitionedServerComponent := lowering.serverPartitionRangeEdge(identityNode.Pos())
 	if !intrinsic && partitionedServerComponent && lowering.target == TargetClient &&
 		lowering.serverComponents {
@@ -132,7 +140,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		// target-specific exports retain runtime authority, including SSR-capable components
 		// consumed by an owner with client lifecycle work.
 		foreign := lowering.interop != nil && !lowering.compiledNativeComponentTag(tag)
-		if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" && (edge.ComponentID != "" || foreign) {
+		if linked && edge.Placement == "client" && (edge.ComponentID != "" || foreign) {
 			if lowering.serverClientFallbackDepth > 0 {
 				arguments := []*ast.Node{lowering.props(nil, "", false, "")}
 				arguments = append(arguments, lowering.children(children)...)
@@ -302,7 +310,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	if elementHelper == lowering.names.componentReceipt {
 		if lowering.target == TargetClient && lowering.compiledNativeComponentTag(tag) {
-			if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" && edge.ComponentID != "" {
+			if linked && edge.Placement == "client" && edge.ComponentID != "" {
 				element = lowering.call(lowering.names.clientBoundaryIdentity, []*ast.Node{element, lowering.factory.NewStringLiteral(lowering.clientComponentBoundaryID(edge), ast.TokenFlagsNone)})
 			}
 		}

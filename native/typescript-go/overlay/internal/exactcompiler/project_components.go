@@ -351,6 +351,7 @@ func linkProjectComponents(
 	attachComponentInputAdoptions(project, reachable, typeChecker)
 	refreshProjectComponentEdgePlacements(reachable)
 	applyComponentInputAdoptions(project, reachable)
+	applyComponentMemberInputUses(project, reachable, componentFacts, callables, typeChecker)
 	applyComponentCallableInputs(project, reachable, typeChecker)
 	resolveProjectComponentSubgraphs(reachable, project)
 
