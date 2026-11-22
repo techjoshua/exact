@@ -663,7 +663,8 @@ Each generation receives a fresh `TaskContext`:
 
 Only the generation context’s `optimistic()` capability declares an optimistic transition.
 Ordinary functions or object methods with the same name keep their usual execution placement.
-For an invoked server task, the optimistic callback runs in the client prelude before dispatch.
+For an invoked server task, the optimistic callback runs once on the client before dispatch.
+You can call it through the task context or destructure it, including with a local name.
 It can use task inputs and outer public values or compute values within its own callback. Capturing
 a local declared in the server task body is a compile error because that local does not exist
 in the client prelude. The capability call must be a direct statement in the server task body.

@@ -12,6 +12,11 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	operation InvokedTaskOperation,
 	task Task,
 ) *ast.Node {
+	if lowering.target == TargetServer && operation.Placement == "server" {
+		// Optimistic statements belong to the client prelude. Remove them while
+		// their authored call identity is available, before pending helper lowering.
+		work = lowering.withoutTaskOptimisticStatements(work)
+	}
 	facades := &serverTaskFacadeScope{work: work}
 	frame := &mutationFrame{work: work}
 	lowering.mutationFrames = append(lowering.mutationFrames, frame)
@@ -183,11 +188,6 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	if (lowering.target == TargetServer ||
 		lowering.target == TargetDefault) &&
 		(operation.Placement == "server" || operation.Placement == "isomorphic") {
-		if lowering.target == TargetServer && operation.Placement == "server" {
-			rewrittenWork = lowering.withoutTaskOptimisticStatements(
-				rewrittenWork,
-			)
-		}
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
 			lowering.names.taskContinuation,

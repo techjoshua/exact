@@ -22,12 +22,18 @@ import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { createCompilerTestWorkspace, repositoryPath } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 it.each([
-	{
-		name: 'destructured server optimistic context',
+	...[
+		{ name: 'direct', binding: 'task', call: 'task.optimistic' },
+		{ name: 'destructured', binding: '{ optimistic }', call: 'optimistic' },
+		{ name: 'renamed parameter', binding: '{ optimistic: apply }', call: 'apply' },
+		{ name: 'body-local alias', binding: 'task', call: 'const { optimistic: apply } = task; apply' }
+	].map(({ name, binding, call }) => ({
+		name: name + ' server optimistic context',
 		statement: '',
 		value: undefined,
-		mode: 'destructured-optimistic'
-	},
+		mode: 'optimistic',
+		optimistic: { binding, call }
+	})),
 	{
 		name: 'ordinary awaited subscription result',
 		statement: '',
@@ -174,7 +180,9 @@ it.each([
 	{ name: 'unused context helper', statement: '', value: undefined, mode: 'helper-unused' }
 ])(
 	'preserves captured defaults with local helpers and server context ($name result)',
-	async ({ statement, value, mode: scenario }) => {
+	async (row) => {
+		const { statement, value, mode: scenario } = row;
+		const optimistic = 'optimistic' in row ? row.optimistic : undefined;
 		const guardedRender = scenario.endsWith('-guarded-render');
 		const libraryMode = scenario.includes('-library');
 		const mode = guardedRender ? scenario.replace(/(?:-library)?-guarded-render$/, '') : scenario;
@@ -198,11 +206,15 @@ it.each([
 			'this.state.result = result;'
 		])
 			expect(source).toContain(anchor);
-		if (mode === 'destructured-optimistic')
+		if (optimistic)
 			source = source
 				.replace('TaskContext.server().blocking()', 'TaskContext.server().latest().blocking()')
-				.replace('task: TaskContext', '{optimistic}: TaskContext')
-				.replace('void task;', 'void optimistic;optimistic(()=>{this.state.result=-1;});');
+				.replace('task: TaskContext', `${optimistic.binding}: TaskContext`)
+				.replace('void run();', '')
+				.replace(
+					'void task;',
+					`${optimistic.call}(() => { this.state.result = this.state.result - 1; });`
+				);
 		if (mode === 'ordinary-subscribe')
 			source =
 				'async function subscribe(){return 1;}\n' +
@@ -510,7 +522,7 @@ export function readLabel(label: string) { return publish(label); }
 		}
 		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
 		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
-		if (nullableMode) {
+		if (nullableMode || optimistic) {
 			expect(client).not.toHaveProperty('CapturePrivate');
 			expect(await readFile(artifact!.clientFile, 'utf8')).not.toContain('capture-private');
 		}
@@ -535,7 +547,7 @@ export function readLabel(label: string) { return publish(label); }
 		});
 		const host = document.createElement('div');
 		host.innerHTML = output.html;
-		const initialHTML = String(receiverInteraction ? 0 : initial);
+		const initialHTML = String(receiverInteraction || optimistic ? 0 : initial);
 		expect(host.querySelector('[data-result]')?.textContent).toBe(initialHTML);
 		expect(host.querySelector('[data-status]')?.textContent).toBe(initialHTML);
 		if (mode === 'resource-subscription') {
@@ -561,6 +573,7 @@ export function readLabel(label: string) { return publish(label); }
 		onTestFinished(() => contextRuntime.dispose());
 		const reports: unknown[] = [];
 		let requests = 0;
+		let firstResponse: Promise<void> | undefined;
 		host.innerHTML = '';
 		const view = await mountClientServerTest({
 			container: host,
@@ -577,7 +590,8 @@ export function readLabel(label: string) { return publish(label); }
 			},
 			handle: async (request) => {
 				requests++;
-				if (nullableMode)
+				if (firstResponse && requests === 1) await firstResponse;
+				if (nullableMode || optimistic)
 					expect(JSON.stringify(decodeReactiveProtocolValue(request.body))).not.toMatch(
 						/CapturePrivate|capture-private/
 					);
@@ -633,7 +647,27 @@ export function readLabel(label: string) { return publish(label); }
 		const run = host.querySelector<HTMLButtonElement>('[data-run]')!;
 		await view.settle();
 		expect(reports).toEqual([]);
-		await view.action(() => run.click());
+		if (optimistic) {
+			expect(requests).toBe(0);
+			expect(result?.textContent).toBe('0');
+			let releaseFirstResponse!: () => void;
+			firstResponse = new Promise<void>((resolve) => {
+				releaseFirstResponse = resolve;
+			});
+			try {
+				await view.action(() => run.click(), { settleTasks: false });
+				await expect
+					.poll(() => ({ requests, result: result?.textContent, reports }))
+					.toEqual({ requests: 1, result: '-1', reports: [] });
+				expect(status?.textContent).toBe('0');
+			} finally {
+				releaseFirstResponse();
+			}
+			await view.settle();
+			expect(requests).toBe(1);
+		} else {
+			await view.action(() => run.click());
+		}
 		await expect.poll(() => result?.textContent).toBe(String(resultAfterFirstCall));
 		if (mode === 'nullable-absent' || mode === 'nullable-null')
 			expect(host.querySelector('[data-collection]')?.textContent).toBe('');
@@ -695,10 +729,8 @@ export function readLabel(label: string) { return publish(label); }
 		await view.action(() => run.click());
 		expect(requests).toBe(before);
 		expect(reports).toEqual([]);
-		if (nullableMode) {
-			expect(requests).toBe(6);
-			expect(providerCalls).toBe(requests);
-		}
+		if (nullableMode) expect(requests).toBe(6);
+		if (nullableMode || optimistic) expect(providerCalls).toBe(requests);
 		if (mode === 'resource-subscription') expect(server.subscriptions).toBe(requests + 1);
 		if (resourceMode) await expect.poll(() => server.disposed).toBe(requests + 1);
 	}

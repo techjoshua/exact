@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestOptimisticCaptureScope(t *testing.T) {
 	for _, test := range []struct {
@@ -42,5 +45,47 @@ return()=> <button onClick={()=>load(` + argument + `)}>{this.state.value}</butt
 				}
 			})
 		}
+	}
+}
+
+// TestInvokedServerOptimisticOwnership checks the generated callback body on
+// both targets, including an ordinary helper with the same name.
+func TestInvokedServerOptimisticOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name, policyParameter, work string
+		ordinary                    bool
+	}{
+		{"direct", "task", `task.optimistic(() => { this.state.value = "ownership " + "witness"; });`, false},
+		{"destructured", "{ optimistic }", `optimistic(() => { this.state.value = "ownership " + "witness"; });`, false},
+		{"renamed parameter", "{ optimistic: apply }", `apply(() => { this.state.value = "ownership " + "witness"; });`, false},
+		{"body-local alias", "task", `const { optimistic: apply } = task; apply(() => { this.state.value = "ownership " + "witness"; });`, false},
+		{"ordinary callback", "task", `optimistic(() => { this.state.value = "ownership " + "witness"; });`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := `import { TaskContext, type Component } from "@exactjs/core";
+function optimistic(work: () => void) { work(); }
+export function Panel(this: Component<{ value: string }>) {
+ this.state.value = "initial";
+ const run = async (` + tc.policyParameter + `: TaskContext = TaskContext.server().latest()) => {
+  ` + tc.work + `
+  await Promise.resolve();
+  this.state.value = "complete";
+ };
+ return () => <button onClick={() => run()}>{this.state.value}</button>;
+}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				result := NewSession().Execute(Request{ID: "optimistic-owner.tsx", Kind: "compile", Target: target, Source: source})
+				if result.Error != "" || result.Code == "" || len(result.Diagnostics) != 0 {
+					t.Fatalf("%s compilation failed: %s %#v", target, result.Error, result.Diagnostics)
+				}
+				want := 0
+				if (target == TargetServer) == tc.ordinary {
+					want = 1
+				}
+				if count := strings.Count(result.Code, `"ownership " + "witness"`); count != want {
+					t.Fatalf("%s contains %d copies of the callback body, want %d:\n%s", target, count, want, result.Code)
+				}
+			}
+		})
 	}
 }
