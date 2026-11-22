@@ -201,3 +201,100 @@ it.each(['mount', 'hydrate'])('writes asserted computed locations in %s', async 
 	unmount(host);
 	expect(reports).toEqual([]);
 });
+
+it('resumes state initialized from published root props and optional fallbacks', async () => {
+	const root = await createCompilerTestWorkspace('.exact-root-prop-inputs-', process.cwd());
+	const files = await writeTestFiles(root, {
+		'queue.tsx': `
+import { peek, type Component } from '@exactjs/core';
+type Props = { initial?: { items: string[] }; selected: string; detail?: { label: string } };
+type State = { items: string[]; selected: string; snapshot: string };
+export function Queue(this: Component<State>, props: Props) {
+	this.state.items = props.initial?.items ?? [];
+	this.state.selected = props.selected;
+	this.state.snapshot = peek(() => props.detail?.label ?? 'missing');
+	return () => <section>
+		<button onClick={() => this.state.items.push('added')}>Add</button>
+		<output>{this.state.items.length}:{this.state.selected}:{this.state.snapshot}</output>
+	</section>;
+}
+export const queueRoot = (props: Props) => <Queue {...props} />;
+`
+	});
+	const [artifact] = await compileProjectArtifacts([files['queue.tsx']!], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+	const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+	const host = document.createElement('div');
+	onTestFinished(() => {
+		unmount(host);
+	});
+	for (const { props, count, label } of [
+		{
+			props: {
+				selected: 'chosen',
+				initial: { items: ['first'] },
+				detail: { label: 'detail' }
+			},
+			count: 1,
+			label: 'detail'
+		},
+		{ props: { selected: 'chosen' }, count: 0, label: 'missing' }
+	]) {
+		const clientRoot = client.queueRoot as (props: object) => Parameters<typeof hydrate>[0];
+		const serverRoot = server.queueRoot as (
+			props: object
+		) => Parameters<typeof renderToHydratableString>[0];
+		render(clientRoot(structuredClone(props)), host);
+		try {
+			const freshOutput = host.querySelector('output');
+			expect(freshOutput?.textContent).toBe(`${count}:chosen:${label}`);
+			host.querySelector('button')!.click();
+			flushSync();
+			expect(host.querySelector('output')).toBe(freshOutput);
+			expect(freshOutput?.textContent).toBe(`${count + 1}:chosen:${label}`);
+		} finally {
+			unmount(host);
+		}
+		const output = await renderToHydratableString(serverRoot(structuredClone(props)), {
+			publishRootProps: true
+		});
+		expect(output.resumptions).toHaveLength(1);
+		const values = output.resumptions![0]!.values;
+		expect(values).not.toHaveProperty('selected');
+		if (props.initial) expect(values).not.toHaveProperty('items');
+		else expect(values).toHaveProperty('items', []);
+		if (props.detail) expect(values).not.toHaveProperty('snapshot');
+		else expect(values).toHaveProperty('snapshot', 'missing');
+		host.innerHTML = output.html;
+		const serverOutput = host.querySelector('output');
+		const serverButton = host.querySelector('button');
+		const outcomes: string[] = [];
+		expect(serverOutput?.textContent).toBe(`${count}:chosen:${label}`);
+		const hydration = hydrate(clientRoot(structuredClone(props)), host, {
+			resumptions: output.resumptions,
+			onMismatch: 'throw',
+			onHydration: (event) => {
+				if (event.kind === 'root') outcomes.push(event.outcome);
+			},
+			onErrorReport: ({ error }) => {
+				throw error;
+			}
+		});
+		try {
+			await hydration.whenSettled();
+			expect(outcomes).toEqual(['adopted']);
+			expect(host.querySelector('output')).toBe(serverOutput);
+			expect(host.querySelector('button')).toBe(serverButton);
+			expect(host.querySelectorAll('button')).toHaveLength(1);
+			serverButton!.click();
+			flushSync();
+			expect(host.querySelector('output')).toBe(serverOutput);
+			expect(serverOutput?.textContent).toBe(`${count + 1}:chosen:${label}`);
+		} finally {
+			hydration.dispose();
+		}
+	}
+});

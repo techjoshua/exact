@@ -30,33 +30,61 @@ import * as reactRuntime from '@exactjs/react-compat/react19';
 import '../../react-dom-compat/src/renderer/native-island.js';
 import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
+import path from 'node:path';
+import { createCompilerTestWorkspace, writeTestFiles } from './test-support/workspace.js';
+import { importArtifact } from './test-support/import-artifact.js';
 import { transform } from './index.js';
 describe('compiled direct React boundary', () => {
-	it('keeps host-classified native imports on the native ABI outside component render functions', () => {
-		const compiled = transform(
-			`
-				import { Native } from './native.js';
-				import { Foreign } from 'react-widget';
-				export function mountScenarios() {
-					return <main><Native label="native" /><Foreign label="foreign" /></main>;
-				}
-			`,
+	it('renders a host-classified native import from an ordinary JSX helper', async () => {
+		const root = await createCompilerTestWorkspace('.exact-host-classification-', process.cwd());
+		const native = transform(
+			'export function Native(props: { label: string }) { return () => <output>{props.label}</output>; }',
+			{ filename: path.join(root, 'native.tsx'), target: 'client' }
+		);
+		const helper = transform(
+			`import { Native } from './native.ts';
+			 import type { RenderResult } from '@exactjs/core';
+			 export function view(label: string) { return <main><Native label={label} /></main>; }
+			 export function Probe(props: { view: RenderResult }) { return () => <>{props.view}</>; }`,
 			{
-				filename: 'client-scenarios.tsx',
+				filename: path.join(root, 'helper.tsx'),
 				target: 'client',
 				jsxInterop: {
 					adapterModule: '@exactjs/react-compat/exact',
 					adapterExport: 'adaptReactComponent',
 					cacheKey: 'react:19:classification',
-					classify: ({ sourceModule }) => (sourceModule === './native.js' ? 'exact' : 'component')
+					classify: ({ sourceModule }) => (sourceModule === './native.ts' ? 'exact' : 'unknown')
 				}
 			}
 		);
-		expect(compiled).toContain('__exactComponentReceipt(Native,');
-		expect(compiled).not.toContain('createCompiledVNode');
-		expect(compiled).toContain('component: Foreign');
-		expect(compiled).not.toContain('component: Native');
+		const files = await writeTestFiles(root, {
+			'native.ts': native,
+			'helper.tsx': helper
+		});
+		const artifact = await importArtifact(
+			files['helper.tsx']!,
+			path.join(root, 'client.mjs'),
+			{},
+			'production'
+		);
+		const view = artifact.view as (label: string) => exactCore.RenderResult;
+		const host = document.createElement('div');
+		onTestFinished(() => {
+			unmount(host);
+		});
+		render(
+			createCompiledComponentInputReceipt(artifact.Probe as exactCore.AnyComponentFunction, {
+				view: view('native')
+			}),
+			host,
+			{
+				onErrorReport: ({ error }) => {
+					throw error;
+				}
+			}
+		);
+		expect(host.querySelector('main > output')?.textContent).toBe('native');
 	});
 	it('compiles, mounts, updates, hydrates, and unmounts one mixed component', async () => {
 		const client = compileMixedApp('client');

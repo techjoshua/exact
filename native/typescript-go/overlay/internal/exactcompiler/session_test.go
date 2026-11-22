@@ -6177,53 +6177,6 @@ __fixtureTask22();
 	}
 }
 
-func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
-	response := NewSession().Execute(Request{
-		ID:     "queue.tsx",
-		Kind:   "compile",
-		Target: TargetServer,
-		Source: `
-			declare class Component<State> { state: State }
-			import { peek } from "@exactjs/core";
-			export function Queue(
-				this: Component<{ items: string[]; selected: string; snapshot: string }>,
-				props: { initial?: { items: string[] }; selected: string; detail?: { label: string } }
-			) {
-				this.state.items = props.initial?.items ?? [];
-				this.state.selected = props.selected;
-				this.state.snapshot = peek(() => props.detail?.label ?? "missing");
-				return () => <output>{this.state.items.length}:{this.state.selected}:{this.state.snapshot}</output>;
-			}
-		`,
-	})
-	if response.Error != "" {
-		t.Fatal(response.Error)
-	}
-	if len(response.Analysis.Resumptions) != 1 {
-		t.Fatalf("unexpected resumptions: %#v", response.Analysis.Resumptions)
-	}
-	inputs := response.Analysis.Resumptions[0].Client.StateInputs
-	if len(inputs) != 3 ||
-		inputs[0] != (StateInput{StatePath: "items", PropPath: "initial.items"}) ||
-		inputs[1] != (StateInput{StatePath: "selected", PropPath: "selected"}) ||
-		inputs[2] != (StateInput{StatePath: "snapshot", PropPath: "detail.label"}) {
-		t.Fatalf("unexpected state inputs: %#v resumption=%#v writes=%#v\n%s", inputs, response.Analysis.Resumptions[0], response.Analysis.StateWrites, response.Code)
-	}
-	for _, expected := range []string{
-		`stateInputs: [`,
-		`"items",`,
-		`"initial.items"`,
-		`"selected",`,
-		`"selected"`,
-		`"snapshot",`,
-		`"detail.label"`,
-	} {
-		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("server contract is missing %q:\n%s", expected, response.Code)
-		}
-	}
-}
-
 func TestSessionTagsServerContinuationWorkAndOmitsItFromClient(t *testing.T) {
 	source := `
 			import { TaskContext } from "@exactjs/core";
