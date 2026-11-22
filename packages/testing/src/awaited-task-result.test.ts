@@ -17,6 +17,7 @@ it('keeps awaited result assignments with each invoking event', async () => {
 	const runtime = createExactServerRuntime({ contract });
 	const container = document.createElement('div');
 	const errors: unknown[] = [];
+	let requests = 0;
 	const client = createExactClient(container, {
 		endpoint: '/result',
 		batch: false,
@@ -27,8 +28,9 @@ it('keeps awaited result assignments with each invoking event', async () => {
 			isEnabled: (level) => level === 'warn' || level === 'error',
 			log: (report) => errors.push(report)
 		},
-		fetch: async (_url, init) =>
-			exactResponseToFetchResponse(
+		fetch: async (_url, init) => {
+			requests++;
+			return exactResponseToFetchResponse(
 				await handleExactRequest(
 					{
 						url: 'http://test/result',
@@ -39,12 +41,13 @@ it('keeps awaited result assignments with each invoking event', async () => {
 					},
 					runtime
 				)
-			)
+			);
+		}
 	});
 	try {
 		// Returning a value grants no authority to write a caller-selected destination.
 		expect(Object.values(contract.invocations).map((invocation) => invocation.stateWrites)).toEqual(
-			[[]]
+			[[], []]
 		);
 		render(receipt(Client, {}), container, {
 			componentDomain: client.domain,
@@ -59,6 +62,21 @@ it('keeps awaited result assignments with each invoking event', async () => {
 			expect(container.querySelector('[data-right-value]')?.textContent).toBe('second')
 		);
 		expect(container.querySelector('[data-left-value]')?.textContent).toBe('first');
+		// L and R count operand gets, and T records the server-only then body.
+		const beforeSelection = requests;
+		(container.querySelector('[data-reached]') as HTMLButtonElement).click();
+		await vi.waitFor(() =>
+			expect(container.querySelector('[data-trace]')?.textContent).toBe(
+				'LRTLRTLRTLRT|known|known|known|known'
+			)
+		);
+		(container.querySelector('[data-dormant]') as HTMLButtonElement).click();
+		await vi.waitFor(() =>
+			expect(container.querySelector('[data-trace]')?.textContent).toBe(
+				'LLLL|fallback|false|fallback|fallback'
+			)
+		);
+		expect(requests - beforeSelection).toBe(2);
 		expect(errors).toEqual([]);
 	} finally {
 		client.dispose();

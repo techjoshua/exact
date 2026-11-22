@@ -58,37 +58,77 @@ return()=> <button onClick={()=>void run()}>Run</button>}`
 	}
 }
 
-// Conditional, logical and saved operands share the same selected-receiver
-// boundary. Their unknown alternative cannot remove a known environment donor.
+// An opaque sibling cannot erase a reachable Await donor, and a skipped
+// operand cannot impose its placement on the owning component task.
 func TestNormalAwaitAlternativeEffects(t *testing.T) {
-	for _, row := range []struct{ name, prefix, operand, effect string }{
-		{"conditional", "", "flag?known:foreign", "browser"},
-		{"logical-or", "", "foreign||known", "browser"},
-		{"logical-and", "", "flag&&known", "browser"},
-		{"nullish", "", "foreign??known", "browser"},
-		{"saved", "const selected=flag?known:foreign;", "selected", "browser"},
-		{"server", "", "flag?known:foreign", "server"},
+	for _, row := range []struct {
+		name, prefix, operand string
+		reachable, opaque     bool
+	}{
+		{"conditional", "", "props.useKnown?known:props.foreign", true, true},
+		{"logical-or", "", "props.foreign||known", true, true},
+		{"logical-and", "", "props.useKnown&&known", true, false},
+		{"nullish", "", "props.foreign??known", true, true},
+		{"saved", "const selected=props.useKnown?known:props.foreign;", "selected", true, true},
+		{"dormant-or", "const keep='skip';", "keep||known", false, false},
+		{"dormant-and", "const skip=false;", "skip&&known", false, false},
+		{"dormant-nullish", "const keep=0;", "keep??known", false, false},
+		{"dormant-saved", "const skip=false;const selected=skip?known:'skip';", "selected", false, false},
 	} {
-		t.Run(row.name, func(t *testing.T) {
-			value := "window.location.href"
-			if row.effect == "server" {
-				value = "process.cwd()"
+		for _, donor := range []struct {
+			environment, expression, diagnostic string
+			allowed, refused                    Target
+		}{
+			{"browser", "window.location.href", "task requests server placement but references browser-only globals", TargetClient, TargetServer},
+			{"server", "process.version", "task requests client placement but references server-only imports", TargetServer, TargetClient},
+		} {
+			placements := []Target{donor.refused}
+			if row.reachable {
+				placements = append(placements, donor.allowed)
 			}
-			source := `declare const process:{cwd():string};export async function run(flag:boolean,foreign:unknown){const known={then(resolve:(value:string)=>void){resolve(` + value + `)}};` + row.prefix + `await(` + row.operand + `)}`
-			response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/normal-await-" + row.name + ".ts", Source: source, Diagnostics: "semantic"})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
-				t.Fatal(response.Error, response.Diagnostics)
+			for _, placement := range placements {
+				t.Run(row.name+"/"+donor.environment+"/"+string(placement), func(t *testing.T) {
+					body := `const known={then(resolve:(value:string)=>void){resolve(` + donor.expression + `)}};
+` + row.prefix + `await(` + row.operand + `);this.state.label='done';`
+					f := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, placement))
+					for _, kind := range []string{"application", "library"} {
+						t.Run(kind, func(t *testing.T) {
+							request := f.request("compile", "entry.tsx")
+							request.Target, request.PackageType = placement, kind
+							response := NewSession().Execute(request)
+							if response.Error != "" || len(response.Analysis.Tasks) != 1 || len(response.Analysis.Components) != 1 || !response.Analysis.Components[0].Exported {
+								t.Fatal("exported component task missing", response.Error, response.Diagnostics)
+							}
+							task := response.Analysis.Tasks[0]
+							run := findCallable(t, response.Analysis.Callables, "run")
+							for _, sources := range [][]EnvironmentEffectSource{run.EffectSources, task.EffectSources} {
+								known, unknown := false, false
+								for _, effect := range sources {
+									known = known || effect.Environment == donor.environment
+									unknown = unknown || effect.Environment == "unknown"
+								}
+								if known != row.reachable || row.opaque && !unknown {
+									t.Fatal("incorrect Await effects", sources)
+								}
+							}
+							denied := false
+							for _, diagnostic := range response.Diagnostics {
+								if diagnostic.Severity == "error" {
+									if !strings.Contains(diagnostic.Message, donor.diagnostic) {
+										t.Fatalf("unexpected compiler error %s: %s", diagnostic.Code, diagnostic.Message)
+									}
+									denied = true
+								}
+							}
+							wantDenial := row.reachable && placement == donor.refused
+							if denied != wantDenial || (response.Code == "") != wantDenial {
+								t.Fatal("incorrect Await artifact decision", response.Diagnostics)
+							}
+						})
+					}
+				})
 			}
-			callable := findCallable(t, response.Analysis.Callables, "run")
-			known, unknown := false, false
-			for _, effect := range callable.EffectSources {
-				known = known || effect.Environment == row.effect
-				unknown = unknown || effect.Environment == "unknown"
-			}
-			if !known || !unknown {
-				t.Fatalf("Await lost known %s or unknown: %#v", row.effect, callable.EffectSources)
-			}
-		})
+		}
 	}
 }
 
@@ -449,7 +489,7 @@ func checkPublicAwaitRequiredTask(t *testing.T, session *Session, f *executableF
 func newPublicAwaitRequiredFixture(t *testing.T, source string) *executableFixture {
 	t.Helper()
 	f := newExecutableFixture(t, map[string]string{"entry.tsx": source})
-	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
+	config := `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"types":["node"],"allowJs":true,"jsx":"react-jsx","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
 	if err := os.WriteFile(f.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
 		t.Fatal(err)
 	}
