@@ -376,6 +376,14 @@ export function TasksPage(this: Component<{}>) {
 					task uses. When the compiler can trace a callback, invoking it contributes the resources
 					its body uses. This includes calling a getter saved into a local constant from a property
 					descriptor.
+				</p>
+				<p>
+					A Promise executor contributes its resource use when the Promise is constructed.
+					A call through a saved resolver can reach a thenable's getter or method. Calling an
+					own <code>call</code> or <code>apply</code> method assigned to the resolver contributes
+					the resources used by that method.
+				</p>
+				<p>
 					A direct <code>Object.defineProperty</code> call on a fresh empty object adds no
 					platform requirement when the result is unused, the key is a literal, and the descriptor
 					uses plain properties such as <code>{'{ value: 2 }'}</code>. Argument evaluation,

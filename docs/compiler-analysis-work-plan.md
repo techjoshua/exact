@@ -327,7 +327,7 @@ disjoint-getter, unknown-descriptor and Proxy controls. The first remains
 isomorphic and the other three retain browser placement. The paired SDK
 controls exercise the emitted targets and preserve the runtime distinction.
 
-**Family qualification through `65e139c80`**
+**Family qualification at the descriptor and Promise executor checkpoint**
 
 The fixed review population is the 366 failing groups in the restored-recipe
 `8c1125377` replay. Joining the matched inventory by test group to the
@@ -339,8 +339,8 @@ and supplies routing labels. Count each historical family once.
 | --- | ---: |
 | Scoped family requirements verified through component controls | 5 |
 | Open with a demonstrated component defect | 1 |
-| Partial evidence with remaining qualification or replay | 5 |
-| Still needs a component witness or replay | 107 |
+| Partial evidence with remaining qualification or replay | 6 |
+| Still needs a component witness or replay | 106 |
 
 The verified families cover receiver forwarding at the agreed component
 boundary, tracked helper-forwarded inputs, selected Await alternatives, artifact projection, and task activation and result publication.
@@ -386,21 +386,48 @@ client placement. Paired artifacts preserve executor order, deferred fulfillment
 and the fulfillment object's identity within the task. The qualified unsaved
 executor and public Await nested resolve/reject controls also pass.
 
-The historical saved-resolver aggregate concealed a separate inferred-placement
-failure. Switching the same task to inferred placement rejects the two quiet
-descriptor cases in both package modes. The unknown effect points to the original
-`Object.defineProperty` call. Removing Promise construction and the resolver call
-still reproduces it, including with a numeric descriptor value. A browser write
-in an eager class static block remains a separate known effect. Continue at the
-direct property-definition call's descriptor conversion, retaining its authored
-Has/Get and eager input effects. A correction needs an inferred task that emits
-for a quiet fresh descriptor and still keeps reached descriptor getters and
-unknown replacement inputs. The explicit-placement results leave this defect
-open.
+The inferred-placement failure in the fresh, discarded property definition
+is repaired at `e5b231f45`. The original descriptor fixture passes through the
+paired SDK in application and library mode. Dormant function values stay dormant
+and eager class static blocks execute once per click. The explicit server control
+dispatches once per click. The adjacent task-authored-member suite passes with
+the invocation-adapter changes on the same compiler. Native compilation also
+publishes isomorphic placement for the quiet definition followed by a saved
+resolver call, and retains the reached browser and opaque operand controls.
+The longer async fixture with chained `.then()` calls still needs explicit
+placement in this replay, including without any descriptor definition.
 
-The historical global writes before and after Promise acquisition and the
-resolver's prototype adapter cases still require separate component witnesses.
-The focused return-settlement controls pass for emitted getter and finally
+The Promise executor replay at `e5b231f45` covers the five groups cataloged
+as `source operation / promise`. The semantic-owners inventory routes these
+groups to Promise/await settlement and callable argument effects. Its
+`source operation / implicit` and `source operation / settlement` families
+have separate consumers and keep their dispositions.
+
+| Historical group | Focused disposition |
+| --- | --- |
+| `TestPromiseExecutorCallableProvenance` | All rows now pass, including the originally failing isolated-reflection row. The paired task checks the saved function's execution order, fulfillment identity, a dormant callback, and refusal of reached browser executor work on the server. |
+| `TestPromiseAcquisitionRetainsOrigin` | The standalone aggregate still stops on the first global self-assignment. A rendered task checks construction, saving the resolver and invoking it after reassigning the same constructor. Later historical scalar and adapter rows were not reached in this replay. |
+| `TestPromiseBuiltinContractAcrossSourceEntries` | The standalone aggregate still stops on `install(Promise)`. A rendered task checks same-constructor assignments before, during and after a qualified construction. Conforming implementations retain the standard contract, and a lexically shadowing class executes its authored constructor. |
+| `TestPromiseResolverPrototypeLookupEffects` | The standalone aggregate still stops on the direct-call row under a rewritten standard prototype. Nonconforming standard-prototype replacements are outside the agreed built-in trust policy. The unmodified direct, call and apply parity group passes independently. |
+| `TestAuthoredApplyDoesNotMaterializeNativeInputs` | The standalone aggregate still reports uncertainty. Its own replacement is an ordinary function, independent of Promise construction. The ordinary adapter qualification owns this row. |
+
+The Promise family moves to partial evidence. The focused task controls also
+cover an opaque alternate to the saved resolver, and a browser-only getter
+reached during its later settlement. An own adapter assignment inside the
+executor exposed a separate defect. The reader used a reference occurrence
+instead of the resolver's parameter origin, and the ordinary writer search
+looked for Calls without visiting the standard construction that supplied the
+resolver. Both the direct and saved paths now retain the reached replacement
+body for placement. The paired runtime case checks that the authored `apply`
+runs and leaves the argument vector’s indexed getter dormant.
+Inferred placement still reports an unresolved external Set for
+`globalThis.Promise = Promise` even when the component never constructs a
+Promise. The before, during and after controls reproduce that Set diagnostic,
+while explicit server placement preserves the authored assignments. This
+frontier belongs to external property Set analysis. The descriptor family
+remains open, and the matched suite totals are unchanged.
+
+The focused return-settlement controls cover the emitted getter and finally
 ordering, child task ownership, returned versus discarded objects, and inherited
 Await receivers. Selected-import settlement and the same-owner task-status
 result alias still need independent qualification.

@@ -150,6 +150,15 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 	if writer == readingOwner {
 		return []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: q.creators}}}
 	}
+	// A standard New invokes its executor even though the ordinary Call index
+	// has no entry for that invocation. Recover its inputs for a later read in
+	// the containing callable. The writer stays a may alternative.
+	if construction := writer.Parent; construction != nil && ast.IsNewExpression(construction) && enclosingCallableNode(construction) == readingOwner && !q.afterRead(construction) && q.promiseExecutor(construction, result) == writer {
+		if possible, _ := q.reachable(construction, bindings); possible {
+			inputs := q.promiseInputs(writer, bindings, result)
+			return []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: inputs.bindings, creators: q.creators}, incomplete: true}}
+		}
+	}
 	var alternatives []sourceMemberWriterInput
 	var collect func(*ast.Node, sourceValueBindings)
 	collect = func(call *ast.Node, bindings sourceValueBindings) {

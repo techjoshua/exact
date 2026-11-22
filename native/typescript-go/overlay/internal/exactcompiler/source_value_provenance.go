@@ -537,7 +537,15 @@ func (query *sourceValueQuery) originsInto(node *ast.Node, bindings sourceValueB
 			return values
 		}
 	}
-	values := query.liveValues(symbol, buffer.singleton(sourceValue{node: root}), root, bindings, result)
+	// A resolver's parameter is its source origin even without an active
+	// executor frame. A reference occurrence cannot match its own member writes.
+	origin := root
+	if declaration := symbol.ValueDeclaration; declaration != nil && ast.IsParameterDeclaration(declaration) {
+		if _, executor := query.promiseResolverParameter(declaration, result); executor != nil {
+			origin = declaration
+		}
+	}
+	values := query.liveValues(symbol, buffer.singleton(sourceValue{node: origin}), root, bindings, result)
 	for i := range values {
 		values[i].path = append(values[i].path, path...)
 	}

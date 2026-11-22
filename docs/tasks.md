@@ -85,6 +85,12 @@ placement requirements, including through standard `call`, `apply`, and
 `Reflect.apply`, or when invoking a function created with `bind`. Creating the
 bound function leaves the body dormant. If a local conditional selects between
 callbacks, keep the task on a target that can run the possible callbacks.
+
+A Promise executor runs during construction, and its reached operations contribute
+to task placement. A later call through a saved resolver can run a thenable's
+getter or method. If you assign an own `call` or `apply` method to the resolver,
+invoking that method contributes the resources its authored body uses.
+
 Component-local helper closures can read setup values. The activation carries those values without
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
 state, context, and placement effects. State aliases retain their selected instance state path.

@@ -288,34 +288,80 @@ it('uses a peeked setup value without subscribing to its source', async () => {
 	expect(reports).toEqual([]);
 });
 
-it.each([
-	['portable', '', ''],
-	['isolated descriptor', 'Object.defineProperty({}, "Promise", {value: class Foreign{}});', ''],
-	[
-		'dormant browser work',
-		'Object.defineProperty({}, "Promise", {value: class Foreign{}});',
-		"const dormant=()=>{document.title='dormant'};"
-	],
-	[
-		'reached browser work',
-		'Object.defineProperty({}, "Promise", {value: class Foreign{}});',
-		"document.title='executor';"
-	]
-])('runs a saved Promise resolver with %s', async (name, setup, executor) => {
+const unrelatedPromiseDescriptor = 'Object.defineProperty({}, "Promise", {value: class Foreign{}});';
+
+it.each<{
+	name: string;
+	setup?: string;
+	construction?: string;
+	executor?: string;
+	invocation?: string;
+	expected?: string;
+	title?: string;
+}>([
+	{ name: 'portable' },
+	{ name: 'isolated descriptor', setup: unrelatedPromiseDescriptor },
+	{
+		name: 'dormant browser work',
+		setup: unrelatedPromiseDescriptor,
+		executor: "const dormant=()=>{document.title='dormant'};"
+	},
+	{
+		name: 'reached browser work',
+		setup: unrelatedPromiseDescriptor,
+		executor: "document.title='executor';",
+		title: 'executor'
+	},
+	{
+		name: 'qualified acquisition across global self-assignment',
+		setup: 'globalThis.Promise=Promise;',
+		construction: "globalThis['Promise']<object>",
+		executor: 'globalThis.Promise=Promise;',
+		invocation: 'globalThis.Promise=Promise; notify(value);'
+	},
+	{
+		name: 'ordinary lexical constructor',
+		setup: `class Promise {
+			result: object | undefined;
+			constructor(executor:(resolve:(value:object)=>void)=>void) {
+				document.title='authored';
+				executor(value=>{this.result=value});
+			}
+			then<T>(observe:(value:object|undefined)=>T) {
+				return globalThis.Promise.resolve().then(()=>observe(this.result));
+			}
+		}`,
+		construction: 'Promise',
+		title: 'authored'
+	},
+	{
+		name: 'own adapter installed by the executor',
+		executor: `resolve.apply=()=>{steps.push('own'); document.title='own'; resolve(value)};`,
+		invocation: `(notify as Function).apply(undefined,{length:1,get 0(){steps.push('unexpected');return {}}});`,
+		expected: 'executor,constructed,own,notified,same',
+		title: 'own'
+	},
+	{
+		name: 'browser work in later then lookup',
+		invocation: `notify({get then(){steps.push('get'); document.title='settled'; return undefined}});`,
+		expected: 'executor,constructed,get,notified,different',
+		title: 'settled'
+	}
+])('runs a saved Promise resolver with $name', async (row) => {
 	const source = (placement: 'server' | 'client') => `
 		import {type Component, TaskContext} from '@exactjs/core';
-		function select(){${setup}
+		function select(){${row.setup ?? ''}
 			const value={};
 			const steps:string[]=[];
 			let notify:(value:object)=>void=()=>undefined;
-			const pending=new Promise<object>(resolve=>{
-				${executor}
+			const pending=new ${row.construction ?? 'Promise<object>'}(resolve=>{
+				${row.executor ?? ''}
 				steps.push('executor');
 				notify=resolve;
 			});
 			steps.push('constructed');
 			const observed=pending.then(result=>steps.push(result===value?'same':'different'));
-			notify(value);
+			${row.invocation ?? 'notify(value);'}
 			steps.push('notified');
 			return observed.then(()=>steps.join(','));
 		}
@@ -324,7 +370,7 @@ it.each([
 			const run=async(task:TaskContext=TaskContext.${placement}())=>{this.state.label=await select()};
 			return ()=> <main><button onClick={()=>run()}>Run</button><output>{this.state.label}</output></main>
 		}`;
-	const reached = name === 'reached browser work';
+	const reached = row.title !== undefined;
 	if (reached) {
 		await expect(compilePage(source('server'))).rejects.toThrow(/browser-only globals/);
 	}
@@ -337,12 +383,33 @@ it.each([
 		source(reached ? 'client' : 'server')
 	);
 	host.querySelector('button')!.click();
-	await expect.poll(() => output.textContent).toBe('executor,constructed,notified,same');
+	await expect.poll(() => output.textContent).toBe(row.expected ?? 'executor,constructed,notified,same');
 	await mounted.whenSettled();
 	expect(host.querySelector('output')).toBe(output);
 	expect(requests).toHaveLength(reached ? 0 : 1);
 	expect(reports).toEqual([]);
-	expect(document.title).toBe(reached ? 'executor' : 'before');
+	expect(document.title).toBe(row.title ?? 'before');
+});
+
+it('refuses inferred placement for an opaque alternative to a saved resolver', async () => {
+	await expect(compilePage(`
+		import {type Component, TaskContext} from '@exactjs/core';
+		declare const foreign: (value: object) => void;
+		function select(override: boolean) {
+			let notify: (value: object) => void = () => undefined;
+			void new Promise<object>(resolve => { notify = resolve; });
+			if (override) notify = foreign;
+			notify({});
+			return 'done';
+		}
+		export function Page(this: Component<{label: string}, {override: boolean}>) {
+			this.state.label = '';
+			function run(task: TaskContext = TaskContext.latest()) {
+				this.state.label = select(this.props.override);
+			}
+			return () => <button onClick={() => run()}>{this.state.label}</button>;
+		}
+	`)).rejects.toThrow(/EXACT2001: task placement depends on an opaque call/);
 });
 
 it.each([

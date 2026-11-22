@@ -76,6 +76,39 @@ export function Page(this:Component<{label:string}>){
 	}
 }
 
+// Placement follows own adapter replacements on the resolver before and after
+// the executor returns. A later write cannot change the earlier acquisition.
+func TestComponentTaskPromiseResolverOwnMethod(t *testing.T) {
+	const replacement = `(resolve as Function).call=()=>{document.title='own';resolve()};`
+	for _, row := range []struct {
+		name, helper string
+		browser      bool
+	}{
+		{"inside executor", `void new Promise<void>(resolve=>{` + replacement + `resolve.call(undefined)});`, true},
+		{"after executor", `let notify:()=>void=()=>undefined;void new Promise<void>(resolve=>{notify=resolve;` + replacement + `});notify.call(undefined);`, true},
+		{"after acquisition", `void new Promise<void>(resolve=>{resolve.call(undefined);` + replacement + `});`, false},
+		{"nonexecuted writer", `let notify:()=>void=()=>undefined;void new Promise<void>(resolve=>{notify=resolve;});if (false) void new Promise<void>(resolve=>{notify=resolve;` + replacement + `});notify.call(undefined);`, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {type Component, TaskContext} from '@exactjs/core';
+function select(){` + row.helper + `return 'done';}
+export function Page(this:Component<{label:string}>){
+	this.state.label='';
+	const run=(task:TaskContext=TaskContext.server())=>{this.state.label=select()};
+	return ()=> <button onClick={()=>run()}>{this.state.label}</button>
+}`
+			fixture := newPublicAwaitRequiredFixture(t, source)
+			for _, kind := range []string{"application", "library"} {
+				t.Run(kind, func(t *testing.T) {
+					request := fixture.request("compile", "entry.tsx")
+					request.Target, request.PackageType = TargetServer, kind
+					assertComponentCallbackPolicy(t, NewSession().Execute(request), row.browser)
+				})
+			}
+		})
+	}
+}
+
 // Standard executor inputs retain their callable origin across module assignments.
 // Every initial/replacement alternative and the executor's actual body still matters.
 func TestPromiseExecutorCallableProvenance(t *testing.T) {

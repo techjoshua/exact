@@ -1521,7 +1521,9 @@ inputs, callable thenables and unaccounted construction retain uncertainty. Thes
 do not certify the fulfilled object's fields or lifetime. Reject does not assimilate its argument. Argument evaluation still runs
 for both functions. Direct calls, `call` and `apply` share the ordinary invocation plan, including
 `apply`'s length and indexed Gets even when a formal is unused. Authored replacement methods keep
-their raw arguments.
+their raw arguments. Task placement follows an own resolver method reached during the
+executor or after the resolver is saved. The method assignment itself leaves the
+replacement body dormant.
 
 Normal Await selects each original receiver alternative before its implicit `then` Get. Conditional,
 logical and saved operands retain known then-body environment and state dependencies alongside

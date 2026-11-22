@@ -637,7 +637,7 @@ func (query *sourceValueQuery) accessorsAtGetOutput(receiver *ast.Node, path []s
 			}
 			return
 		}
-		if query.sourceCallableImplementation(value, &result) && (len(projection) > 0 || name != "") {
+		if !ast.IsIdentifier(value) && (len(projection) > 0 || name != "") && query.sourceCallableImplementation(value, &result) {
 			result.sourceCallable = true
 			actualGet := get
 			if actualGet == nil && query.protectedMember != nil && mode == accessorAcquire && len(projection) == 1 && name == "" {
