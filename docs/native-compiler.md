@@ -1379,6 +1379,18 @@ unavailable, eager module execution remains unknown and receives `EXACT2101`. St
 callable without invoking it does not execute its body. Known source alternatives still contribute
 their own requirements alongside the unresolved alternative.
 
+A private module binding created with `new WeakMap()` can populate entries
+with direct `map.set(key, value)` calls and render them through `map.get(key)`.
+The compiler keeps the source operations and leaves matching key identity
+and the stored value to JavaScript. An ordinary assignment to the map's own
+`set` property keeps the authored method and its effects. A browser-only
+module write also requires the rendering component to use a client boundary,
+so the server can omit the write without rendering a different lookup result.
+This placement path uses private receivers with direct calls and simple
+assignments to `set`. The calls use ordinary arguments and discard the
+result of `set`. Aliased or escaped receivers and unresolved methods retain
+their ordinary analysis requirements.
+
 A build adapter can retain an opaque initializer in an ordinary host module.
 When a retained opaque invocation has an independently known browser or server
 requirement, the opposite target still receives `EXACT2101`. For example, passing

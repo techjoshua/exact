@@ -79,7 +79,7 @@ func propagateComponentSurfacePlans(sourceFile *ast.SourceFile, components []Com
 			}
 			for _, edge := range fact.summary.Calls {
 				target, exists := factsByID[edge.TargetID]
-				if !edge.Resolved || !exists {
+				if !edge.Resolved || !exists || len(edge.ReceiverBindings) == 0 {
 					continue
 				}
 				forwarded := forwardedComponentReceiver(fact, receiver, edge, callables.facts[target].node, typeChecker)

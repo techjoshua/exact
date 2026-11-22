@@ -125,7 +125,8 @@ func (q *sourceValueQuery) publishStandardConstruction(site *ast.Node, bindings 
 }
 
 func (q *sourceValueQuery) standardConstructionMember(demand sourceConstructedMemberDemand, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), visitOrigins func([]sourceValue, []string, bool)) bool {
-	if q.executable == nil || q.inputs != nil || q.operation != nil || len(bindings) != 0 || len(q.creators) != 0 || demand.mode != accessorAcquire && (demand.mode != accessorSet|accessorNoGet || q.liveStagedAssignment() == nil) {
+	direct := q.directWeakMapOperation(demand.mode)
+	if q.executable == nil || q.inputs != nil || q.operation != nil || len(bindings) != 0 || len(q.creators) != 0 || !direct && demand.mode != accessorAcquire && (demand.mode != accessorSet|accessorNoGet || q.liveStagedAssignment() == nil) {
 		return false
 	}
 	// Iterable/constructor arguments may carry independent callable donors.
@@ -151,10 +152,10 @@ func (q *sourceValueQuery) standardConstructionMember(demand sourceConstructedMe
 	if b := q.stagedMember; b != nil && b.constructedGetEffects != nil && b.transferredGet != nil && b.transferredGet.receiver.node == contribution.site && q.takeStagedMemberGetTransfer(b.transferredGet) {
 		return true // The exact original Get Effects loan owns this continuation.
 	}
-	// The original selected allocation owns this Set receiver branch. Its
-	// member traversal retained every actual source/refusal above; it supplies
-	// no result value and does not need a constructor implementation fallback.
-	return demand.mode == accessorSet|accessorNoGet && contribution.selectionComplete
+	// The selected allocation accounts for this receiver branch. Own writers
+	// and independent refusals stay on the original member traversal.
+	return contribution.selectionComplete && (demand.mode == accessorSet|accessorNoGet && q.liveStagedAssignment() != nil ||
+		direct && q.moduleWeakMapBinding(contribution.site, q.protectedMember) != nil)
 }
 
 func (q *sourceValueQuery) standardConstructionMemberSeed(value sourceValue, key string) (*ast.Node, sourceValue, bool) {

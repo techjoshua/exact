@@ -144,6 +144,13 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				binding, the diagnostic can point to that binding in the helper.
 			</p>
 			<p>
+				You can populate a private module-level <code>WeakMap</code> created with no
+				constructor arguments using <code>map.set(key, value)</code>. When a component
+				renders an entry with <code>map.get(key)</code>, JavaScript matches the key by
+				identity. If evaluating the key or value for the write reads <code>document</code>,
+				the server renders a client boundary for the component.
+			</p>
+			<p>
 				Binding a function captures its receiver and leading arguments. Its body contributes to
 				placement when the bound function is called, including when a helper returns it to a task.
 				If code conditionally replaces a function’s <code>bind</code> method, both possible

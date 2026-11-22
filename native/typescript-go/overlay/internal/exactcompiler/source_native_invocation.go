@@ -13,6 +13,11 @@ func (query *sourceValueQuery) consumeNativeInvocation(node *ast.Node, value sou
 		result.opaque, result.valueIncomplete = true, true
 		return
 	}
+	if query.ordinaryWeakMapMemberEffects(node, value) {
+		query.retainWeakMapModuleWrites(node, value, result)
+		result.valueIncomplete = true
+		return
+	}
 	if value.native.kind == sourceNativeArrayPush {
 		if consumer.arrayPush != nil {
 			query.withActiveInvocation(node, func() { consumer.arrayPush(node, value, bindings, result) })

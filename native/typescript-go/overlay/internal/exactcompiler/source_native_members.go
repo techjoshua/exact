@@ -467,7 +467,7 @@ func (query *sourceValueQuery) nativeMemberKeyAtGet(value sourceValue, projectio
 	// No native implementation body is needed to retain this alternative, and
 	// no normal result or descriptor premise is supplied by the candidate.
 	var standard *sourceValue
-	if mode == accessorAcquire || mode == accessorSet|accessorNoGet && value.native.kind == sourceNativeWeakMapSourceInstance && query.liveStagedAssignment() != nil {
+	if mode == accessorAcquire || query.ordinaryWeakMapLookup(get, seed, mode) || mode == accessorSet|accessorNoGet && value.native.kind == sourceNativeWeakMapSourceInstance && query.liveStagedAssignment() != nil {
 		standard = &seed
 	}
 	if mode == accessorSet|accessorNoGet && standard != nil {

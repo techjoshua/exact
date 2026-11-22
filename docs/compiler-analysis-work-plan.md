@@ -740,8 +740,8 @@ data, its dormant callable and two independent `WeakMap` stores. A read of a
 computed getter routes to the browser, while reading the disjoint data field
 renders on the server. These controls replace the standalone requirement that
 every module declaration settle with an exact construction recipe. They cover
-rules 1, 2, 3, 4 and 6. Eager module `WeakMap#set` still reaches `EXACT2101`
-in a separate component fixture and remains open.
+rules 1, 2, 3, 4 and 6. The module `WeakMap#set` case below has its own
+component consumer.
 
 At `30b4cba30`, the single-module descriptor batch exercised eager nested
 descriptor reads, authored key conversion, and imported initializer effects.
@@ -785,11 +785,23 @@ mode. The wrapper's retained import uses come from the declarations it
 wraps, so a browser-only descriptor binding erased from the server helper
 leaves no named import of an unavailable export.
 
-The next distinct correctness family is eager module `WeakMap#set`. A
-component rendering `map.get(key)` after a module initializes that entry
-using a fresh WeakMap and local object key still receives `EXACT2101` at
-the eager `set`. The eventual acceptance check must render the stored value
-and preserve effects when the selected method is authored.
+A component that renders `map.get(key)` can use an entry initialized by
+`map.set(key, value)` on a private module binding created with a standard
+zero-argument WeakMap. The ordinary collector acquired the constructor and
+standard method, but the original member owner's prototype-branch check
+required staged coverage and made the eager call opaque. The ordinary member
+owner now accounts for that standard branch while retaining its own-writer
+and unresolved alternatives. The Call keeps original argument evaluation
+and emits ordinary JavaScript, which preserves the receiver, key, value and
+write order.
+
+The read depends on the module evaluation that populated that receiver.
+The existing effect graph carries that dependency from the original writer
+to the component without predicting a hit, miss or stored scalar. A browser
+operand or an authored browser method puts the render behind a client boundary.
+The private-use check bounds this path to direct named calls without spread
+arguments, discarded `set` results and simple replacements of `set`.
+Escaping receivers keep their existing placement path.
 
 Acceptance also covers mounted reads, control bindings, lifecycle, portals, registry identity, task settlement, protected transport, paired artifact selection, selected host implementations and source inspection. Use the existing [composition corpus](component-composition-corpus.md) and [package decision audit](#requester-disposition-against-the-component-contracts) for their scoped evidence. Treat interrupted suites and original packages that still reach the request deadline as open.
 

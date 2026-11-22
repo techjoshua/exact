@@ -193,7 +193,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			// Ordinary receivers retain their unfinished own-interference debt.
 			// Neither path gains replacement precision from the standard candidate.
 			standardAwait := len(projection) == 1 && name == "" && query.immediateScalarPromiseAwaitLookup(get, projection[0])
-			if !standardNativeLookup(get) && !standardAwait && !query.stagedArrayGetEffectsLookup(origin, get, mode, standard) && !query.stagedStandardAssignmentLookup(get, standard, mode) && !query.stagedConstructedGetLookup(get, standard, mode) && !query.stagedStandardConstructedCallLookup(get, standard, mode) && !query.stagedConstructedResultCoverageLookup(get, standard, mode) {
+			if !standardNativeLookup(get) && !query.ordinaryWeakMapLookup(get, *standard, mode) && !standardAwait && !query.stagedArrayGetEffectsLookup(origin, get, mode, standard) && !query.stagedStandardAssignmentLookup(get, standard, mode) && !query.stagedConstructedGetLookup(get, standard, mode) && !query.stagedStandardConstructedCallLookup(get, standard, mode) && !query.stagedConstructedResultCoverageLookup(get, standard, mode) {
 				result.opaque = true
 			}
 			inventory = true
