@@ -65,6 +65,49 @@ type Private=string&{readonly[brand]:true};export function Consumer(props:{value
 	}
 }
 
+// A private cell method Get keeps its own placement independent of the
+// producer's source fields and of the callers supplying object props.
+func TestNestedReactiveReadPlacement(t *testing.T) {
+	const setup = `import{type Component}from'@exactjs/core';
+export function Consumer(this:Component<{}>,props:{input:{value:number;dormant?:string}}){`
+	const render = `const next=this.reactive(()=>cell.get()+1);return()=> <output>{next.get()}</output>}`
+	const delivered = setup + `const cell=this.reactive(()=>props.input.value);` + render
+	for _, row := range []struct{ name, source, placement string }{
+		{"plain field", setup + `const input={value:1};const cell=this.reactive(()=>input.value);` + render, "isomorphic"},
+		{"reached getter", setup + `const input={get value(){return document.title.length}};const cell=this.reactive(()=>input.value);` + render, "client"},
+		{"dormant getter", setup + `const input={value:1,get dormant(){return document.title}};const cell=this.reactive(()=>input.value);` + render, "isomorphic"},
+		{"unresolved object prop", delivered, "unknown"},
+		{"plain object caller", delivered + `export function Host(){return()=> <Consumer input={{value:1}}/>}`, "unknown"},
+		{"getter object caller", delivered + `export function Host(){return()=> <Consumer input={{get value(){return document.title.length}}}/>}`, "unknown"},
+		{"dormant getter caller", delivered + `export function Host(){return()=> <Consumer input={{value:1,get dormant(){return document.title}}}/>}`, "unknown"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			fixture := newPublicAwaitRequiredFixture(t, row.source)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				request := fixture.request("compile", "entry.tsx")
+				request.Target, request.PackageType = target, "application"
+				application := NewSession().Execute(request)
+				request.PackageType = "library"
+				library := NewSession().Execute(request)
+				for _, response := range []Response{application, library} {
+					if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+						t.Fatal(target, response.Error, response.Diagnostics)
+					}
+					if response.Analysis.Components[0].Placement != row.placement {
+						t.Fatal(target, response.Analysis.Components)
+					}
+					if row.name == "reached getter" && strings.Contains(response.Code, "document.title") != (target == TargetClient) {
+						t.Fatal(target, "reached getter crossed its placement boundary")
+					}
+				}
+				if application.Code != library.Code {
+					t.Fatal(target, "application and library emitted different implementations")
+				}
+			}
+		})
+	}
+}
+
 // An owned producer edge does not grant delivery proof to an ordinary call of the same function.
 func TestReactiveScalarPropOrdinaryCall(t *testing.T) {
 	fixture := newPublicAwaitRequiredFixture(t, `import{type Component}from'@exactjs/core';

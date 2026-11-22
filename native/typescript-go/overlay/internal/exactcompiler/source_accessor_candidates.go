@@ -158,6 +158,16 @@ func (query *sourceValueQuery) sourceAccessorOperationCandidates(receiver *ast.N
 			return result
 		}
 	}
+	// A read of the private facade's method is a data Get. The call and
+	// producer retain their own effects, and no returned value is inferred.
+	if query.dependenciesOnly && len(path) == 0 && member != nil && ast.IsPropertyAccessExpression(member) &&
+		(mode == accessorRead && name == "get" && receiver == member.Expression() || mode == accessorAcquire && name == "" && receiver == member) &&
+		ast.IsCallExpression(member.Parent) && member.Parent.Expression() == member {
+		var result accessorCandidates
+		if query.localReactiveReadProducer(member, &result) != nil {
+			return accessorCandidates{sourceOwned: true, valueIncomplete: mode == accessorAcquire}
+		}
+	}
 	// Both graph owners retain these dependencies at the original increment.
 	// The recurrence is an effect source, with no staged DATA or normal output.
 	if query.dependenciesOnly && mode == accessorRead && len(path) == 0 {

@@ -286,8 +286,8 @@ Framework reactive value reads cross readonly aliases and finite member keys. A 
 `thisArg` stays dormant while its surrounding computation updates. The shared adapter counter
 checks that same declaration and callback-slot contract through SSR, hydration and two retained
 updates. A parent supplies a scalar prop through an authored getter. The child reads the prop
-in its reactive producer, retains the server-rendered output during strict hydration, and updates
-the same element when the parent changes the prop. The journey counts each getter evaluation.
+in one reactive producer and reads its result from another. Strict hydration retains the
+server-rendered element, and a parent prop update changes its text. The journey counts each getter evaluation.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
 while multi-expression runs keep their independent reactive owners. Whole-intrinsic scalar runs
 omit server comments and split the adopted text into independently updated nodes. Focused hydration

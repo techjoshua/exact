@@ -333,7 +333,11 @@ A direct read of a checked scalar prop in component setup or its `this.reactive(
 the delivered value for component placement. A getter or expression that supplies the prop keeps
 its effects at the producing use. Other effects in the producer, such as reading
 `document.title`, still inform placement. A reassigned props parameter, a subsequent member
-receiver or key, and an untyped value still require ordinary source analysis.
+receiver or key, and an untyped value still require ordinary source analysis. Reading
+a private `this.reactive()` cell through its original `get()` method inside another
+producer adds no placement requirement. The original producer retains its effects.
+For object props, delivery leaves nested property access subject to ordinary getter
+analysis. JSX callers do not determine the component’s own placement.
 
 Direct server clock ranges defer value reads until their enhancement selects the provider clock.
 The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape

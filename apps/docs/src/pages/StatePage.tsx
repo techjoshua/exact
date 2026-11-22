@@ -304,7 +304,10 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					A producer such as <code>{'this.reactive(() => props.quantity)'}</code> tracks changes to
 					the parent’s prop. A checked scalar prop can be read during server rendering. A producer
-					that reads a browser API such as <code>document.title</code> runs on the client.
+					that reads a browser API such as <code>document.title</code> runs on the client. The same
+					requirements apply if another reactive calculation reads that producer’s value. If you
+					pass an object, reading a field inside the producer can still run the object’s getter. For
+					inputs computed by the parent, you can pass the resulting scalar directly.
 				</p>
 				<p>
 					For a value owned by another store, <code>createExternalSource()</code> from

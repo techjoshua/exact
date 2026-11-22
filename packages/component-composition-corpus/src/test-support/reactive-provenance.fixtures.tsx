@@ -50,10 +50,11 @@ export function scalarPropGetterReads() {
 	return scalarGetterReads;
 }
 
-/** Reads a changing scalar prop inside a component-owned producer. */
+/** Reads a changing scalar prop through two component-owned producers. */
 export function ReactiveScalarProp(this: Component<{}>, props: { value: number }) {
 	const cell = this.reactive(() => props.value);
-	return () => <output>{cell.get()}</output>;
+	const next = this.reactive(() => cell.get() + 1);
+	return () => <output>{next.get()}</output>;
 }
 
 /** Delivers the getter result and changes the child prop from parent state. */
@@ -71,9 +72,4 @@ export function ReactiveScalarPropParent(this: Component<{ increment: number }>)
 			<ReactiveScalarProp value={input.value + this.state.increment} />
 		</section>
 	);
-}
-
-/** Supplies paired roots for the scalar delivery and hydration regression. */
-export function reactiveScalarPropRoot() {
-	return <ReactiveScalarPropParent />;
 }
