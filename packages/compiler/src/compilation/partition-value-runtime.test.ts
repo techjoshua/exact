@@ -1,12 +1,11 @@
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { compileProjectArtifacts } from '../index.js';
 import { createCompilerTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each([
-	`const browser=window.innerWidth;console.log(browser);export {browser as width};export const stable=1;`,
 	`export const {innerWidth:width}=window;export const stable=1;`,
 	`export default window.innerWidth;export const stable=1;`,
 	`class Reader{value=document.title;}export const reader=new Reader();export const stable=1;`,
@@ -31,6 +30,36 @@ it.each([
 		expect({ ...server }).toEqual({ stable: 1 });
 	}
 );
+
+it('partitions an eager browser value consumer and keeps its shared exports', async () => {
+	const root = await createCompilerTestWorkspace('.exact-partition-eager-consumer-', process.cwd());
+	const entry = path.join(root, 'values.ts');
+	await writeFile(
+		entry,
+		`const browser=window.innerWidth;export let observed=0;observed=browser;const stable=1;export {browser as width,stable};`
+	);
+	const [artifact] = await compileProjectArtifacts([entry], {
+		rootDir: root,
+		outDir: path.join(root, 'generated')
+	});
+	const server = await importArtifact(artifact.serverFile, path.join(root, 'server.mjs'));
+	expect({ ...server }).toEqual({ observed: 0, stable: 1 });
+
+	let reads = 0;
+	vi.stubGlobal('window', {
+		get innerWidth() {
+			reads++;
+			return 731;
+		}
+	});
+	try {
+		const client = await importArtifact(artifact.clientFile, path.join(root, 'client.mjs'));
+		expect({ ...client }).toEqual({ observed: 731, stable: 1, width: 731 });
+		expect(reads).toBe(1);
+	} finally {
+		vi.unstubAllGlobals();
+	}
+});
 
 it.each([
 	`function h0(){return window.innerWidth;}${Array.from({ length: 28 }, (_, index) => `function h${index + 1}(){return h${index}()+h${index}();}`).join('')}export const width=h28;export const stable=1;`,
