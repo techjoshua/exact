@@ -280,6 +280,29 @@ prior binary. An initial build without that patch panicked in
 and in the full replay with the patch applied. The full replay used one
 frozen test binary and the existing 160-second per-group deadline.
 
+A targeted follow-up restored the getter recipes from `697b42235` at
+`packages/compiler/src/test-support/staged-getter-adversarial-cases.mjs`.
+Both audited trees tracked the Go tests and omitted that module. Set
+`EXACT_COMPILER_FIXTURE_ROOT` to the tree containing the restored module
+when running from detached scratch, leave
+`EXACT_STAGED_GETTER_ABRUPT_ACCEPTANCE` unset, and run each of
+`TestGetterAdversarialAnalysis` and `TestGetterAdversarialEmission` with
+`-test.run=^<group>$ -test.count=1 -test.timeout=160s`. The follow-up used
+the recorded baseline binary and rebuilt `8c1125377` with Go 1.27.1, the
+pinned upstream tree, and the byte-identical checker patch.
+
+Both revisions passed all ten emission cases. The four enabled analysis
+cases stopped at missing callable summaries. The opt-in abrupt case also
+stopped there on `8c1125377`. The fixtures have no component or task consumer
+to demand those standalone helper bodies, so the remaining failure does not
+establish a component regression. Component getter confinement and selected
+descriptor-write placement passed on `8c1125377`. Substituting only the two
+replayed outcomes gives `c346cb72c` 1,966 passes and 370 failures, and
+`8c1125377` 1,976 passes and 366 failures. Both have zero setup outcomes after
+that substitution.
+A focused run of both groups on `d765f8b6f` reproduced the same outcomes
+using the restored recipe at its repository-relative path.
+
 For the integrated build, native application and library compiles have
 identical code and placement on each target for the same-property,
 disjoint-getter, unknown-descriptor and Proxy controls. The first remains
