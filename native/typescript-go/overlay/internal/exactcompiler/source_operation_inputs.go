@@ -65,8 +65,8 @@ type sourceGetInputs struct {
 	lookupOwner *sourceValue
 }
 
-// sourceArrayIndexMay belongs to one native callback input plan's actual Call
-// and represented source array. It ends at index acquisition, before any
+// sourceArrayIndexMay belongs to the original numeric Get or native callback
+// input plan and its represented array. It ends at index acquisition, before any
 // returned element's member Gets are consumed.
 type sourceArrayIndexMay struct {
 	owner               *sourceValueQuery
@@ -78,7 +78,7 @@ func (query *sourceValueQuery) arrayIndexMayAtGet(get *sourceGetInputs, origin *
 		return false
 	}
 	domain := get.arrayIndexMay
-	if domain.owner != query || domain.operation != get.operation || domain.operation == nil || !ast.IsCallExpression(domain.operation) || domain.receiver != origin || origin == nil || !ast.IsArrayLiteralExpression(origin) || get.receiver.node != origin || len(get.receiver.path) != 0 || get.propertyKey != "*" {
+	if domain.owner != query || domain.operation != get.operation || domain.operation == nil || (!ast.IsCallExpression(domain.operation) && (mode != accessorRead || !ast.IsElementAccessExpression(domain.operation))) || domain.receiver != origin || origin == nil || !ast.IsArrayLiteralExpression(origin) || get.receiver.node != origin || len(get.receiver.path) != 0 || get.propertyKey != "*" {
 		return false
 	}
 	return len(projection) == 0 && name == "*" || len(projection) == 1 && projection[0] == "*" && name == ""

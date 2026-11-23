@@ -28,6 +28,10 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 		query.memberWriterScope(sourceMemberWriterInput{scope: scope}, func() {
 			// A later projection cannot lend its receiver to this earlier field.
 			// Arrows retain lexical this through the shared Get input owner.
+			if actualGet != nil && actualGet.arrayIndexMay != nil && ast.IsElementAccessExpression(actualGet.operation) {
+				query.executeGetEffects(body, actualGet, scope, result)
+				return
+			}
 			var operation *ast.Node
 			receiver := sourceValue{}
 			if actualGet != nil && (actualGet.originalReflectRead || actualGet.freshDescriptorEffects) && actualGet.propertyKey == key {

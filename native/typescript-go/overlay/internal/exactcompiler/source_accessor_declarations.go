@@ -753,7 +753,7 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 				return
 			}
 			firstRead := query.firstLiteralMemberRead(value, projection, name, mode, reference, &result)
-			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, freshMember, firstRead)
+			query.arrayValues(value, projection, name, mode, arguments, &result, visit, visitMember, get, reference, freshMember, firstRead)
 			return
 		}
 		if ast.IsClassDeclaration(value) || ast.IsClassExpression(value) || ast.IsObjectLiteralExpression(value) {

@@ -77,6 +77,13 @@ func (reference *sourceGetReference) selectConstGetKey(c *checker.Checker, allow
 	return true
 }
 
+// unresolvedNumericIndex identifies a checked numeric operand without ruling
+// out non-index numeric property names. It supplies no exact key or Get value.
+func (reference *sourceGetReference) unresolvedNumericIndex(c *checker.Checker) bool {
+	return reference != nil && !reference.key.resolved && ast.IsElementAccessExpression(reference.operation) &&
+		c.GetTypeAtLocation(reference.operation.AsElementAccessExpression().ArgumentExpression).Flags()&checker.TypeFlagsNumberLike != 0
+}
+
 // matches consumes only the final property of this original Get. An earlier
 // projected Get or a nested lookup cannot borrow its receiver definedness.
 func (reference *sourceGetReference) matches(path []string, name string) bool {

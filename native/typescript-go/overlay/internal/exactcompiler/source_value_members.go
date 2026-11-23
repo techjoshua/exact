@@ -723,12 +723,23 @@ func sourceArrayIndex(key string) (uint64, bool) {
 // arrayValues applies the same finite member demand to native array syntax. Holes retain
 // their positions. A spread's iterator and length are unproved, so suffix positions widen.
 // Receiver calls are not append facts: even a method named push can be replaced.
-func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs, freshMember, firstRead bool) {
+func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, visit func(*ast.Node, []string, bool), sourceVisit func(sourceValue), get *sourceGetInputs, reference *sourceGetReference, freshMember, firstRead bool) {
 	visitMember := func(value sourceValue) { visit(value.node, value.path, false) }
 	if query.dependenciesOnly {
 		visitMember = sourceVisit
 	}
 	var indexGet *sourceGetInputs
+	if get == nil && query.dependenciesOnly && mode == accessorRead && reference != nil &&
+		reference.operation == query.protectedMember && reference.matches(projection, name) &&
+		reference.unresolvedNumericIndex(query.owner.checker) {
+		// An unresolved numeric key can hit an array's indexed getters.
+		// Preserve unknown/non-index alternatives and retain only MAY effects.
+		operation := reference.operation
+		get = &sourceGetInputs{operation: operation, receiver: sourceValue{node: origin}, propertyKey: "*",
+			arrayIndexMay: &sourceArrayIndexMay{owner: query, operation: operation, receiver: origin}}
+		projection, name = []string{"*"}, ""
+		defer func() { result.opaque = true }()
+	}
 	if query.arrayIndexMayAtGet(get, origin, projection, name, mode) {
 		indexGet = get
 	} else if query.stagedLocalGetEffectsSelection(get, origin, projection, name, mode) && stagedEmptyArrayDataConstruction(origin) {

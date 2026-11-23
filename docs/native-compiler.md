@@ -4321,6 +4321,11 @@ identity across copies.
 
 Every currently produced map input domain remains open. A finite literal list, an empty list or observation-only future uses do not prove inherited iterator behavior, later item membership or complete property coverage. The contribution therefore cannot discharge abstract item reads or manufacture a callback invocation, normal Get, native preservation or descriptor receipt. Known effects survive beside that uncertainty. Ordinary methods named `map` receive no framework contribution.
 
+A direct computed Get with a checked numeric key on a selected source array
+retains possible indexed getter effects, including authored descriptors.
+Unresolved keys keep their uncertainty. This path supplies no acquired value
+or exact key and leaves receiver and key evaluation at the original Get.
+
 Ordinary `Array.map` source inputs use a separate effect-only native alternative. The original
 receiver is acquired before arguments, while possible numeric index Gets follow argument
 evaluation. Canonical array indices and binder-owned prototype ancestors retain known getter
