@@ -276,6 +276,13 @@ against the original visit before accepting its test or performance results. If 
 design cannot express a required behavior, bring that specific conflict to the user
 before adopting another traversal.
 
+Placement may be computed separately and cached per function or module. When a
+component needs placement, look up the relevant function or module first. On a
+miss, compute its placement from the recorded facts, consulting dependent functions
+or modules on demand. Reuse the result for later consumers while its source,
+dependencies and configuration remain valid. Keep caller-specific inputs at the
+use site so one call cannot change the cached placement of the definition.
+
 Capture and release are part of the same traversal. On descent, scope provisional
 information to the node or operation that needs it. On ascent, after accounting
 for reachable effects, discard any value detail that no remaining reader needs.
