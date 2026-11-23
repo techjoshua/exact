@@ -282,6 +282,11 @@ miss, compute its placement from the recorded facts, consulting dependent functi
 or modules on demand. Reuse the result for later consumers while its source,
 dependencies and configuration remain valid. Keep caller-specific inputs at the
 use site so one call cannot change the cached placement of the definition.
+For example, `function invoke(cb) { return cb() }` has placement **either**.
+At an ordinary call to `invoke`, the caller supplies the callback. A client-bound
+callback requires client placement of that caller. A server-bound callback
+requires server placement. An either-side callback adds no placement restriction.
+The cached placement of `invoke` stays **either** in all three cases.
 
 Capture and release are part of the same traversal. On descent, scope provisional
 information to the node or operation that needs it. On ascent, after accounting
