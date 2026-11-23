@@ -436,7 +436,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 					return
 				}
 				seen[call] = true
-				possible, _ = q.reachable(call, bindings)
+				possible, _ = q.reachableWithin(call, nil, bindings, true)
 			})
 			if possible {
 				collect(call, bindings)

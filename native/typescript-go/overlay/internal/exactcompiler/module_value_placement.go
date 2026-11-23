@@ -126,7 +126,7 @@ func (availability *moduleValueAvailability) taskCallBindingRequirement(work, op
 	}
 	// The summary may retain calls from lexically unreachable branches.
 	query := sourceValueQuery{owner: availability.owner.values, executable: availability.owner, remaining: 4096}
-	if possible, _ := query.reachableWithin(operation, work.Body(), nil); !possible {
+	if possible, _ := query.reachableWithin(operation, work.Body(), nil, false); !possible {
 		return EnvironmentEffectSource{}, false
 	}
 	return environmentSource(environment, "module binding "+expression.Text(), name), true

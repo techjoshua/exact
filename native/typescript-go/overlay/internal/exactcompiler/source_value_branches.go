@@ -547,12 +547,12 @@ func (query *sourceValueQuery) breakExits(target, region *ast.Node) bool {
 // reachable retains enclosing branch facts and preceding terminal statements at an
 // occurrence. This bounded lexical relation does not construct a control-flow graph.
 func (query *sourceValueQuery) reachable(node *ast.Node, bindings sourceValueBindings) (possible, certain bool) {
-	return query.reachableWithin(node, nil, bindings)
+	return query.reachableWithin(node, nil, bindings, false)
 }
 
 // reachableWithin limits the shared lexical proof to an already reached region.
 // Completion uses it inside a selected return expression or its required finally.
-func (query *sourceValueQuery) reachableWithin(node, region *ast.Node, bindings sourceValueBindings) (possible, certain bool) {
+func (query *sourceValueQuery) reachableWithin(node, region *ast.Node, bindings sourceValueBindings, indexedWriter bool) (possible, certain bool) {
 	certain = true
 	for child := node; child != nil && child != region && child.Parent != nil; child = child.Parent {
 		if !query.charge(&accessorCandidates{}, child) {
@@ -595,6 +595,12 @@ func (query *sourceValueQuery) reachableWithin(node, region *ast.Node, bindings 
 		for _, prior := range statements {
 			if prior == child {
 				break
+			}
+			if indexedWriter && query.unrepresentedIndexedWriterMapGuard(prior, bindings) {
+				// The scoped discovery query has no result for the predicate.
+				// Keep the candidate possible without resolving its return value.
+				certain = false
+				continue
 			}
 			result := query.completion(prior, bindings)
 			if result.kind == sourceCompletionTerminal || result.kind == sourceCompletionBreak && query.breakExits(result.target, parent) {
@@ -704,7 +710,7 @@ func (query *sourceValueQuery) completionWrite(work, returned *ast.Node, binding
 	// A selected return evaluates all unconditional parts of its expression before
 	// its caller can invoke a captured binding, even parts after the closure literal.
 	if returned.Pos() <= work.Pos() && work.End() <= returned.End() {
-		possible, certain = query.reachableWithin(work, returned, bindings)
+		possible, certain = query.reachableWithin(work, returned, bindings, false)
 		return possible, certain && sourceEvaluationStatement(work) != nil
 	}
 	// Only finally regions enclosing this return execute after its expression.
@@ -720,7 +726,7 @@ func (query *sourceValueQuery) completionWrite(work, returned *ast.Node, binding
 		if ast.IsTryStatement(parent) && child == parent.AsTryStatement().FinallyBlock {
 			attempt := parent.AsTryStatement()
 			if attempt.TryBlock.Pos() <= returned.Pos() && returned.End() <= attempt.TryBlock.End() || attempt.CatchClause != nil && attempt.CatchClause.Pos() <= returned.Pos() && returned.End() <= attempt.CatchClause.End() {
-				possible, certain = query.reachableWithin(work, child, bindings)
+				possible, certain = query.reachableWithin(work, child, bindings, false)
 				return possible, certain && sourceEvaluationStatement(work) != nil
 			}
 		}

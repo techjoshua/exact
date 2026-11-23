@@ -1993,6 +1993,19 @@ recovery and about 0.15 ms for the proof and exclusion together. The timers
 include observation overhead and measure a single sampled prefix. Each
 24-second diagnostic emitted the same `color.ts` response.
 
+Indexed writer reachability can also leave a prior Map lookup guard
+unresolved without projecting its return. This applies to an adjacent
+binding of a direct standard `get` on a confined, empty-constructed Map
+with no installed result or alternate lookup. Earlier writes, locally
+authored methods, bound results and normal and staged result owners retain
+their own analysis. The rule does not predict whether a Map key is present.
+
+On the original client request at `f642f2f14`, the paired observer recorded
+96 matching cache guards. It skipped 18 generic return projections with
+no executable body, avoiding 368 charged steps in the sampled prefix.
+The remaining 78 observations kept the existing projection. Both arms
+emitted the same `color.ts` response by the 20-second diagnostic cutoff.
+
 ### Related defect families and repair boundaries
 
 State lowering preserves two contracts: the framework's reactive ownership and the authored
