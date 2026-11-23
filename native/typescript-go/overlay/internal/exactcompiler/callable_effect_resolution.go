@@ -740,7 +740,74 @@ func appendDirectReferenceEffects(fact *callableFacts, node *ast.Node, sourceFil
 			appendOperationEffect(fact, source)
 		}
 	}
-	fact.directContext = append(fact.directContext, contexts...)
+	if len(contexts) > 0 && !rendererContextInitializerReplaced(fact.node, node, sourceFile, typeChecker, owner) {
+		fact.directContext = append(fact.directContext, contexts...)
+	}
+}
+
+// rendererContextInitializerReplaced recognizes a completed setup overwrite
+// before the inline renderer is created. Conditional and nested writers
+// leave the original context as a possible renderer dependency.
+func rendererContextInitializerReplaced(renderer, reference *ast.Node, source *ast.SourceFile, c *checker.Checker, owner *executableBodyOwner) bool {
+	if owner == nil || owner.values == nil || owner.project == nil || renderer == nil ||
+		renderer.Parent == nil || !ast.IsReturnStatement(renderer.Parent) ||
+		renderer.Parent.AsReturnStatement().Expression != renderer {
+		return false
+	}
+	returned := renderer.Parent
+	setup := enclosingCallableNode(returned)
+	if _, component := owner.values.components[setup]; !component || returned.Parent != setup.Body() {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(reference)
+	if symbol == nil || symbol.ValueDeclaration == nil {
+		return false
+	}
+	declaration := symbol.ValueDeclaration
+	writes := owner.project.callableAliasWrites(source, c)
+	assignments := writes[ast.GetSymbolId(symbol)]
+	if len(assignments) != 1 || enclosingCallableNode(declaration) != setup {
+		return false
+	}
+	index := owner.values.index(ast.GetSourceFileOfNode(setup))
+	if index.incomplete || index.normalDynamicScope {
+		return false
+	}
+	assignment := assignments[0]
+	expression := assignment.target.Parent
+	statement := sourceProducerStatement(expression)
+	if statement == nil || statement.Parent != returned.Parent || statement.AsExpressionStatement().Expression != expression ||
+		statement.End() > returned.Pos() || declaration.End() > statement.Pos() ||
+		!ast.IsBinaryExpression(expression) || expression.AsBinaryExpression().OperatorToken.Kind != ast.KindEqualsToken {
+		return false
+	}
+	// Require a distinct, ordinary local object rather than another context
+	// alias. This cut only removes the overwritten initializer's contribution.
+	value := unwrapSourceCallableReference(assignment.value)
+	if value != nil && ast.IsIdentifier(value) {
+		replacement := c.GetSymbolAtLocation(value)
+		if replacement == nil || replacement.ValueDeclaration == nil || !ast.IsVariableDeclaration(replacement.ValueDeclaration) {
+			return false
+		}
+		local := replacement.ValueDeclaration
+		if local.Parent == nil || local.Parent.Flags&ast.NodeFlagsConst == 0 ||
+			enclosingCallableNode(local) != setup || local.End() > statement.Pos() ||
+			len(writes[ast.GetSymbolId(replacement)]) != 0 {
+			return false
+		}
+		value = unwrapSourceCallableReference(local.Initializer())
+	}
+	if value == nil || !ast.IsObjectLiteralExpression(value) {
+		return false
+	}
+	for _, property := range value.AsObjectLiteralExpression().Properties.Nodes {
+		if !ast.IsPropertyAssignment(property) || property.Name() == nil || ast.IsComputedPropertyName(property.Name()) ||
+			callableNameText(property.Name()) == "__proto__" ||
+			property.Initializer() == nil || !ast.IsFunctionLike(property.Initializer()) {
+			return false
+		}
+	}
+	return true
 }
 
 // sourceReferenceEffects shares bound global/context classification with source
