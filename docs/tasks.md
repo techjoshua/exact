@@ -170,6 +170,11 @@ identity. A reordered retained object keeps browser fields that the server did n
 Arguments, method receivers, custom overrides, results and exceptions keep ordinary JavaScript
 semantics. Cancellation fences later managed calls. It does not undo effects already performed.
 
+Inside a task, `item.trim?.(input())` calls `trim` with `item` as its receiver.
+If `trim` is null or undefined, the call is skipped and `input()` is never evaluated.
+Grouping the member as `(item.trim)?.(input())` or adding a TypeScript assertion preserves
+the receiver. Assigning the method to a local and calling that local detaches it from `item`.
+
 A caught native exception can leave valid partial Array changes. A successful continuation includes
 those final changes. An uncaught exception fails the operation without publishing its state.
 An in-place mutation that is fully reverted sends no Array update, preserving a newer browser edit.

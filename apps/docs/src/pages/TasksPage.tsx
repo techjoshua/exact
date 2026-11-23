@@ -78,6 +78,11 @@ export function TasksPage(this: Component<{}>) {
 					<code>(this.state.item?.name)!.toUpperCase()</code> can throw for an absent value.
 				</p>
 				<p>
+					For an optional method, <code>item.trim?.(input())</code> calls <code>trim</code> with
+					<code>item</code> as its receiver. If the method is absent, <code>input()</code> is skipped.
+					Grouping the member as <code>(item.trim)?.(input())</code> keeps the same receiver.
+				</p>
+				<p>
 					Passing <code>task.signal</code> lets the request stop when the query changes or the
 					component is removed. Even if an old request finishes, its cancelled task cannot replace
 					component state.

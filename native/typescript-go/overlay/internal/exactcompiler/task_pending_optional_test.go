@@ -29,6 +29,9 @@ func TestTaskPendingOptionalInvocationSource(t *testing.T) {
 		{"non-null-state", `this.state.lookup.set("x",9);const clear=()=>{this.state.nested.deep=undefined;};clear();this.state.trace=String(this.state.nested.deep?.count!.toString());`},
 		{"non-null-present", `this.state.lookup.set("x",9);const present=()=>({nested:{count:7}});this.state.trace=String(present()?.nested!.count);`},
 		{"property", `this.state.values=[];this.state.values.push(1);this.state.trace=String(this.state.values?.length);`},
+		{"wrapped-member", `this.state.values.push(0);const inspect=(rows:number[])=>rows.length;inspect(this.state.values);const item=String(this.state.count) as {trim?:()=>string};this.state.trace=(((item.trim as (()=>string)|undefined) satisfies (()=>string)|undefined)!)?.()??"absent";`},
+		{"grouped-member", `this.state.values.push(0);const inspect=(rows:number[])=>rows.length;inspect(this.state.values);const item=String(this.state.count) as {trim?:()=>string}|undefined;this.state.trace=(item?.trim)?.()??"absent";`},
+		{"detached-member", `this.state.values.push(0);const inspect=(rows:number[])=>rows.length;inspect(this.state.values);const item=String(this.state.count) as {trim?:()=>string};this.state.trace=(0 as unknown,item.trim)?.()??"absent";`},
 		{"ordinary", `this.state.lookup.set("x",9);const reader:{value?:{count:number}}={};const value=reader.value?.count;this.state.trace=String(value);`},
 	} {
 		for _, placement := range []string{"client", "server"} {

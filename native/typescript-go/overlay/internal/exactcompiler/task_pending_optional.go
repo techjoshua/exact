@@ -16,25 +16,43 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 	if optionalChainContinuesThrough(source.Parent, source) {
 		return nil
 	}
-	var chain *ast.NodeVisitor
-	chain = ast.NewNodeVisitor(func(part *ast.Node) *ast.Node {
-		if part.Flags&ast.NodeFlagsOptionalChain == 0 {
+	var visitChain func(part *ast.Node, callee bool) *ast.Node
+	visitChain = func(part *ast.Node, memberCallee bool) *ast.Node {
+		// Reference-preserving wrappers still own their syntax. In particular,
+		// parentheses keep an inner optional chain separate from the outer call.
+		if memberCallee {
+			switch {
+			case ast.IsParenthesizedExpression(part):
+				wrapper := part.AsParenthesizedExpression()
+				return lowering.factory.UpdateParenthesizedExpression(wrapper, visitChain(wrapper.Expression, true))
+			case ast.IsAsExpression(part):
+				wrapper := part.AsAsExpression()
+				return lowering.factory.UpdateAsExpression(wrapper, visitChain(wrapper.Expression, true), wrapper.Type)
+			case ast.IsSatisfiesExpression(part):
+				wrapper := part.AsSatisfiesExpression()
+				return lowering.factory.UpdateSatisfiesExpression(wrapper, visitChain(wrapper.Expression, true), wrapper.Type)
+			}
+		}
+		if part.Flags&ast.NodeFlagsOptionalChain == 0 && !memberCallee {
 			return lowering.helperContextCall(context, "view", []*ast.Node{visitor.VisitNode(part)})
 		}
 		if ast.IsPropertyAccessExpression(part) {
 			access := part.AsPropertyAccessExpression()
-			if access.Name().Kind == ast.KindPrivateIdentifier {
+			if access.Name().Kind == ast.KindPrivateIdentifier || access.Expression.Kind == ast.KindSuperKeyword {
 				return visitor.VisitEachChild(part)
 			}
-			return lowering.factory.UpdatePropertyAccessExpression(access, chain.VisitNode(access.Expression), access.QuestionDotToken, access.Name(), access.Flags)
+			return lowering.factory.UpdatePropertyAccessExpression(access, visitChain(access.Expression, false), access.QuestionDotToken, access.Name(), access.Flags)
 		}
 		if ast.IsElementAccessExpression(part) {
 			access := part.AsElementAccessExpression()
-			return lowering.factory.UpdateElementAccessExpression(access, chain.VisitNode(access.Expression), access.QuestionDotToken, visitor.VisitNode(access.ArgumentExpression), access.Flags)
+			if access.Expression.Kind == ast.KindSuperKeyword {
+				return visitor.VisitEachChild(part)
+			}
+			return lowering.factory.UpdateElementAccessExpression(access, visitChain(access.Expression, false), access.QuestionDotToken, visitor.VisitNode(access.ArgumentExpression), access.Flags)
 		}
 		if ast.IsNonNullExpression(part) {
 			assertion := part.AsNonNullExpression()
-			return lowering.factory.UpdateNonNullExpression(assertion, chain.VisitNode(assertion.Expression), assertion.Flags)
+			return lowering.factory.UpdateNonNullExpression(assertion, visitChain(assertion.Expression, memberCallee), assertion.Flags)
 		}
 		if ast.IsCallExpression(part) {
 			call := part.AsCallExpression()
@@ -43,11 +61,15 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 				arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 			}
 			arguments = signals.arguments(lowering, part, arguments)
+			// A member before ?.() can sit outside the chain flags. View its
+			// receiver instead of extracting the method as a standalone callable.
+			reference := unwrapSourceCallableReference(call.Expression)
+			memberCallee := ast.IsPropertyAccessExpression(reference) || ast.IsElementAccessExpression(reference)
 			callee := lowering.pendingPrivateHelperSelection(call.Expression, context, visitor, true)
 			if callee == nil {
-				callee = chain.VisitNode(call.Expression)
+				callee = visitChain(call.Expression, memberCallee)
 			}
-			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !ast.IsPropertyAccessExpression(call.Expression) && !ast.IsElementAccessExpression(call.Expression) && lowering.pendingHelperCalls[nodeSourceSpan(part)] {
+			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !memberCallee && lowering.pendingHelperCalls[nodeSourceSpan(part)] {
 				inline := lowering.factory.NewFalseExpression()
 				if lowering.pendingInlineHelperCalls[nodeSourceSpan(part)] {
 					inline = lowering.factory.NewTrueExpression()
@@ -57,8 +79,8 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 			return lowering.factory.UpdateCallExpression(call, callee, call.QuestionDotToken, call.TypeArguments, lowering.factory.NewNodeList(arguments), call.Flags)
 		}
 		return visitor.VisitEachChild(part)
-	}, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{})
-	result := chain.VisitNode(source)
+	}
+	result := visitChain(source, false)
 	if deleting {
 		return lowering.factory.NewDeleteExpression(result)
 	}
