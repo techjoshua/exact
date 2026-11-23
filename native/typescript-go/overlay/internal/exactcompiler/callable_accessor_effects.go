@@ -366,6 +366,11 @@ func stringLiteralKeyDisjoint(key *checker.Type, selected string) bool {
 // descriptor contributions in the same symbolic scope. Normal descriptor reads
 // retain their original owner. Projecting inputs does not replay the writer.
 func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, actualGet *sourceGetInputs, cut *sourceMemberWriterReadCut) ([]sourceValue, bool) {
+	if mode == accessorAcquire && name == "" && len(projection) == 1 && projection[0] == "then" &&
+		origin != nil && ast.IsObjectLiteralExpression(origin) && actualGet != nil && actualGet.receiver.node == origin &&
+		query.dormantLocalConstructorAtAwait(node, actualGet, result) {
+		return nil, false
+	}
 	if !query.dependenciesOnly || query.operation != nil || query.returnObservation != nil || query.installedReceiverCall != nil || query.callerInputs != nil || query.inputs != nil && query.inputs.operationLifetime != nil {
 		value, possible := query.reflectiveMemberValueInScope(origin, projection, name, node, mode, bindings, result, actualGet, nil, nil)
 		if value != nil {

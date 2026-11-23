@@ -1562,6 +1562,14 @@ roles. Ordinary same-shaped callbacks and replaced parameters keep their own beh
 source-only binding preserves argument Get and Throw for both roles and adds nested assimilation
 only for resolve; it issues no normal body entry, fulfilled value or reusable cached authority.
 
+For the implicit then Get on an object awaited in a task, the compiler can
+exclude a reflective prototype installation inside a constructor when the
+class is local to the same task body and complete source-use evidence shows
+that no code can reach or expose it. Computed names and static initialization
+remain ordinary eager class-definition work. Instantiation, aliases, escapes,
+and static construction through the class receiver retain their possible
+effects at the Await.
+
 An acquired native Promise's constructor Get considers descriptor writes on the reader's
 execution target. The writer lookup omits an explicitly placed component task on the opposite
 target when both source occurrences belong to task bodies. Task defaults, keys, and server

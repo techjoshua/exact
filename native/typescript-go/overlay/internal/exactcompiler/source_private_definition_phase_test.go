@@ -98,6 +98,30 @@ func TestPrivateConstructionEligibilitySourceReplacement(t *testing.T) {
 	}
 }
 
+// The task's implicit then Get can observe an installed getter. A constructor
+// with no entry or escape cannot install it, even in the same task.
+func TestPublicAwaitDormantLocalConstructorPlacement(t *testing.T) {
+	const constructor = `constructor(){Object.defineProperty(Object.prototype,'then',{configurable:true,get(){window.name;return undefined}})}`
+	const publish = `this.state.label=(await {kind:'audit'}).kind`
+	for _, row := range []struct {
+		name, members, activation string
+		browser                   bool
+	}{
+		{"dormant", "", "", false},
+		{"entered", "", "new Installer();", true},
+		{"alias", "", "const Alias=Installer;new Alias();", true},
+		{"static receiver", "static instance:unknown=new this();", "", true},
+		{"eager field", "static title=window.name;", "", true},
+		{"computed name", "[window.name](){}", "", true},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			body := "class Installer{" + row.members + constructor + "}" + row.activation + publish
+			fixture := newPublicAwaitRequiredFixture(t, publicAwaitRequiredPage("", body, TargetServer))
+			checkPublicAwaitRequiredTask(t, NewSession(), fixture, TargetServer, row.browser, false)
+		})
+	}
+}
+
 // Discovery can have a checker-backed syntax owner before Program attachment.
 // It cannot issue a source-phase exclusion or dereference a missing Program.
 func TestPrivateDeferredDefinitionRequiresProgram(t *testing.T) {

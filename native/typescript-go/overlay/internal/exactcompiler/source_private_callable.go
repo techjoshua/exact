@@ -385,6 +385,45 @@ func (query *sourceValueQuery) privateDeferredDefinitionExcluded(node *ast.Node,
 	return definition != nil && ast.IsClassDeclaration(definition) && query.privateDefinitionObserved(definition, result)
 }
 
+// dormantLocalConstructorAtAwait excludes one reflective writer in a local
+// constructor that the Await owner's source cannot enter or expose. The class
+// definition's eager operations remain in the enclosing body's normal schedule.
+func (query *sourceValueQuery) dormantLocalConstructorAtAwait(operation *ast.Node, get *sourceGetInputs, result *accessorCandidates) bool {
+	if get.operation == nil || !ast.IsAwaitExpression(get.operation) || !query.currentAwaitSource(get.operation) {
+		return false
+	}
+	owner := enclosingCallableNode(get.operation)
+	if owner == nil {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(get.operation)
+	if ast.GetSourceFileOfNode(operation) != source {
+		return false
+	}
+	index := query.owner.index(source)
+	population := index.privateUses
+	if index.incomplete || index.normalDynamicScope || population == nil || !population.complete || population.refused {
+		return false
+	}
+	entry := index.normalOccurrences[operation]
+	if entry == nil || entry.node != operation || entry.region == nil || !ast.IsConstructorDeclaration(entry.region) || query.creators[entry.region].invocation != nil {
+		return false
+	}
+	class := entry.region.Parent
+	if class == nil || !ast.IsClassDeclaration(class) || class.Parent != owner.Body() || class.Name() == nil ||
+		class.AsClassDeclaration().HeritageClauses != nil || len(population.unresolved[class.Name().Text()]) != 0 ||
+		len(population.unresolved[""]) != 0 || !query.charge(result, class.Name()) {
+		return false
+	}
+	symbol := query.owner.checker.GetSymbolAtLocation(class.Name())
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias != 0 || symbol.ValueDeclaration != class ||
+		len(symbol.Declarations) != 1 || symbol.Declarations[0] != class {
+		return false
+	}
+	id := ast.GetSymbolId(symbol)
+	return len(population.uses[id]) == 0 && len(index.bindings[id]) == 0 && query.privateClassReceiverUnexposed(class, result)
+}
+
 // privateDirectAssignmentExcluded applies the source-use proof only to a plain
 // assignment in a directly owning top-level function. A nested callable or
 // initializer has a different activation. Keep analysis within the writer's own
