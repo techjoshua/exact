@@ -849,9 +849,11 @@ func (query *sourceValueQuery) prepareInvocation(node *ast.Node, bindings source
 				}
 			}
 		}
-		if symbol := query.owner.checker.GetSymbolAtLocation(unwrapSourceCallableReference(call.Expression)); symbol != nil {
-			if _, installed := bindings[ast.GetSymbolId(symbol)]; installed {
-				declarations = nil
+		if len(declarations) != 0 && len(bindings) != 0 {
+			if symbol := query.owner.checker.GetSymbolAtLocation(unwrapSourceCallableReference(call.Expression)); symbol != nil {
+				if _, installed := bindings[ast.GetSymbolId(symbol)]; installed {
+					declarations = nil
+				}
 			}
 		}
 	}
