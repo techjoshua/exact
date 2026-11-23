@@ -722,6 +722,9 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	var standard *sourceValue
 	var inherited []sourceValue
 	if mode == accessorAcquire && len(projection) == 1 && name == "" {
+		if get == nil && projection[0] == "push" && !freshMember {
+			freshMember = query.confinedArrayPushRead(origin, bindings, result)
+		}
 		acquired := query.reading
 		if get != nil && get.operation != nil {
 			acquired = get.operation
@@ -742,7 +745,7 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 			}
 		}
 	}
-	// A direct method lookup on the new array precedes any possible own
+	// A direct method lookup on a fresh or confined array excludes an own
 	// replacement. All overloads must describe the standard inherited member.
 	// Element evaluation and callback invocation retain their ordinary owners.
 	if freshMember && len(inherited) != 0 {

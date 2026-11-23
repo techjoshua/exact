@@ -1370,6 +1370,10 @@ An immediate `every` lookup can use the same proof when the selected synchronous
 call returns a dense array literal directly. The receiver call and predicate keep
 their original evaluation and effects.
 A method read through a saved array can observe intervening replacements.
+A sole direct `push` call can select the inherited method on a local empty
+array that has no aliases and is otherwise used only for length reads or
+to save numeric-indexed element reads. The append and its operands still
+run at their original call, and indexed reads keep their usual effects.
 For a named standard `Object.freeze` acquisition that is already opaque,
 a computed assignment with a fixed template prefix can be excluded from
 writer input recovery if it cannot produce `freeze` or a structural member

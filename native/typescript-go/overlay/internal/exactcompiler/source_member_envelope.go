@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // confinedEnvelope proves lifetime confinement for this one direct-return receiver,
 // not purity, execution identity or completeness of any field value. Anonymous literal
@@ -228,6 +231,73 @@ func literalBindingField(element, origin *ast.Node) (string, *ast.Node) {
 		return key, fields[0].Initializer()
 	}
 	return "", nil
+}
+
+// confinedArrayPushRead checks whether this original push can see an own
+// replacement on its literal allocation. The original argument evaluation
+// and append operation stay with the standard invocation owner.
+func (q *sourceValueQuery) confinedArrayPushRead(origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates) bool {
+	member := q.protectedMember
+	if !q.dependenciesOnly || q.operation != nil || q.stagedMember != nil || q.stagedNativeGet != nil ||
+		member == nil || !ast.IsPropertyAccessExpression(member) || member.Name().Text() != "push" ||
+		ast.IsOptionalChain(member) || !ast.IsIdentifier(member.Expression()) {
+		return false
+	}
+	call := member.Parent
+	if call == nil || !ast.IsCallExpression(call) || call.Expression() != member || ast.IsOptionalChain(call) ||
+		(q.reading != member && q.reading != call && q.initializing != call) ||
+		!ast.IsExpressionStatement(call.Parent) {
+		return false
+	}
+	d := origin.Parent
+	if d == nil || !ast.IsVariableDeclaration(d) || d.Initializer() != origin || !ast.IsIdentifier(d.Name()) ||
+		d.Parent.Flags&ast.NodeFlagsConst == 0 || enclosingCallableNode(d) == nil ||
+		ast.GetSourceFileOfNode(d) != ast.GetSourceFileOfNode(member) || d.End() > member.Pos() ||
+		len(origin.AsArrayLiteralExpression().Elements.Nodes) != 0 {
+		return false
+	}
+	c := q.owner.checker
+	symbol := c.GetSymbolAtLocation(member.Expression())
+	index := q.owner.index(ast.GetSourceFileOfNode(origin))
+	uses, known := q.mapKeySourceUses(symbol, d)
+	if !known || len(index.privateUses.unresolved[""]) != 0 {
+		return false
+	}
+	sid := ast.GetSymbolId(symbol)
+	if _, substituted := bindings[sid]; substituted || len(index.bindings[sid]) != 0 {
+		return false
+	}
+	for _, use := range uses {
+		if !q.charge(result, use.node) {
+			return false
+		}
+		if use.node == member.Expression() {
+			continue
+		}
+		outer := use.node.Parent
+		if outer == nil || (!ast.IsPropertyAccessExpression(outer) && !ast.IsElementAccessExpression(outer)) || outer.Expression() != use.node {
+			return false
+		}
+		read, write := accessorEvaluationMode(outer)
+		if !read || write || nativeAssignmentPatternTarget(outer) {
+			return false
+		}
+		if ast.IsPropertyAccessExpression(outer) && outer.Name().Text() == "length" {
+			continue
+		}
+		if !ast.IsElementAccessExpression(outer) {
+			return false
+		}
+		key := c.GetTypeAtLocation(outer.AsElementAccessExpression().ArgumentExpression)
+		if key == nil || key.Flags()&checker.TypeFlagsNumberLike == 0 {
+			return false
+		}
+		value := q.envelopeOuterExpression(outer, result)
+		if value == nil || value.Parent == nil || !ast.IsVariableDeclaration(value.Parent) || value.Parent.Initializer() != value {
+			return false
+		}
+	}
+	return true
 }
 
 // localArrayLengthRead excludes writer recovery through a direct local reader

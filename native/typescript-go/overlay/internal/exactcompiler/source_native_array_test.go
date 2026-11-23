@@ -16,6 +16,7 @@ func TestSourceNativeArrayPushSelection(t *testing.T) {
 		authored     string
 	}{
 		{"literal", `const xs:number[]=[];export function invoke(){xs.push(1)}`, true, ""},
+		{"captured queue", `export function collect(input:number){const pending:number[]=[]; function invoke(value:number){pending.push(value)} invoke(input); let total=0; for(let i=0;i<pending.length;i++){const value=pending[i];total+=value} return total}`, true, ""},
 		{"alias", `const xs:number[]=[];const alias=xs;export function invoke(){alias.push(1)}`, true, ""},
 		{"shadow", `const Array={prototype:{push(){return 9}}};const xs:number[]=[];export function invoke(){xs.push(1)}`, true, ""},
 		{"object", `const xs={push(value:number){return value}};export function invoke(){xs.push(1)}`, false, "push"},
