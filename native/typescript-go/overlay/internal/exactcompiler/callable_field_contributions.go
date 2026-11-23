@@ -79,16 +79,37 @@ func fieldSourceIdentity(source EnvironmentEffectSource) string {
 func displayEnvironmentSources(values []EnvironmentEffectSource) []EnvironmentEffectSource {
 	display := append([]EnvironmentEffectSource(nil), values...)
 	for i := range display {
-		display[i].relativeInput = nil
-		display[i].relativeMutation = nil
-		display[i].relativeCoercion = nil
-		display[i].callOrigin = nil
-		display[i].callForwarded = false
-		display[i].fieldOrigin = nil
-		display[i].fieldForwarded = false
-		display[i].componentReactiveField = false
-		display[i].descriptorOrigin = nil
-		display[i].descriptorForwarded = false
+		clearEnvironmentSourceProvenance(&display[i])
 	}
 	return uniqueEnvironmentSources(display)
+}
+
+// displayDirectEnvironmentSources collects original direct Gets before stripping
+// their provenance. Other summary consumers use the ordinary display path.
+func displayDirectEnvironmentSources(fact *callableFacts, setup *setupCallCandidates) []EnvironmentEffectSource {
+	values := fact.summary.DirectEffectSources
+	if setup.owner == nil || setup.owner.values == nil || len(setup.owner.values.components) == 0 {
+		return displayEnvironmentSources(values)
+	}
+	display := append([]EnvironmentEffectSource(nil), values...)
+	for i := range display {
+		if field := display[i].fieldOrigin; field != nil {
+			setup.collect(fact, field)
+		}
+		clearEnvironmentSourceProvenance(&display[i])
+	}
+	return uniqueEnvironmentSources(display)
+}
+
+func clearEnvironmentSourceProvenance(source *EnvironmentEffectSource) {
+	source.relativeInput = nil
+	source.relativeMutation = nil
+	source.relativeCoercion = nil
+	source.callOrigin = nil
+	source.callForwarded = false
+	source.fieldOrigin = nil
+	source.fieldForwarded = false
+	source.componentReactiveField = false
+	source.descriptorOrigin = nil
+	source.descriptorForwarded = false
 }

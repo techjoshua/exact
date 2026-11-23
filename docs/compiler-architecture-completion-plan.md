@@ -87,6 +87,14 @@ a JSDoc annotation or an adapter include rule alone gives the compiler no reason
 | Analysis and reuse | At each entry into invocation, Get, prior-write, return, constructor or descriptor reconstruction, identify the output consumer. Keep a shared graph edge or an unknown fact when it suffices. Remove work used only by retired private execution/migration assertions. Reuse stable facts across callers with source, selected dependency, checker and configuration validity. Keep execution-local state out of shared caches. | First migrate the ordinary effects fallback in `appendArgumentAccessorEffectsObserved` on a real component. Cross-check implicit accessor, module-initializer, framework protocol and staged callers before deleting shared machinery. Verify a reused summary after edits and reset, recursive calls, a known platform dependency plus an unknown alternative, and a real component whose output needs greater precision. |
 | Performance and distribution | Qualify the original Theme and Core package compiles on both targets under their existing deadlines. The Theme profile identifies property-read scope copying, value-origin recovery and call preparation; these are cost candidates, not proofs of redundant work. Build fresh affected providers and the SDK, and exercise installed outputs. | Produce usable paired artifacts for the real components, then exercise public rendering or invocation. Compare CPU and allocations for matched completed work where possible. Preserve diagnostics and maps, ABI and process compatibility, and validate affected Webpack, Bun and Vite routes. A timeout, a passing microtest or a retained-provider run cannot close a fresh package-build requirement. |
 
+Component setup can project a checked scalar prop read through an exact synchronous
+local helper when an initialization expression consumes its result and the
+source call has a single resolved edge. The placement
+projection uses the original Get and the current component's call edges. It
+leaves ordinary callable effects available to task analysis and leaves any
+authored input getter with the input producer. Ambiguous callees and separate
+effect-only calls keep their own placement obligations.
+
 #### Observable compiler consumers
 
 Start with the decision and its trigger before asking for more source precision. The scope column

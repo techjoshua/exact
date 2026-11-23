@@ -25,7 +25,7 @@ type sourceComponentInputAdoption struct {
 
 // componentPreparedSetupEffects projects original Get obligations for component
 // placement. The public callable summary still describes ordinary calls.
-func componentPreparedSetupEffects(source *ast.SourceFile, callables callableAnalysis, c *checker.Checker) map[*ast.Node][]EnvironmentEffectSource {
+func componentPreparedSetupEffects(source *ast.SourceFile, callables callableAnalysis, calls preparedSetupCalls, c *checker.Checker) map[*ast.Node][]EnvironmentEffectSource {
 	var prepared map[*ast.Node][]EnvironmentEffectSource
 	for _, fact := range callables.facts {
 		if fact.sourceFile != source || fact.summary.Kind != "component" || fact.summary.Effect != "unknown" {
@@ -33,7 +33,8 @@ func componentPreparedSetupEffects(source *ast.SourceFile, callables callableAna
 		}
 		var retained []EnvironmentEffectSource
 		for index, effect := range fact.summary.EffectSources {
-			if isPreparedScalarPropRead(fact.node, effect, callables.owner, c) {
+			if isPreparedScalarPropRead(fact.node, effect, callables.owner, c) ||
+				effect.fieldForwarded && !effect.componentReactiveField && calls.covers(fact.node, effect) {
 				if retained == nil {
 					retained = make([]EnvironmentEffectSource, 0, len(fact.summary.EffectSources)-1)
 					retained = append(retained, fact.summary.EffectSources[:index]...)
@@ -67,6 +68,10 @@ func isPreparedScalarPropRead(node *ast.Node, effect EnvironmentEffectSource, ow
 	} else if field.declaration != node || field.consumer != node {
 		return false
 	}
+	return isScalarComponentPropGet(node, field, owner, c)
+}
+
+func isScalarComponentPropGet(node *ast.Node, field *sourceFieldDemand, owner *executableBodyOwner, c *checker.Checker) bool {
 	_, receiver, direct := directPropsRead(field.operation)
 	if !direct {
 		return false

@@ -284,7 +284,7 @@ func (collection *projectCallableCollection) resolve(requested *ast.SourceFile) 
 			break
 		}
 	}
-	result := callableAnalysisFromFacts(requested, facts, cache.analyses)
+	result := callableAnalysisFromFacts(requested, facts, cache.analyses, owner)
 	if len(pending) != 0 {
 		result = callableAnalysis{facts: facts, pending: pending}
 	}

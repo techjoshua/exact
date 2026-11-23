@@ -316,6 +316,14 @@ export function StatePage(this: Component<{}>) {
 					and tracks changes to it. You can pass that result straight to a helper.
 				</p>
 				<p>
+					When setup uses the result of a local synchronous helper, the helper can read a scalar
+					prop captured from the component. For example, define
+					<code>{'function readQuantity() { return props.quantity }'}</code> and initialize
+					<code>{'const quantity = readQuantity()'}</code> for use in the view. The read of
+					<code>props.quantity</code> can run on either target. Any browser or server work in the
+					helper still determines where that work can run.
+				</p>
+				<p>
 					A producer such as <code>{'this.reactive(() => props.quantity)'}</code> tracks changes to
 					the parent’s prop. A checked scalar prop can be read during server rendering. A producer
 					that reads a browser API such as <code>document.title</code> runs on the client. The same

@@ -39,7 +39,8 @@ func analyzeComponents(
 	}
 	elements := collectComponentElements(sourceFile, typeChecker)
 	contextRoots := moduleContextTokenRoots(sourceFile)
-	preparedSetup := componentPreparedSetupEffects(sourceFile, callables, typeChecker)
+	setupCalls := callables.preparedSetupCallsFor(sourceFile, typeChecker)
+	preparedSetup := componentPreparedSetupEffects(sourceFile, callables, setupCalls, typeChecker)
 
 	// A component executes its returned callable to produce the view. Creating
 	// that callable during setup does not execute its getters or conversions.
@@ -301,6 +302,7 @@ func analyzeComponents(
 					}
 				}
 				if exists {
+					target = setupCalls.project(target, candidate.node, node)
 					if target.Effect == "mixed" || target.Effect == "unknown" {
 						// A mixed label cannot replace the known requirements carried
 						// by this ordinary Call's applicable effect sources.
@@ -380,7 +382,7 @@ func analyzeComponents(
 		// the legacy coordination label. New capability grants no runtime authority.
 		renderUnknown = renderUnknown || indivisible != "" || componentRenderProofIncomplete(
 			*component, candidate.node, callables, tasks, clientLifecycleSpans,
-			dormantCallableSpans, ownedElements, typeChecker,
+			dormantCallableSpans, ownedElements, setupCalls, typeChecker,
 		)
 		renderBrowser, renderServer := clientEffects || renderBrowserRequirements, serverEffects || renderServerRequirements
 		for _, task := range tasks {

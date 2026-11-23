@@ -1,4 +1,3 @@
-import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
 /**
  * @vitest-environment jsdom
  */
@@ -18,10 +17,12 @@ import * as exactTasksRuntime from '@exactjs/core/runtime/tasks';
 import * as exactComponentBrandingRuntime from '@exactjs/core/runtime/component-branding';
 import { render, unmount } from '@exactjs/dom';
 import { createTestOperation } from '@exactjs/testing/internal/fixtures';
+import * as exactDomDirectComponentRuntime from '@exactjs/dom/runtime/direct-component';
 import * as exactDomRenderProgramRuntime from '@exactjs/dom/runtime/render-program';
 import { flushSync } from '@exactjs/reactive';
 import ts from 'typescript';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { readClientComponentInput } from '../../dom/src/renderer/component-input-admission.js';
 import { transform } from './index.js';
 describe('compiled transparent component', () => {
 	it.each([
@@ -70,6 +71,50 @@ export function Page(props: { onClick?: () => void; label: string }) {
 		expect(first).toHaveBeenCalledOnce();
 		expect(second).toHaveBeenCalledOnce();
 	});
+	it.each(['props.value', 'read()'])(
+		'retains the output when setup derives its value from %s',
+		(expression) => {
+			const compiled = transform(
+				`
+import type { Component } from '@exactjs/core';
+export function Page(this: Component<{}>, props: { value: string }) {
+	${expression === 'read()' ? 'function read() { const value = props.value; return value; }' : ''}
+	const value = ${expression};
+	return () => <output>{value}</output>;
+}`,
+				{ filename: 'ScalarSetupProp.tsx', target: 'client' }
+			);
+			const Page = executeCompiledComponent(compiled, 'Page');
+			const container = document.createElement('div');
+			onTestFinished(() => unmount(container));
+			const read = vi.fn();
+			const update = (value: string) => {
+				const props = {
+					get value() {
+						expect(this).toBe(props);
+						read();
+						return value;
+					}
+				};
+				render(
+					exactComponentOperationsRuntime.createCompiledComponentInputReceipt(Page, props),
+					container
+				);
+				flushSync();
+			};
+			update('first');
+			const output = container.querySelector('output');
+			expect(output?.textContent).toBe('first');
+			for (const value of ['second', 'third']) {
+				update(value);
+				expect(container.querySelector('output')).toBe(output);
+				expect(output?.textContent).toBe(value);
+			}
+			expect(read).toHaveBeenCalledTimes(3);
+			unmount(container);
+			expect(container.querySelector('output')).toBeNull();
+		}
+	);
 	it.each(['component', 'helper'])(
 		'retains keyed rows from a shared projection in a %s',
 		(owner) => {
@@ -307,6 +352,7 @@ function executeCompiledComponent(
 		'@exactjs/core/runtime/reactivity': exactReactivityRuntime,
 		'@exactjs/core/runtime/tasks': exactTasksRuntime,
 		'@exactjs/core/runtime/component-branding': exactComponentBrandingRuntime,
+		'@exactjs/dom/runtime/direct-component': exactDomDirectComponentRuntime,
 		'@exactjs/dom/runtime/render-program': exactDomRenderProgramRuntime
 	};
 	new Function('require', 'exports', 'module', javascript)(

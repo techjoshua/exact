@@ -27,7 +27,7 @@ func componentRenderCapability(browser, server, incomplete bool) ComponentRender
 // componentRenderProofIncomplete requires a known render shape and direct-effect coverage.
 // Deferred task, lifecycle and dormant bodies do not execute as ordinary render work.
 // Child composition is deliberately unknown until its target-local proof is available.
-func componentRenderProofIncomplete(component Component, node *ast.Node, callables callableAnalysis, tasks []Task, lifecycle, dormant []SourceSpan, elements []componentElement, c *checker.Checker) bool {
+func componentRenderProofIncomplete(component Component, node *ast.Node, callables callableAnalysis, tasks []Task, lifecycle, dormant []SourceSpan, elements []componentElement, setupCalls preparedSetupCalls, c *checker.Checker) bool {
 	if !component.CompiledRender || !component.ClientCompiledRender {
 		return true
 	}
@@ -50,6 +50,7 @@ func componentRenderProofIncomplete(component Component, node *ast.Node, callabl
 			// Keep every untagged/unpaid unknown. Only the same completed local
 			// SOURCE obligation already removed by canonical propagation is paid.
 			if source.Environment == "unknown" && !isPreparedScalarPropRead(node, source, callables.owner, c) &&
+				!setupCalls.covers(node, source) &&
 				(!projected || !sourceObligationCoveredLocally(&fact, source)) {
 				return true
 			}

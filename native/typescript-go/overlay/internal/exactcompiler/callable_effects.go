@@ -85,6 +85,8 @@ type callableFacts struct {
 type callableAnalysis struct {
 	sourceContext *callableSourceContext // Static source preparation, never graph observation authority.
 
+	setupCalls preparedSetupCalls
+
 	owner     *executableBodyOwner
 	pending   []sourceStagedPending
 	summaries []CallableSummary
@@ -188,6 +190,7 @@ func collectCallableEffects(
 		return callableAnalysis{facts: facts, pending: pending}
 	}
 
+	setup := setupCallCandidates{owner: owner}
 	summaries := make([]CallableSummary, len(facts))
 	byNode := make(map[*ast.Node]CallableSummary, len(facts))
 	for index := range facts {
@@ -199,7 +202,7 @@ func collectCallableEffects(
 			fact.summary.EffectSources,
 		)
 		published := fact.summary
-		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)
+		published.DirectEffectSources = displayDirectEnvironmentSources(fact, &setup)
 		published.EffectSources = displayEnvironmentSources(published.EffectSources)
 		summaries[index] = published
 		byNode[fact.node] = published
@@ -209,10 +212,11 @@ func collectCallableEffects(
 		bySymbol[symbol] = summaries[index]
 	}
 	return callableAnalysis{
-		summaries: summaries,
-		byNode:    byNode,
-		bySymbol:  bySymbol,
-		facts:     facts,
+		setupCalls: setup.prepare(facts),
+		summaries:  summaries,
+		byNode:     byNode,
+		bySymbol:   bySymbol,
+		facts:      facts,
 	}
 }
 
@@ -465,7 +469,7 @@ func mergeProjectCallableEffects(
 	if pending := resolveCallableEffects(facts, owner); len(pending) != 0 {
 		return callableAnalysis{facts: facts, pending: pending}
 	}
-	return callableAnalysisFromFacts(requested, facts, analyses)
+	return callableAnalysisFromFacts(requested, facts, analyses, owner)
 }
 
 func callableModuleKey(filename string) string {
@@ -534,9 +538,14 @@ func callableAnalysisFromFacts(
 	requested *ast.SourceFile,
 	facts []callableFacts,
 	analyses []callableAnalysis,
+	owners ...*executableBodyOwner,
 ) callableAnalysis {
 	if pending := stagedPublicationPending(facts); len(pending) != 0 {
 		return callableAnalysis{facts: facts, pending: pending}
+	}
+	var setup setupCallCandidates
+	if len(owners) == 1 {
+		setup.owner = owners[0]
 	}
 	finalByID := make(map[string]CallableSummary, len(facts))
 	byNode := make(map[*ast.Node]CallableSummary, len(facts))
@@ -554,7 +563,7 @@ func callableAnalysisFromFacts(
 			fact.summary.EffectSources,
 		)
 		published := fact.summary
-		published.DirectEffectSources = displayEnvironmentSources(published.DirectEffectSources)
+		published.DirectEffectSources = displayDirectEnvironmentSources(fact, &setup)
 		published.EffectSources = displayEnvironmentSources(published.EffectSources)
 		finalByID[fact.summary.ID] = published
 		byNode[fact.node] = published
@@ -574,10 +583,11 @@ func callableAnalysisFromFacts(
 		return summaries[left].ID < summaries[right].ID
 	})
 	return callableAnalysis{
-		summaries: summaries,
-		byNode:    byNode,
-		bySymbol:  bySymbol,
-		facts:     facts,
+		setupCalls: setup.prepare(facts),
+		summaries:  summaries,
+		byNode:     byNode,
+		bySymbol:   bySymbol,
+		facts:      facts,
 	}
 }
 

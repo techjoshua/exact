@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"context"
 	"crypto/sha256"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -17,6 +18,13 @@ func TestPreparedScalarPropSetupPlacement(t *testing.T) {
 		protected                    bool
 	}{
 		{"no caller", component, "isomorphic", "", false},
+		{"captured scalar setup call", `export function Consumer(props:{value:string}){function read(){const value=props.value;return value}const key=read();return()=> <output>{key}</output>}`, "isomorphic", "", false},
+		{"repeated consumed setup calls", `export function Consumer(props:{value:string}){function read(){return props.value}const first=read();const second=read();return()=> <output>{first}{second}</output>}`, "isomorphic", "", false},
+		{"two scalar reads and two setup helpers", `export function Consumer(props:{value:string;unit:string}){function read(){return props.value+props.unit}function unit(){return props.unit}const first=read();const second=unit();return()=> <output>{first}{second}</output>}`, "isomorphic", "", false},
+		{"captured scalar and browser spread", `export function Consumer(props:{value:string}){function read(){return props.value}const key=read();return()=> <output>{key}</output>}export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
+		{"helper with browser getter", `export function Consumer(props:{value:string}){const other={get value(){return document.title}};function read(){return props.value+other.value}const key=read();return()=> <output>{key}</output>}`, "client", "", false},
+		{"shadowed receiver", `export function Consumer(props:{value:string}){function read(props:{value:string}){return props.value}const key=read({get value(){return document.title}});return()=> <output>{key}</output>}`, "client", "", false},
+		{"dormant helper", `export function Consumer(props:{value:string}){function read(){return props.value+document.title}return()=> <output>idle</output>}`, "isomorphic", "", false},
 		{"reactive scalar", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value);return()=> <output>{cell.get()}</output>}`, "isomorphic", "", false},
 		{"reactive scalar and browser", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value+document.title);return()=> <output>{cell.get()}</output>}`, "client", "", false},
 		{"reactive scalar and getter spread", `export function Consumer(props:{value:string}){const cell=this.reactive(()=>props.value);return()=> <output>{cell.get()}</output>}export function Host(){return()=> <Consumer {...{get value(){return document.title}}}/>}`, "isomorphic", "client", false},
@@ -53,12 +61,95 @@ type Private=string&{readonly[brand]:true};export function Consumer(props:{value
 					if placements["Consumer"] != row.consumer || placements["Host"] != row.host {
 						t.Fatal(target, placements)
 					}
+					if row.name == "captured scalar setup call" {
+						capability := response.Analysis.Components[0].RenderCapability
+						if capability.Server != "supported" || capability.Client != "supported" {
+							t.Fatal(target, capability)
+						}
+						ordinary := false
+						for _, callable := range response.Analysis.Callables {
+							ordinary = ordinary || callable.Name == "read" && callable.Effect == "unknown"
+						}
+						if !ordinary {
+							t.Fatal(target, "missing ordinary callable uncertainty")
+						}
+					}
 					if row.name == "reactive scalar and browser" && strings.Contains(response.Code, "document.title") != (target == TargetClient) {
 						t.Fatal(target, "browser producer crossed its placement boundary")
 					}
 				}
 				if application.Code != library.Code {
 					t.Fatal(target, "application and library emitted different implementations")
+				}
+			}
+		})
+	}
+}
+
+// An edited source must rebuild the setup-call projection in its new checker
+// generation. An unchanged historical call location cannot lend coverage.
+func TestPreparedScalarPropCallGeneration(t *testing.T) {
+	const source = `import{type Component}from'@exactjs/core';
+export function Consumer(this:Component<{}>,props:{value:string}){
+	function read(){return props.value}
+	const key=read();
+	return()=> <output>{key}</output>;
+}`
+	request, inputs := componentCallProjectionInputs(t, "setup-call-generation.tsx", source)
+	project, diagnostics, err := newProjectStateWithSources(request, request.ID, inputs)
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatal(err, diagnostics)
+	}
+	generation, err := project.advance(context.Background(), request.ID, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldFile, oldChecker := generation.sourceFile, generation.checker
+	old := collectProjectCallableEffects(project, oldFile, oldChecker, collectComponents(oldFile), nil, nil, nil, assetAnalysis{}, nil)
+	if calls := old.preparedSetupCallsFor(oldFile, oldChecker); len(calls.calls) != 1 || len(calls.fields) != 1 {
+		generation.release()
+		t.Fatal("setup-call projection missing from settled original source")
+	}
+	generation.release()
+
+	next, err := project.advance(context.Background(), request.ID, strings.Replace(source, "return()=>", "read();return()=>", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer next.release()
+	if next.program == generation.program || next.sourceFile == oldFile {
+		t.Fatal("fixture did not replace the source generation")
+	}
+	if calls := old.preparedSetupCallsFor(oldFile, oldChecker); len(calls.calls) != 0 || len(calls.fields) != 0 {
+		t.Fatal("retired checker generation provided setup-call coverage")
+	}
+	fresh := collectProjectCallableEffects(project, next.sourceFile, next.checker, collectComponents(next.sourceFile), nil, nil, nil, assetAnalysis{}, nil)
+	if len(fresh.pending) != 0 {
+		t.Fatal("edited source did not settle", fresh.pending)
+	}
+	if calls := fresh.preparedSetupCallsFor(next.sourceFile, next.checker); len(calls.calls) != 0 || len(calls.fields) != 0 {
+		t.Fatal("discarded call failed to block the shared scalar Get")
+	}
+}
+
+// A separate setup Call or an ambiguous selection keeps the ordinary diagnostic.
+func TestPreparedScalarPropCallControls(t *testing.T) {
+	const header = `import{type Component}from'@exactjs/core';
+export function Consumer(this:Component<{}>,props:{value:string;alternate:boolean}){`
+	for _, row := range []struct{ name, setup, code string }{
+		{"discarded call", `function read(){return props.value}const key=read();read();`, "EXACT2001"},
+		{"ambiguous target", `function read(){return props.value}const choose=props.alternate?read:()=>document.title;const key=choose();`, "EXACT2202"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			fixture := newPublicAwaitRequiredFixture(t, header+row.setup+`return()=> <output>{key}</output>}`)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				for _, mode := range []string{"application", "library"} {
+					request := fixture.request("compile", "entry.tsx")
+					request.Target, request.PackageType = target, mode
+					response := NewSession().Execute(request)
+					if response.Error != "" || !containsDiagnosticCode(response.Diagnostics, row.code) || response.Code != "" {
+						t.Fatal(target, mode, response.Error, response.Diagnostics)
+					}
 				}
 			}
 		})
