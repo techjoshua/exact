@@ -414,11 +414,12 @@ func moduleDefinitionNodeIsDeferred(node, work *ast.Node) bool {
 // moduleValueAvailability belongs to one request and one executable selection.
 // Export reporting and pruning can ask for the same checker's symbol before lowering.
 type moduleValueAvailability struct {
-	checker    *checker.Checker
-	owner      *executableBodyOwner
-	callables  map[*ast.Node]CallableSummary
-	revision   uint64
-	placements map[*ast.Symbol]string
+	dormantBindingTypes map[int]ast.Kind
+	checker             *checker.Checker
+	owner               *executableBodyOwner
+	callables           map[*ast.Node]CallableSummary
+	revision            uint64
+	placements          map[*ast.Symbol]string
 }
 
 func (availability *moduleValueAvailability) placement(symbol *ast.Symbol) string {

@@ -169,14 +169,31 @@ func analyzeComponents(
 			splitBoundaries["event-handler"] = struct{}{}
 		}
 
+		dormantEnd := -1
 		walkNode(candidate.node, func(node *ast.Node) bool {
-			// Types can describe browser/server values without executing or importing them.
-			if node.Parent != nil && ast.IsPartOfTypeNode(node) {
-				return false
-			}
 			owner := componentOwnerIndex(node, candidates)
 			if owner != index {
 				return owner < 0
+			}
+			if dormantBooleanConditionalArm(node) && node.End() > dormantEnd {
+				dormantEnd = node.End()
+			}
+			if node.End() <= dormantEnd {
+				// The authored arm still participates in TypeScript inference.
+				// Collect its target binding needs without charging execution effects.
+				switch availability.dormantReferencePlacement(sourceFile, node) {
+				case "client":
+					clientEffects = true
+					moduleRequirement = node.Text()
+				case "server":
+					serverEffects = true
+					moduleRequirement = node.Text()
+				}
+				return true
+			}
+			// Types can describe browser/server values without executing or importing them.
+			if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+				return false
 			}
 			if insideTaskSpan(node.Pos(), tasks, component.Name) {
 				if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&

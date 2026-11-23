@@ -75,7 +75,8 @@ func islandPlacementDiagnostics(
 		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker, nil)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		walkNode(candidate.node, func(node *ast.Node) bool {
-			if ast.IsPartOfTypeNode(node) {
+			// Validate the server's executable arms while leaving authored typing intact.
+			if dormantBooleanConditionalArm(node) || ast.IsPartOfTypeNode(node) {
 				return false
 			}
 			if insideTaskSpan(node.Pos(), tasks, component.Name) ||

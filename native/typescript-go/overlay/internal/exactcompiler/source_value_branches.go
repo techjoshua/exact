@@ -7,6 +7,22 @@ import (
 	"strings"
 )
 
+// dormantBooleanConditionalArm recognizes an unexecuted arm without asking the
+// value graph for facts about the condition. The condition itself stays live.
+func dormantBooleanConditionalArm(node *ast.Node) bool {
+	if node.Parent == nil || !ast.IsConditionalExpression(node.Parent) {
+		return false
+	}
+	branch := node.Parent.AsConditionalExpression()
+	switch unwrapSourceCallableReference(branch.Condition).Kind {
+	case ast.KindTrueKeyword:
+		return node == branch.WhenFalse
+	case ast.KindFalseKeyword:
+		return node == branch.WhenTrue
+	}
+	return false
+}
+
 // literalDecision shares finite primitive facts between acquisition and producers.
 // Number requires a binder-owned native call, a primitive literal input and a
 // closed indexed mutation/call boundary. Other conversion forms stay unresolved.

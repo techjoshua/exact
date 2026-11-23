@@ -68,7 +68,10 @@ func pruneArtifactStatements(
 	statements := make([]*ast.Node, 0, len(sourceFile.Statements.Nodes))
 	changed := false
 	for _, statement := range sourceFile.Statements.Nodes {
-		if _, omit := omittedStarts[statement.Pos()]; omit {
+		_, omitStatement := omittedStarts[statement.Pos()]
+		// Variable statements still visit their declarators so dormant references
+		// can preserve binding types after their initializers are removed.
+		if omitStatement && !ast.IsVariableStatement(statement) {
 			// Imports have their own target-aware pruning pass after contract
 			// lowering. Removing one as a module initializer here can orphan a
 			// render-helper binding synthesized into an executor carrier.
@@ -80,7 +83,10 @@ func pruneArtifactStatements(
 				continue
 			}
 		}
-		updated, keep := pruneOppositeExportedValues(statement, factory, omittedNames, omittedBindings, omittedInitializers)
+		updated, keep := pruneOppositeExportedValues(
+			statement, factory, omitStatement, omittedNames, omittedBindings,
+			omittedInitializers, omittedModuleValues.dormantBindingTypes, &statements,
+		)
 		if !keep {
 			changed = true
 			continue
@@ -114,9 +120,12 @@ func artifactTargetsInclude(targets []string, target Target) bool {
 func pruneOppositeExportedValues(
 	statement *ast.Node,
 	factory *printer.NodeFactory,
+	omitStatement bool,
 	omittedNames map[string]struct{},
 	omittedBindings map[string]struct{},
 	omittedInitializers map[int]struct{},
+	dormantBindingTypes map[int]ast.Kind,
+	statements *[]*ast.Node,
 ) (*ast.Node, bool) {
 	if ast.IsFunctionDeclaration(statement) || ast.IsClassDeclaration(statement) {
 		if statement.Name() != nil {
@@ -137,18 +146,24 @@ func pruneOppositeExportedValues(
 		list := variable.DeclarationList.AsVariableDeclarationList()
 		declarations := make([]*ast.Node, 0, len(list.Declarations.Nodes))
 		for _, declaration := range list.Declarations.Nodes {
-			if _, omitted := omittedInitializers[declaration.Pos()]; omitted {
-				continue
-			}
-			names := componentBindingNames(declaration.Name())
-			omit := len(names) != 0
-			for _, name := range names {
-				if _, opposite := omittedBindings[name]; !opposite {
-					omit = false
-					break
+			_, omitted := omittedInitializers[declaration.Pos()]
+			if !omitStatement && !omitted {
+				names := componentBindingNames(declaration.Name())
+				omitted = len(names) != 0
+				for _, name := range names {
+					if _, opposite := omittedBindings[name]; !opposite {
+						omitted = false
+						break
+					}
 				}
 			}
-			if omit {
+			if omitStatement || omitted {
+				if kind, needed := dormantBindingTypes[declaration.Pos()]; needed {
+					ambient := factory.NewVariableDeclaration(factory.NewIdentifier(declaration.Name().Text()), nil, factory.NewKeywordTypeNode(kind), nil)
+					modifiers := factory.NewModifierList([]*ast.Node{factory.NewModifier(ast.KindDeclareKeyword)})
+					bindings := factory.NewVariableDeclarationList(factory.NewNodeList([]*ast.Node{ambient}), ast.NodeFlagsConst)
+					*statements = append(*statements, factory.NewVariableStatement(modifiers, bindings))
+				}
 				continue
 			}
 			declarations = append(declarations, declaration)

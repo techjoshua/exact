@@ -362,7 +362,9 @@ export const value = readers[0]!();`}
 				<code>[3, 4, 6, 8].includes(value.length)</code> can run on either target when
 				<code>value</code> is a string. Reading <code>document.title.length</code> as its search
 				argument requires the browser. An object supplied as the starting index can also run
-				authored code when JavaScript converts it to a number.
+				authored code when JavaScript converts it to a number. In component setup,
+				<code>false ? document.title : "ready"</code> can render on the server. If a prop selects
+				the branch, the component can read the document and requires a browser.
 			</p>
 			<p>
 				In <code>[record.count, 2].every(Number.isFinite)</code>, the predicate checks each value

@@ -1148,6 +1148,9 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			}
 		}
 		node.ForEachChild(func(child *ast.Node) bool {
+			if hasOwn != nil && dormantBooleanConditionalArm(child) {
+				return false
+			}
 			if sourceMemberOperationOwnsChild(node, child) && node != root {
 				return false
 			}

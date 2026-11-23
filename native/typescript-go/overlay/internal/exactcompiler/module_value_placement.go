@@ -7,8 +7,9 @@ import (
 
 // moduleValuePruning keeps declarations and their executing module consumers under one target proof.
 type moduleValuePruning struct {
-	bindings   map[string]struct{}
-	statements map[int]struct{}
+	dormantBindingTypes map[int]ast.Kind
+	bindings            map[string]struct{}
+	statements          map[int]struct{}
 }
 
 // planModuleValuePruning captures initializer and consumer ownership before transformed nodes
@@ -18,6 +19,9 @@ func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		return moduleValuePruning{}
 	}
 	result := moduleValuePruning{bindings: make(map[string]struct{}), statements: make(map[int]struct{})}
+	if availability != nil {
+		result.dormantBindingTypes = availability.dormantBindingTypes
+	}
 	components := make(map[string]struct{})
 	for _, candidate := range activeComponentCandidates(sourceFile) {
 		components[candidate.name] = struct{}{}
@@ -126,4 +130,51 @@ func (availability *moduleValueAvailability) taskCallBindingRequirement(work, op
 		return EnvironmentEffectSource{}, false
 	}
 	return environmentSource(environment, "module binding "+expression.Text(), name), true
+}
+
+// dormantReferencePlacement lets partitioning retain a local const's precise
+// primitive type when its initializer must be removed. Other bindings keep
+// their existing target requirement, including imports and structural types.
+func (availability *moduleValueAvailability) dormantReferencePlacement(file *ast.SourceFile, node *ast.Node) string {
+	if availability == nil || !ast.IsIdentifier(node) {
+		return ""
+	}
+	var symbol *ast.Symbol
+	parent := node.Parent
+	// Shorthand defaults are separate expressions with their own lexical bindings.
+	if parent != nil && ast.IsShorthandPropertyAssignment(parent) && parent.Name() == node {
+		symbol = availability.checker.GetShorthandAssignmentValueSymbol(parent)
+	} else {
+		if ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+			return ""
+		}
+		symbol = availability.checker.GetSymbolAtLocation(node)
+	}
+	placement := availability.componentReferencePlacement(node, symbol)
+	if placement != "client" && placement != "server" {
+		if serverOnlyImportSymbol(symbol) {
+			return "server"
+		}
+		return ""
+	}
+	d := symbol.ValueDeclaration
+	if d == nil || !ast.IsVariableDeclaration(d) || !ast.IsIdentifier(d.Name()) ||
+		d.Parent == nil || !ast.IsVariableDeclarationList(d.Parent) || d.Parent.Flags&ast.NodeFlagsConst == 0 ||
+		d.Parent.Parent == nil || d.Parent.Parent.Parent != file.AsNode() {
+		return placement
+	}
+	var kind ast.Kind
+	switch availability.checker.GetTypeOfSymbol(symbol) {
+	case availability.checker.GetStringType():
+		kind = ast.KindStringKeyword
+	case availability.checker.GetNumberType():
+		kind = ast.KindNumberKeyword
+	default:
+		return placement
+	}
+	if availability.dormantBindingTypes == nil {
+		availability.dormantBindingTypes = make(map[int]ast.Kind)
+	}
+	availability.dormantBindingTypes[d.Pos()] = kind
+	return ""
 }
