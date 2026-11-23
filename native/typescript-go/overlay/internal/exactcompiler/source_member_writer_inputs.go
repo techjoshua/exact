@@ -99,17 +99,11 @@ func (q *sourceValueQuery) memberInitializerReadStatement(get *sourceGetInputs, 
 		(read != call && read != call.Expression()) || !ast.IsIdentifier(call.Expression().Expression()) {
 		return nil, nil
 	}
-	decl := call.Parent
-	if !ast.IsVariableDeclaration(decl) || decl.Initializer() != call || !ast.IsIdentifier(decl.Name()) {
+	owner := enclosingCallableNode(call)
+	if !envelopeSynchronousFunction(owner) {
 		return nil, nil
 	}
-	list := decl.Parent
-	statement = list.Parent
-	if !ast.IsVariableStatement(statement) || statement.Parent == nil || !ast.IsBlock(statement.Parent) ||
-		statement.Parent.Parent == nil || !envelopeSynchronousFunction(statement.Parent.Parent) ||
-		statement.Parent.Parent.Body() != statement.Parent {
-		return nil, nil
-	}
+	body := owner.Body()
 	receiver := call.Expression().Expression()
 	checker := q.owner.checker
 	symbol := checker.GetSymbolAtLocation(receiver)
@@ -128,7 +122,25 @@ func (q *sourceValueQuery) memberInitializerReadStatement(get *sourceGetInputs, 
 	if !available || source != ast.GetSourceFileOfNode(binding) {
 		return nil, nil
 	}
-	return call, statement
+	if decl := call.Parent; decl != nil && ast.IsVariableDeclaration(decl) && decl.Initializer() == call &&
+		ast.IsIdentifier(decl.Name()) && ast.IsVariableStatement(decl.Parent.Parent) && decl.Parent.Parent.Parent == body {
+		return call, decl.Parent.Parent
+	}
+	// A direct preceding for-of must read its iterable even when there are
+	// no elements. The enclosing function cannot resume after a throwing
+	// binding read. Earlier calls and calls inside the loop stay eligible.
+	for _, previous := range body.AsBlock().Statements.Nodes {
+		if previous.End() > call.Pos() {
+			break
+		}
+		if ast.IsForOfStatement(previous) {
+			iterable := previous.AsForInOrOfStatement().Expression
+			if ast.IsIdentifier(iterable) && checker.GetSymbolAtLocation(iterable) == symbol {
+				return call, previous
+			}
+		}
+	}
+	return nil, nil
 }
 
 // evaluationScope supplies detached writable maps only when the original

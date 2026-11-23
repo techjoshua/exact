@@ -74,7 +74,7 @@ export function Page(this: Component<{step:number}>) {
  Object.freeze = ((input: string[]) => {
    if (Array.isArray(input) && input[0] === 'one') {
      Object.freeze = freeze;
-     return {map(callback:(x:string)=>string){ void document.title; return input.map(callback); }};
+     return {[Symbol.iterator](){ return input[Symbol.iterator](); }, map(callback:(x:string)=>string){ void document.title; return input.map(callback); }};
    }
    return freeze(input);
  }) as unknown as typeof Object.freeze;
@@ -102,22 +102,28 @@ export function read(step:number) {
 const raw=['one','two'];
 export const keys=Object.freeze(raw);`, `import {read} from './reader.js'; read(0);`, "client"},
 	} {
-		t.Run(row.name, func(t *testing.T) {
-			session := NewSession()
-			setup := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config, Sources: []ProjectSource{
-				{ID: entry, Source: page}, {ID: filepath.Join(root, "install.ts"), Source: installer},
-				{ID: filepath.Join(root, "reader.ts"), Source: row.reader}, {ID: filepath.Join(root, "provider.ts"), Source: row.provider},
-				{ID: filepath.Join(root, "early.ts"), Source: row.early},
-			}})
-			if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
-				t.Fatal(setup.Error, setup.Diagnostics)
-			}
-			response := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config,
-				Source: page, Target: TargetServer, Diagnostics: "semantic", ServerComponents: true})
-			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" ||
-				len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != row.placement {
-				t.Fatal(response.Error, response.Diagnostics, response.Analysis.Components)
-			}
-		})
+		for _, form := range []struct{ name, expression string }{
+			{"direct", "const list=keys.map(item=>item+':'+step);"},
+			{"after loop", "for (const key of keys) { void key; }\n const list=[...keys.map(item=>item+':'+step)];"},
+		} {
+			t.Run(row.name+"/"+form.name, func(t *testing.T) {
+				reader := strings.Replace(row.reader, "const list=keys.map(item=>item+':'+step);", form.expression, 1)
+				session := NewSession()
+				setup := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config, Sources: []ProjectSource{
+					{ID: entry, Source: page}, {ID: filepath.Join(root, "install.ts"), Source: installer},
+					{ID: filepath.Join(root, "reader.ts"), Source: reader}, {ID: filepath.Join(root, "provider.ts"), Source: row.provider},
+					{ID: filepath.Join(root, "early.ts"), Source: row.early},
+				}})
+				if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
+					t.Fatal(setup.Error, setup.Diagnostics)
+				}
+				response := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config,
+					Source: page, Target: TargetServer, Diagnostics: "semantic", ServerComponents: true})
+				if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" ||
+					len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != row.placement {
+					t.Fatal(response.Error, response.Diagnostics, response.Analysis.Components)
+				}
+			})
+		}
 	}
 }
