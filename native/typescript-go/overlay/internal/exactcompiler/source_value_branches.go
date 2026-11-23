@@ -592,11 +592,11 @@ func (query *sourceValueQuery) reachableWithin(node, region *ast.Node, bindings 
 		if ast.IsSourceFile(parent) {
 			statements = parent.AsSourceFile().Statements.Nodes
 		}
-		for _, prior := range statements {
+		for position, prior := range statements {
 			if prior == child {
 				break
 			}
-			if indexedWriter && query.unrepresentedIndexedWriterMapGuard(prior, bindings) {
+			if indexedWriter && position > 0 && query.unrepresentedIndexedWriterMapGuard(prior, statements[position-1], bindings) {
 				// The scoped discovery query has no result for the predicate.
 				// Keep the candidate possible without resolving its return value.
 				certain = false

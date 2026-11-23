@@ -100,7 +100,10 @@ func (q *sourceValueQuery) mapKeySourceUses(symbol *ast.Symbol, declaration *ast
 	if symbol == nil || symbol.ValueDeclaration != declaration {
 		return nil, false
 	}
-	index := q.owner.index(ast.GetSourceFileOfNode(declaration))
+	return indexedMapKeySourceUses(q.owner.index(ast.GetSourceFileOfNode(declaration)), symbol, declaration)
+}
+
+func indexedMapKeySourceUses(index sourceValueIndex, symbol *ast.Symbol, declaration *ast.Node) ([]sourcePrivateUse, bool) {
 	if index.incomplete || index.normalDynamicScope || index.privateUses == nil || !index.privateUses.complete || len(index.privateUses.unresolved[declaration.Name().Text()]) != 0 {
 		return nil, false
 	}

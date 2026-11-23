@@ -6,7 +6,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // when a declaration-only Map lookup has no represented result at this cut.
 // The original evaluation keeps the Get and effects. Bound results and normal
 // or staged owners stay with their ordinary completion consumer.
-func (q *sourceValueQuery) unrepresentedIndexedWriterMapGuard(node *ast.Node, bindings sourceValueBindings) bool {
+func (q *sourceValueQuery) unrepresentedIndexedWriterMapGuard(node, previous *ast.Node, bindings sourceValueBindings) bool {
 	if !ast.IsIfStatement(node) {
 		return false
 	}
@@ -21,31 +21,24 @@ func (q *sourceValueQuery) unrepresentedIndexedWriterMapGuard(node *ast.Node, bi
 	if !ast.IsIdentifier(branch.Expression) || !ast.IsReturnStatement(branch.ThenStatement) || branch.ElseStatement != nil || node.Parent == nil || !ast.IsBlock(node.Parent) {
 		return false
 	}
+
+	if previous == nil || !ast.IsVariableStatement(previous) || previous.Parent != node.Parent {
+		return false
+	}
+	list := previous.AsVariableStatement().DeclarationList
+	if list == nil || !ast.IsVariableDeclarationList(list) || len(list.AsVariableDeclarationList().Declarations.Nodes) != 1 {
+		return false
+	}
+	binding := list.AsVariableDeclarationList().Declarations.Nodes[0]
+	if binding.Name() == nil || !ast.IsIdentifier(binding.Name()) || binding.Name().Text() != branch.Expression.Text() {
+		return false
+	}
+	call := unwrapSourceCallableReference(binding.Initializer())
+	if call == nil || !ast.IsCallExpression(call) || ast.IsOptionalChain(call) || !ast.IsPropertyAccessExpression(call.Expression()) || call.Expression().Name().Text() != "get" || q.active[call] {
+		return false
+	}
 	local := q.owner.checker.GetSymbolAtLocation(branch.Expression)
-	if local == nil || local.ValueDeclaration == nil || !ast.IsVariableDeclaration(local.ValueDeclaration) {
-		return false
-	}
-	binding := local.ValueDeclaration
-	list := binding.Parent
-	if list == nil || !ast.IsVariableDeclarationList(list) || len(list.AsVariableDeclarationList().Declarations.Nodes) != 1 || list.Parent == nil || !ast.IsVariableStatement(list.Parent) || list.Parent.Parent != node.Parent {
-		return false
-	}
-	var previous *ast.Node
-	for _, statement := range node.Parent.AsBlock().Statements.Nodes {
-		if statement == node {
-			break
-		}
-		previous = statement
-	}
-	if previous != list.Parent {
-		return false
-	}
-	init := unwrapSourceCallableReference(binding.Initializer())
-	if init == nil || !ast.IsCallExpression(init) || ast.IsOptionalChain(init) || !ast.IsPropertyAccessExpression(init.Expression()) || init.Expression().Name().Text() != "get" {
-		return false
-	}
-	call := init
-	if q.active[call] {
+	if local == nil || local.ValueDeclaration != binding {
 		return false
 	}
 	if _, substituted := bindings[ast.GetSymbolId(local)]; substituted {
@@ -75,7 +68,7 @@ func (q *sourceValueQuery) unrepresentedIndexedWriterMapGuard(node *ast.Node, bi
 	if _, substituted := bindings[id]; substituted || q.live[id] || len(index.bindings[id]) != 0 {
 		return false
 	}
-	uses, complete := q.mapKeySourceUses(symbol, mapDecl)
+	uses, complete := indexedMapKeySourceUses(index, symbol, mapDecl)
 	if !complete || len(uses) == 0 || len(uses) > 3 || len(index.privateUses.unresolved[""]) != 0 {
 		return false
 	}
