@@ -744,14 +744,33 @@ func applyFunctionTaskPolicy(
 }
 
 func looksLikeTaskPolicy(work *ast.Node, sourceFile *ast.SourceFile) bool {
+	var imports externalImportBindings
+	return looksLikeTaskPolicyWithImports(work, sourceFile, &imports)
+}
+
+// looksLikeTaskPolicyWithImports can borrow a syntax-only table for candidates
+// from one parse. Only an actual root lookup prepares the table.
+func looksLikeTaskPolicyWithImports(work *ast.Node, sourceFile *ast.SourceFile, imports *externalImportBindings) bool {
 	parameters := work.Parameters()
 	if len(parameters) == 0 {
 		return false
 	}
-	final := parameters[len(parameters)-1].AsParameterDeclaration()
-	return final.Initializer != nil &&
-		(strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext") ||
-			frameworkTaskPolicyRoot(final.Initializer, collectExternalImportBindings(sourceFile, nil)))
+	last := parameters[len(parameters)-1]
+	initializer := last.Initializer()
+	if initializer == nil {
+		return false
+	}
+	if strings.Contains(sourceText(sourceFile, last), "TaskContext") {
+		return true
+	}
+	root, namespace := taskPolicyRootReference(initializer)
+	if root == nil {
+		return false
+	}
+	if imports.byName == nil {
+		*imports = collectExternalImportBindings(sourceFile, nil)
+	}
+	return matchesTaskPolicyImport(root, namespace, *imports)
 }
 
 func functionTaskPolicy(
@@ -765,8 +784,8 @@ func functionTaskPolicy(
 	}
 	final := parameters[len(parameters)-1]
 	parameter := final.AsParameterDeclaration()
-	if parameter.Initializer == nil ||
-		!frameworkTaskPolicyRoot(parameter.Initializer, bindings) {
+	root, namespace := taskPolicyRootReference(parameter.Initializer)
+	if root == nil || !matchesTaskPolicyImport(root, namespace, bindings) {
 		return nil, false
 	}
 	facets := []string{}
@@ -784,10 +803,8 @@ func functionTaskPolicy(
 	return facets, true
 }
 
-func frameworkTaskPolicyRoot(
-	node *ast.Node,
-	bindings externalImportBindings,
-) bool {
+// taskPolicyRootReference applies the authored policy syntax before any binding lookup.
+func taskPolicyRootReference(node *ast.Node) (*ast.Node, bool) {
 	for node != nil {
 		node = unwrapRenderExpression(node)
 		if !ast.IsCallExpression(node) {
@@ -799,20 +816,24 @@ func frameworkTaskPolicyRoot(
 		}
 	}
 	if node == nil {
-		return false
+		return nil, false
 	}
 	namespace := false
 	if ast.IsPropertyAccessExpression(node) {
 		member := node.AsPropertyAccessExpression()
 		if member.Name().Text() != "TaskContext" {
-			return false
+			return nil, false
 		}
 		node = member.Expression
 		namespace = true
 	}
 	if !ast.IsIdentifier(node) {
-		return false
+		return nil, false
 	}
+	return node, namespace
+}
+
+func matchesTaskPolicyImport(node *ast.Node, namespace bool, bindings externalImportBindings) bool {
 	reference, exists := bindings.byName[node.Text()]
 	// Checked programs use lexical symbol identity so a local object cannot impersonate
 	// an imported policy provider. Syntax-only candidate discovery retains name facts.

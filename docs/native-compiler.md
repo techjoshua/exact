@@ -1145,6 +1145,10 @@ eligibility also shares one receiver annotation lookup between authentication
 and protocol classification. An authored annotation without framework identity
 still blocks protocol-only qualification.
 
+The durable candidate filter shares a syntax-only import table for its current
+parse. Policy root syntax must reach an identifier before the filter prepares
+that table. Checked task classification uses the original lexical symbol.
+
 Standalone localization analysis supplies native ESNext and DOM declarations when no project
 configuration is provided. Ordinary compilation retains its default library selection, and an
 explicit project configuration controls both paths. Session cache identities include this analysis

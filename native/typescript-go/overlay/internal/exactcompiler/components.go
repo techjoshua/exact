@@ -326,10 +326,11 @@ func filterDurableComponentCandidates(
 	sourceFile *ast.SourceFile,
 	microTargets map[*ast.Node]componentCandidate,
 ) []componentCandidate {
+	var policyImports externalImportBindings
 	filtered := make([]componentCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		_, isMicro := microTargets[candidate.node]
-		isTask := looksLikeTaskPolicy(candidate.node, sourceFile)
+		isTask := looksLikeTaskPolicyWithImports(candidate.node, sourceFile, &policyImports)
 		if !isMicro && !isTask {
 			filtered = append(filtered, candidate)
 		}
