@@ -965,6 +965,12 @@ func walkCallableNormal(root *ast.Node, visit func(*ast.Node) bool, operand func
 // walkCallableNormalWithFolds supplies immutable syntax folds alongside the
 // existing normal effect callbacks. Deferred edges do not supply body events.
 func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), structural ...func(*ast.Node) bool) {
+	describeOperand := func(node *ast.Node) (sourceNormalOperand, bool) {
+		if operand == nil {
+			return sourceNormalOperand{}, false
+		}
+		return describeNormalOperand(node)
+	}
 	var walk func(*ast.Node)
 	walk = func(node *ast.Node) {
 		isStructural := sourceNormalStructural
@@ -1057,10 +1063,10 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 		}
 		// Ordinary Gets and lexical writes consume their dependencies first.
 		if phase != nil && (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) || ast.IsAssignmentExpression(node, false)) {
-			demand, dependent := describeNormalOperand(node)
+			demand, dependent := describeOperand(node)
 			node.ForEachChild(func(child *ast.Node) bool { descend(child); return false })
 			visit(node)
-			if operand != nil && dependent {
+			if dependent {
 				operand(demand)
 			}
 			return
@@ -1082,8 +1088,8 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 		if !visit(node) {
 			return
 		}
-		demand, dependent := describeNormalOperand(node)
-		if operand != nil && dependent && demand.pattern {
+		demand, dependent := describeOperand(node)
+		if dependent && demand.pattern {
 			descend(demand.value)
 			operand(demand)
 			descend(node.AsBinaryExpression().Left)
@@ -1122,7 +1128,7 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			descend(child)
 			return false
 		})
-		if operand != nil && dependent {
+		if dependent {
 			operand(demand)
 		}
 	}
