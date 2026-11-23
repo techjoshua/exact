@@ -1140,9 +1140,9 @@ Native extension analysis receives the authored source tree and authored coordin
 normalization of destructured props, component returns, and setup computations happens in the
 compilation path, so extension-produced edits remain applicable to the source submitted by the host.
 
-Candidate discovery retains module ownership for the current parse. Component
-eligibility also shares one receiver annotation lookup between authentication
-and protocol classification. An authored annotation without framework identity
+Candidate discovery retains module ownership and uppercase-name classification
+for the current parse. Eligibility shares one receiver annotation lookup
+between authentication and protocol classification. An authored annotation without framework identity
 still blocks protocol-only qualification.
 
 The durable candidate filter shares a syntax-only import table for its current

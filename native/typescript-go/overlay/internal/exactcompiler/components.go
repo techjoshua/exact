@@ -22,11 +22,11 @@ var componentProtocolCalls = map[string]struct{}{
 }
 
 type componentCandidate struct {
-	name                    string
-	node                    *ast.Node
-	exported                bool
-	scopeKnown, moduleLevel bool
-	signals                 []string
+	name                                   string
+	node                                   *ast.Node
+	exported                               bool
+	discovered, moduleLevel, uppercaseName bool
+	signals                                []string
 }
 
 // collectComponents discovers the declarations which own eXact component
@@ -339,7 +339,7 @@ func filterDurableComponentCandidates(
 }
 
 func componentCandidateIsModuleLevel(candidate componentCandidate) bool {
-	if candidate.scopeKnown {
+	if candidate.discovered {
 		return candidate.moduleLevel
 	}
 	// Direct consumers can also construct a candidate without discovery.
@@ -361,7 +361,7 @@ func nestedComponentDiagnostics(sourceFile *ast.SourceFile) []Diagnostic {
 		if componentCandidateIsModuleLevel(candidate) {
 			continue
 		}
-		if !componentName(candidate.name) || !componentHasCompiledRender(candidate.node) {
+		if !candidate.hasUppercaseName() || !componentHasCompiledRender(candidate.node) {
 			continue
 		}
 		diagnostics = append(diagnostics, Diagnostic{
@@ -416,7 +416,7 @@ func lexicalMicroComponentTargets(
 
 func microComponentShape(candidate componentCandidate) bool {
 	return ast.IsArrowFunction(candidate.node) &&
-		componentName(candidate.name) &&
+		candidate.hasUppercaseName() &&
 		directlyReturnsRenderedValue(candidate.node)
 }
 
@@ -477,12 +477,14 @@ func appendRawComponentCandidate(candidates []componentCandidate, node *ast.Node
 	switch {
 	case ast.IsFunctionDeclaration(node):
 		if name := node.Name(); name != nil {
+			nameText := name.Text()
 			return append(candidates, componentCandidate{
-				name:        name.Text(),
-				node:        node,
-				exported:    ast.HasSyntacticModifier(node, ast.ModifierFlagsExport),
-				scopeKnown:  true,
-				moduleLevel: node.Parent != nil && ast.IsSourceFile(node.Parent),
+				name:          nameText,
+				node:          node,
+				exported:      ast.HasSyntacticModifier(node, ast.ModifierFlagsExport),
+				discovered:    true,
+				moduleLevel:   node.Parent != nil && ast.IsSourceFile(node.Parent),
+				uppercaseName: componentName(nameText),
 			})
 		}
 	case ast.IsVariableDeclaration(node):
@@ -490,15 +492,17 @@ func appendRawComponentCandidate(candidates []componentCandidate, node *ast.Node
 		name, initializer := declaration.Name(), declaration.Initializer
 		if name != nil && ast.IsIdentifier(name) && initializer != nil &&
 			(ast.IsArrowFunction(initializer) || ast.IsFunctionExpression(initializer)) {
+			nameText := name.Text()
 			variableStatement := enclosingVariableStatement(node)
 			return append(candidates, componentCandidate{
-				name: name.Text(),
+				name: nameText,
 				node: initializer,
 				exported: variableStatement != nil &&
 					ast.HasSyntacticModifier(variableStatement, ast.ModifierFlagsExport),
-				scopeKnown: true,
+				discovered: true,
 				moduleLevel: variableStatement != nil && node.Parent.Parent == variableStatement &&
 					variableStatement.Parent != nil && ast.IsSourceFile(variableStatement.Parent),
+				uppercaseName: componentName(nameText),
 			})
 		}
 	}
@@ -564,7 +568,7 @@ func enclosingVariableStatement(node *ast.Node) *ast.Node {
 func hasNormalizationComponentSignal(candidate componentCandidate, sourceFile *ast.SourceFile) bool {
 	annotation := componentReceiverAnnotation(candidate.node)
 	typedReceiver := authenticComponentReceiver(annotation, sourceFile)
-	if typedReceiver && componentName(candidate.name) {
+	if typedReceiver && candidate.hasUppercaseName() {
 		return true
 	}
 	return len(componentSignalsWithReceiver(candidate, sourceFile, annotation, typedReceiver)) != 0
@@ -578,7 +582,7 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.SourceFile, annotation *ast.Node, typedReceiver bool) []string {
 	// Publish the stable lexical order directly. Each signal has one producer.
 	signals := []string{}
-	if typedReceiver && !componentName(candidate.name) && !componentReceiverReturnsView(candidate.node) {
+	if typedReceiver && !candidate.hasUppercaseName() && !componentReceiverReturnsView(candidate.node) {
 		return signals
 	}
 	if componentCandidateIsModuleLevel(candidate) &&
@@ -586,7 +590,7 @@ func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.
 		containsComponentProtocolCall(candidate.node) {
 		signals = append(signals, "component-protocol")
 	}
-	if componentName(candidate.name) {
+	if candidate.hasUppercaseName() {
 		if containsJSX(candidate.node) {
 			signals = append(signals, "named-jsx")
 		}
@@ -604,6 +608,15 @@ func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.
 // A Core receiver on an ordinary helper gives its body access to the caller's instance.
 func componentReceiverReturnsView(node *ast.Node) bool {
 	return directlyReturnsRenderedValue(node) || componentReturnsRenderFunction(node)
+}
+
+// hasUppercaseName reuses the authored name classification from discovery.
+// Callers that construct a candidate directly can supply a different name.
+func (candidate componentCandidate) hasUppercaseName() bool {
+	if candidate.discovered {
+		return candidate.uppercaseName
+	}
+	return componentName(candidate.name)
 }
 
 func componentName(name string) bool {

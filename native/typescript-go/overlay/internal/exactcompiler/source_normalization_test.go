@@ -91,10 +91,10 @@ func TestNormalizationCollectsCallablesInDeclarationOrder(t *testing.T) {
 			t.Fatalf("candidate %d = %q (exported %t), want %q", index, candidate.name, candidate.exported, want[index])
 		}
 		moduleLevel := index == 0 || index == 3
-		if !candidate.scopeKnown || componentCandidateIsModuleLevel(candidate) != moduleLevel {
+		if !candidate.discovered || componentCandidateIsModuleLevel(candidate) != moduleLevel {
 			t.Fatalf("candidate %q has wrong discovered module ownership, want %t", candidate.name, moduleLevel)
 		}
-		candidate.scopeKnown = false
+		candidate.discovered = false
 		if componentCandidateIsModuleLevel(candidate) != moduleLevel {
 			t.Fatalf("candidate %q has wrong direct module ownership, want %t", candidate.name, moduleLevel)
 		}
@@ -563,5 +563,26 @@ func TestNormalizationComposesEditsAcrossSessionGenerations(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestNormalizationReusesDiscoveredCandidateName(t *testing.T) {
+	const source = `const clamp = (high = 1) => high;
+function Ångström() { return () => <output>upper</output>; }
+const éclair = () => <output>lower</output>;`
+	file := parseNormalizationSource(normalizationTestFile(t, "candidate-case.tsx"), source)
+	candidates := rawComponentCandidates(file)
+	want := []bool{false, true, false}
+	if len(candidates) != len(want) {
+		t.Fatalf("candidate count = %d, want %d", len(candidates), len(want))
+	}
+	for i, candidate := range candidates {
+		if !candidate.discovered || candidate.hasUppercaseName() != want[i] {
+			t.Fatalf("wrong discovered case for %q", candidate.name)
+		}
+		direct := componentCandidate{node: candidate.node, name: candidate.name}
+		if direct.hasUppercaseName() != want[i] {
+			t.Fatalf("wrong direct case for %q", direct.name)
+		}
 	}
 }
