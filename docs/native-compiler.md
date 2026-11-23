@@ -1370,6 +1370,11 @@ An immediate `every` lookup can use the same proof when the selected synchronous
 call returns a dense array literal directly. The receiver call and predicate keep
 their original evaluation and effects.
 A method read through a saved array can observe intervening replacements.
+For a named standard `Object.freeze` acquisition that is already opaque,
+a computed assignment with a fixed template prefix can be excluded from
+writer input recovery if it cannot produce `freeze` or a structural member
+key. The original assignment still owns key coercion and setter effects.
+A key that can select `freeze` remains eligible for writer matching.
 For a direct `Object.entries` call on an object literal or a const initialized
 with one, the fresh result owns its entry slots. Placement accounts for input
 getters during enumeration and the callback’s work. An identity arrow

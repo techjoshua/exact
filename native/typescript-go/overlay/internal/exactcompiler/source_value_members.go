@@ -6,6 +6,7 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // occurrenceOrigins resolves finite projected import/alias values for receiver
@@ -206,6 +207,8 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 		var replacements []sourceValueReplacement
 		demand := append(append([]string{}, projection...), name)
 		standardEntry := mode == accessorAcquire && standardNativeLookup(get) && get.receiver.node != nil && standardLibrarySource(ast.GetSourceFileOfNode(get.receiver.node))
+		freezeKey := standardEntry && len(projection) == 1 && projection[0] == "freeze" && name == "" &&
+			standard != nil && standard.native != nil && standard.native.kind == sourceNativeObjectFreeze
 		if !sourceInterval {
 			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
 			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
@@ -287,6 +290,12 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					// own consumers above. Avoid recovering unrelated caller inputs
 					// solely to check for unproven replacement of the standard entry.
 					if disjointRHS && (standardEntry || result.opaque || query.owner.initialComponentStateDefault(assignment.left)) {
+						continue
+					}
+					// Computed token names with a fixed unrelated prefix cannot
+					// replace the acquired standard freeze. Key coercion and Set
+					// effects stay with the originating assignment.
+					if freezeKey && result.opaque && plainStagedAssignment(operation) && sourceTemplateWriteDisjoint(assignment.left, "freeze") {
 						continue
 					}
 					// A path of named Gets cannot acquire an RHS through a symbol slot.
@@ -644,6 +653,25 @@ func (query *sourceValueQuery) symbolKeyDisjointFromName(key *ast.Node, names ..
 	}
 	member := call.Expression.AsPropertyAccessExpression()
 	return member.QuestionDotToken == nil && ast.IsIdentifier(member.Expression) && member.Expression.Text() == "Symbol" && member.Name().Text() == "for" && standardLibraryCallRoot(call.Expression, c)
+}
+
+// sourceTemplateWriteDisjoint tests the fixed prefix of an evaluated string
+// key. Its substitutions and the original assignment keep their effect owners.
+func sourceTemplateWriteDisjoint(left *ast.Node, key string) bool {
+	if !ast.IsElementAccessExpression(left) {
+		return false
+	}
+	expression := unwrapSourceCallableReference(left.AsElementAccessExpression().ArgumentExpression)
+	if !ast.IsTemplateExpression(expression) {
+		return false
+	}
+	prefix := expression.AsTemplateExpression().Head.Text()
+	for _, possible := range []string{key, "__proto__", "prototype", "constructor", "length"} {
+		if strings.HasPrefix(possible, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 // sourceMemberKeyMaySupply rejects only impossible final keys of indexed RHS
