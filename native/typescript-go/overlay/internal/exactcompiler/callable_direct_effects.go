@@ -988,16 +988,18 @@ func walkCallableNormal(root *ast.Node, visit func(*ast.Node) bool, operand func
 
 // walkCallableNormalWithFolds supplies immutable syntax folds alongside the
 // existing normal effect callbacks. Deferred edges do not supply body events.
-func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), hasOwn *sourceHasOwnWalk, structural ...func(*ast.Node) bool) {
+func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), hasOwn *sourceHasOwnWalk, classify ...func(*ast.Node) (erased, prune bool)) {
 	describeOperand := func(node *ast.Node) (sourceNormalOperand, bool) {
 		if operand == nil {
 			return sourceNormalOperand{}, false
 		}
 		return describeNormalOperand(node)
 	}
-	isStructural := sourceNormalStructural
-	if len(structural) == 1 {
-		isStructural = structural[0]
+	classifyChild := func(node *ast.Node) (bool, bool) {
+		return sourceNormalStructural(node), false
+	}
+	if len(classify) == 1 {
+		classifyChild = classify[0]
 	}
 	var walk func(*ast.Node, bool)
 	walk = func(node *ast.Node, emit bool) {
@@ -1008,12 +1010,14 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 				walk(child, false)
 				return
 			}
-			erased := isStructural(child)
+			erased, prune := classifyChild(child)
 			if emit {
 				children = append(children, child)
 				erasedChildren = append(erasedChildren, erased)
 			}
-			walk(child, !erased)
+			if !prune {
+				walk(child, !erased)
+			}
 		}
 		creation := node != root && isCallableNode(node)
 		if emit {
@@ -1176,7 +1180,11 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			operand(demand)
 		}
 	}
-	walk(root, fold != nil && !isStructural(root))
+	if fold == nil {
+		walk(root, false)
+	} else if erased, prune := classifyChild(root); !prune {
+		walk(root, !erased)
+	}
 }
 
 func directlyOwnedSpan(start int, end int, owner int, facts []callableFacts) bool {

@@ -3226,6 +3226,12 @@ no selected invocation or return-completion authority. Consumers that need
 successful returns still check the original bindings and completion rules.
 The list follows the source index and is replaced with its source tree.
 
+Normal summary construction reuses the source index's result of the AST
+type-node check. The normal walk still owns the ordered evaluation events and
+parent fold edges. A child rejected by that check can keep its parent edge
+without another visit when the visit contributes no events or descendant work.
+A missing or incomplete index uses the original syntax checks.
+
 The original member owner separately publishes its finite source-set disposition.
 Every assignment, reflective relation and open-operation protocol receives an exact
 child request before local extraction can finish. Deferred and later function writes

@@ -13,7 +13,7 @@ type sourceNormalOccurrence struct {
 	node, statement, region *ast.Node
 	ordinal                 int
 	once                    bool
-	structural              bool
+	structural, partOfType  bool
 	defaultRoot             *ast.Node
 	parent                  *sourceNormalOccurrence
 	callOwner               *sourceNormalOccurrence
@@ -27,7 +27,7 @@ type sourceNormalPopulation struct {
 // indexNormalOccurrence consumes the existing pre-order source index traversal.
 // Deferred children open a distinct domain. Control-dependent descendants retain
 // their region but cannot acquire a once-only selected population.
-func (owner *sourceValueOwner) indexNormalOccurrence(index *sourceValueIndex, source *ast.SourceFile, node *ast.Node, erased bool) {
+func (owner *sourceValueOwner) indexNormalOccurrence(index *sourceValueIndex, source *ast.SourceFile, node *ast.Node, erased, partOfType bool) {
 	owner.indexWork++
 	if node.Kind == ast.KindWithStatement {
 		index.normalDynamicScope = true
@@ -39,7 +39,7 @@ func (owner *sourceValueOwner) indexNormalOccurrence(index *sourceValueIndex, so
 		}
 	}
 	parent := index.normalOccurrences[node.Parent]
-	occurrence := &sourceNormalOccurrence{node: node, once: true, parent: parent, structural: erased || normalStructuralSyntax(node)}
+	occurrence := &sourceNormalOccurrence{node: node, once: true, parent: parent, structural: erased || normalStructuralSyntax(node), partOfType: partOfType}
 	if parent != nil {
 		occurrence.defaultRoot = parent.defaultRoot
 		if ast.IsParameterDeclaration(node.Parent) && node.Parent.Initializer() == node {

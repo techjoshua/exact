@@ -281,8 +281,8 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 	} else {
 		summary.returns = directCallableReturns(node)
 	}
-	appendDemand := func(demand sourceNormalDemand) {
-		if entry := index.normalOccurrences[demand.node]; !index.incomplete && entry != nil {
+	appendDemand := func(demand sourceNormalDemand, entry *sourceNormalOccurrence) {
+		if !index.incomplete && entry != nil {
 			demand.defaultKnown = true
 			demand.defaultRoot = entry.defaultRoot
 		}
@@ -297,7 +297,12 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 		if child == erasedPolicy {
 			return false
 		}
-		if ast.IsPartOfTypeNode(child) {
+		entry := index.normalOccurrences[child]
+		if !index.incomplete && entry != nil {
+			if entry.partOfType {
+				return false
+			}
+		} else if ast.IsPartOfTypeNode(child) {
 			return false
 		}
 		if ast.IsReturnStatement(child) {
@@ -314,10 +319,10 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 			summary.nodes = append(summary.nodes, child)
 			executable = !ast.IsBinaryExpression(child) || !normalObjectAssignmentTarget(child.AsBinaryExpression().Left)
 		}
-		appendDemand(sourceNormalDemand{node: child, visitOnly: !executable})
+		appendDemand(sourceNormalDemand{node: child, visitOnly: !executable}, entry)
 		return true
 	}, func(demand sourceNormalOperand) {
-		appendDemand(sourceNormalDemand{node: demand.node, operand: &demand})
+		appendDemand(sourceNormalDemand{node: demand.node, operand: &demand}, index.normalOccurrences[demand.node])
 		if demand.pattern {
 			summary.nodes = append(summary.nodes, demand.node)
 		}
@@ -327,16 +332,19 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 			}
 		}
 	}, func(phase sourceNormalPhase) {
-		appendDemand(sourceNormalDemand{node: phase.node, phase: &phase})
+		appendDemand(sourceNormalDemand{node: phase.node, phase: &phase}, index.normalOccurrences[phase.node])
 		if phase.role == sourceNormalSelect && ast.IsVariableDeclaration(phase.node) {
 			summary.nodes = append(summary.nodes, phase.node)
 		}
 	}, func(fold sourceNormalFold) {
 		owner.summaryWork += 1 + len(fold.children)
-		appendDemand(sourceNormalDemand{node: fold.node, fold: &fold})
-	}, nil, func(node *ast.Node) bool {
+		appendDemand(sourceNormalDemand{node: fold.node, fold: &fold}, index.normalOccurrences[fold.node])
+	}, nil, func(node *ast.Node) (erased, prune bool) {
 		entry := index.normalOccurrences[node]
-		return node == erasedPolicy || entry != nil && entry.structural
+		// A type-position property access takes the walker's ordered member
+		// route before the visitor can refuse it. Keep that route intact.
+		prune = !index.incomplete && entry != nil && entry.partOfType && !ast.IsPropertyAccessExpression(node)
+		return node == erasedPolicy || entry != nil && entry.structural, prune
 	})
 	owner.summaries[node] = summary
 	return summary

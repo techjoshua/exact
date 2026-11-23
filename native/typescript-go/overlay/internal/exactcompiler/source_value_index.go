@@ -8,7 +8,7 @@ type sourceValueAssignment struct{ left, right *ast.Node }
 type sourceValueIndex struct {
 	// Direct authored return expressions are lexical facts, even under a
 	// dormant branch. Execution reachability belongs to the selected input.
-	directReturns map[*ast.Node][]*ast.Node
+	directReturns                           map[*ast.Node][]*ast.Node
 	normalOccurrences                       map[*ast.Node]*sourceNormalOccurrence
 	normalOrdinal                           int
 	normalExported                          map[ast.SymbolId]bool
@@ -116,7 +116,7 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			progressIndexSpan(traceSourceName, progressPointer(node), node.Pos(), node.End(), int(node.Kind))
 			owner.indexWork++
 			owner.indexPrivateUse(index.privateUses, node, erased)
-			owner.indexNormalOccurrence(&index, source, node, erased)
+			owner.indexNormalOccurrence(&index, source, node, erased, partOfType)
 			if !partOfType {
 				if callable != nil && ast.IsReturnStatement(node) {
 					if expression := node.AsReturnStatement().Expression; expression != nil {
