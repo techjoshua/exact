@@ -95,6 +95,7 @@ type sourceNormalDemand struct {
 // sourceValueOwner retains declaration-parametric demands and source assignment indexes only
 // for its checker generation. It is not a heap, selected-callee certificate or lowering plan.
 type sourceValueOwner struct {
+	entriesArguments        map[*ast.Node]*ast.Node                // Positive checker-owned call classifications, without acquired inputs.
 	componentStatePrefix    map[*ast.Node]int                      // First setup statement that can expose the fresh state facade.
 	stateCaptureOrigins     map[*ast.Node][]sourceValue            // Generation-local literal origins, without acquired values.
 	stateArraySources       map[componentArrayFieldUse][]*ast.Node // Generation-local write syntax, without acquired values.

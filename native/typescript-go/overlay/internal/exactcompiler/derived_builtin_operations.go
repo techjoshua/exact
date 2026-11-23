@@ -163,6 +163,15 @@ func (owner *sourceValueOwner) standardEntriesArgument(node *ast.Node) *ast.Node
 	if node == nil || !ast.IsCallExpression(node) || node.AsCallExpression().QuestionDotToken != nil {
 		return nil
 	}
+	if argument := owner.entriesArguments[node]; argument != nil {
+		// Index preparation can be temporarily incomplete on reentry. Keep
+		// that gate even when the checker classification is already known.
+		index := owner.index(ast.GetSourceFileOfNode(node))
+		if index.incomplete || index.objectEntriesWritten {
+			return nil
+		}
+		return argument
+	}
 	c := owner.checker
 	callee := unwrapSourceCallableReference(node.Expression())
 	base, name := restrictedInvocationMember(callee, c)
@@ -174,9 +183,18 @@ func (owner *sourceValueOwner) standardEntriesArgument(node *ast.Node) *ast.Node
 	if len(args) != 1 || ast.IsSpreadElement(args[0]) {
 		return nil
 	}
-	index := owner.index(ast.GetSourceFileOfNode(callee))
+	source := ast.GetSourceFileOfNode(callee)
+	index := owner.index(source)
 	if index.incomplete || index.objectEntriesWritten {
 		return nil
+	}
+	generation := owner.generation
+	if generation != nil && owner.program != nil && generation.program == owner.program && generation.checker == owner.checker &&
+		source != nil && owner.program.GetSourceFile(source.FileName()) == source {
+		if owner.entriesArguments == nil {
+			owner.entriesArguments = make(map[*ast.Node]*ast.Node)
+		}
+		owner.entriesArguments[node] = args[0]
 	}
 	return args[0]
 }

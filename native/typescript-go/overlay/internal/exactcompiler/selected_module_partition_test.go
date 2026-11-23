@@ -300,13 +300,23 @@ func TestEntriesMapExplicitReplacement(t *testing.T) {
 	for _, target := range []Target{TargetClient, TargetServer} {
 		for _, member := range []string{"Object.entries", "Object['entries']"} {
 			t.Run(string(target)+"/"+member, func(t *testing.T) {
-				source := member + ` = (() => ({
+				session := NewSession()
+				request := Request{Kind: "compile", ID: "/virtual/entries-replaced.ts", Target: target, Diagnostics: "semantic"}
+				const standard = "const input = {a: 'safe'}; export const observation = Object.fromEntries(Object.entries(input).map(pair => pair));"
+				request.Source = standard
+				initial := session.Execute(request)
+				warm := session.Execute(request)
+				if initial.Error != "" || warm.Error != "" || hasErrorDiagnostic(initial.Diagnostics) || hasErrorDiagnostic(warm.Diagnostics) ||
+					initial.Code == "" || warm.Code != initial.Code {
+					t.Fatal("standard entries must emit before the replacement edit", initial.Diagnostics, warm.Diagnostics)
+				}
+				request.Source = member + ` = (() => ({
 					length: 1, 0: ['a', 'safe'],
 					get map() { void document.title; return Array.prototype.map; }
 				})) as unknown as typeof Object.entries;
 				const input = {a: 'safe'};
 				export const observation = Object.entries(input).map(pair => pair);`
-				response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/entries-replaced.ts", Source: source, Target: target, Diagnostics: "semantic"})
+				response := session.Execute(request)
 				for _, diagnostic := range response.Diagnostics {
 					if diagnostic.Severity == "error" && strings.HasPrefix(diagnostic.Code, "TS") {
 						t.Fatalf("invalid source: %#v", response.Diagnostics)
@@ -314,6 +324,11 @@ func TestEntriesMapExplicitReplacement(t *testing.T) {
 				}
 				if response.Error != "" || !containsDiagnosticCode(response.Diagnostics, "EXACT2101") {
 					t.Fatalf("the replacement must retain unresolved placement: %s %#v", response.Error, response.Diagnostics)
+				}
+				request.Source = standard
+				restored := session.Execute(request)
+				if restored.Error != "" || hasErrorDiagnostic(restored.Diagnostics) || restored.Code != initial.Code {
+					t.Fatal("restoring standard entries must restore the initial output", restored.Diagnostics)
 				}
 			})
 		}

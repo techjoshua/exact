@@ -1966,6 +1966,19 @@ bypassed the empty generic callee acquisition on those visits. Completed
 responses matched aside from timings and did not include the ThemeScope
 component. These counts measure scoped compiler work.
 
+The loop binding, yielded values and enumeration effects of a direct
+`Object.entries` call can share its positive standard-library call
+classification within the current program and checker generation. The
+source index still checks for authored replacements and incomplete data on
+each lookup. Enumeration, getter execution and yielded origins retain their
+original owners and inputs.
+
+On the original ThemeScope client and server requests at `3de43b8a7`,
+the scoped observer recorded 4,082 repeat classifications in each matched
+4,096-event prefix. Both target pairs reached their 24-second cutoff after
+emitting `color.ts`. These counts describe classifier requests. ThemeScope
+output and end-to-end latency remain unmeasured.
+
 ### Related defect families and repair boundaries
 
 State lowering preserves two contracts: the framework's reactive ownership and the authored
