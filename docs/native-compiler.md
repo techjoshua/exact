@@ -214,6 +214,12 @@ an own data property initialized to the calling component's `this.state`. The ex
 and member selection supplies a possible write on that field. The server's generation journal
 determines whether to publish it. Storing the setter alone grants no write. A deeper alias,
 dynamic key or later invocation requires its own receiver and lifetime evidence.
+
+An indexed getter invoked on a local array can install a setter on a class prototype.
+When the same source path later constructs that class, placement accounts for the
+possible setter at the constructor's assignment. Reading the array's length alone leaves
+the indexed getter dormant. The emitted code still performs the authored getter,
+constructor assignments, and any exception handling in their original order.
 Ordinary helper JSX remains separate from this task-call contract. In `.tsx`, authored callables
 outside selected component spans retain JSX for host transformation. The runtime's `jsx`, `jsxs`,
 and six-argument `jsxDEV` conventions admit current compiled components through the existing

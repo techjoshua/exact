@@ -11,8 +11,9 @@ import (
 type sourceSelectedGetterWrites map[*ast.Node][]sourceSelectedGetterWrite
 
 type sourceSelectedGetterWrite struct {
-	get, receiver *ast.Node
-	scope         acquiredCallableScope
+	get, receiver              *ast.Node
+	activation, prototypeClass *ast.Node
+	scope                      acquiredCallableScope
 }
 
 func (q *sourceValueQuery) recordSelectedGetterWrite(node *ast.Node, inputs *sourceValueInputs, result *accessorCandidates) {
@@ -20,6 +21,9 @@ func (q *sourceValueQuery) recordSelectedGetterWrite(node *ast.Node, inputs *sou
 		return
 	}
 	get := inputs.get
+	if q.recordSelectedArrayPrototypeWriter(node, inputs, result) {
+		return
+	}
 	if get.operation == nil || !q.selectedGetterWriteOperation(get.operation) || !ast.IsFunctionExpression(inputs.declaration) ||
 		get.receiver.node == nil || !ast.IsObjectLiteralExpression(get.receiver.node) || len(get.receiver.path) != 0 ||
 		enclosingCallableNode(get.receiver.node) != enclosingCallableNode(q.dependencyUse) || !q.descriptorWriterCall(node.AsCallExpression()) {
@@ -37,15 +41,26 @@ func (q *sourceValueQuery) recordSelectedGetterWrite(node *ast.Node, inputs *sou
 			return
 		}
 	}
-	(*table)[node] = append((*table)[node], sourceSelectedGetterWrite{get.operation, get.receiver.node, q.acquireCallableScope(inputs.bindings, result)})
+	(*table)[node] = append((*table)[node], sourceSelectedGetterWrite{get: get.operation, receiver: get.receiver.node, scope: q.acquireCallableScope(inputs.bindings, result)})
 }
 
 func (q *sourceValueQuery) selectedGetterWriterInputs(writer, origin *ast.Node, get *sourceGetInputs, cut *sourceMemberWriterReadCut, rows []sourceMemberWriterInput) []sourceMemberWriterInput {
-	if q.selectedGetterWrites == nil || get == nil || cut == nil || cut.operation != get.operation || !q.selectedGetterWriteOperation(get.operation) || get.receiver.node != origin {
+	if q.selectedGetterWrites == nil || get == nil || cut == nil {
+		return rows
+	}
+	if q.constructionSetterRead(get) && origin == q.constructionSetterWrites.constructor.declaration.Parent {
+		site := q.constructionSetterWrites.site
+		for _, write := range (*q.selectedGetterWrites)[writer] {
+			if write.prototypeClass == origin && q.selectedPrototypeWriterPrecedes(write, site) {
+				rows = append(rows, sourceMemberWriterInput{implicitMember: write.activation, scope: write.scope, incomplete: true})
+			}
+		}
+	}
+	if cut.operation != get.operation || !q.selectedGetterWriteOperation(get.operation) || get.receiver.node != origin {
 		return rows
 	}
 	for _, write := range (*q.selectedGetterWrites)[writer] {
-		if write.receiver == origin && enclosingCallableNode(write.get) == enclosingCallableNode(get.operation) && write.get.End() <= get.operation.Pos() {
+		if write.prototypeClass == nil && write.receiver == origin && enclosingCallableNode(write.get) == enclosingCallableNode(get.operation) && write.get.End() <= get.operation.Pos() {
 			rows = append(rows, sourceMemberWriterInput{implicitMember: write.get, scope: write.scope, incomplete: true})
 		}
 	}
@@ -205,4 +220,48 @@ func (q *sourceValueQuery) lexicalGetterWriterSources(sources []*ast.SourceFile,
 		}
 	}
 	return sources
+}
+
+// Record the writer only while entering the actual array element getter.
+// Prototype/key matching at the later Set remains independent of this MAY edge.
+func (q *sourceValueQuery) recordSelectedArrayPrototypeWriter(node *ast.Node, inputs *sourceValueInputs, result *accessorCandidates) bool {
+	get, activation := inputs.get, q.dependencyUse
+	if activation == nil || get.operation == nil || !ast.IsElementAccessExpression(get.operation) ||
+		get.receiver.node == nil || !ast.IsArrayLiteralExpression(get.receiver.node) || len(get.receiver.path) != 0 ||
+		enclosingCallableNode(get.receiver.node) != enclosingCallableNode(activation) ||
+		(activation != get.operation && (!ast.IsCallExpression(activation) || !q.active[enclosingCallableNode(get.operation)])) ||
+		!q.descriptorWriterCall(node.AsCallExpression()) {
+		return false
+	}
+	target := unwrapSourceCallableReference(node.AsCallExpression().Arguments.Nodes[0])
+	if target == nil || !ast.IsPropertyAccessExpression(target) || target.Name().Text() != "prototype" || !ast.IsIdentifier(target.Expression()) {
+		return false
+	}
+	symbol := resolvedCallableSymbol(q.owner.checker.GetSymbolAtLocation(target.Expression()), q.owner.checker)
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsClassDeclaration(symbol.ValueDeclaration) || q.owner.bindingWritten(symbol) {
+		return false
+	}
+	table := q.selectedGetterWrites
+	if *table == nil {
+		*table = make(sourceSelectedGetterWrites)
+	}
+	(*table)[node] = append((*table)[node], sourceSelectedGetterWrite{
+		get: get.operation, receiver: get.receiver.node, activation: activation,
+		prototypeClass: symbol.ValueDeclaration, scope: q.acquireCallableScope(inputs.bindings, result),
+	})
+	return true
+}
+
+// The earlier Get or outer Call must be in the Set's selected activation.
+// A nested constructor may instead be reached by an already selected Call
+// within the getter-consuming helper.
+func (q *sourceValueQuery) selectedPrototypeWriterPrecedes(write sourceSelectedGetterWrite, site *ast.Node) bool {
+	if enclosingCallableNode(write.activation) == enclosingCallableNode(site) && write.activation.End() <= site.Pos() {
+		return true
+	}
+	if write.activation != q.dependencyUse {
+		return false
+	}
+	creator := q.constructionSetterWrites.caller
+	return creator != nil && enclosingCallableNode(write.get) == enclosingCallableNode(creator) && write.get.End() <= creator.Pos()
 }

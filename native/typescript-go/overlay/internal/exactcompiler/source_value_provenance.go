@@ -837,7 +837,7 @@ func (query *sourceValueQuery) executeInputDisposition(declaration *ast.Node, bi
 		inputs.dependencyScope = query.acquireCallableScope(bindings, result)
 		inputs.dependencyUse = query.effectUse()
 		var selectedWrites sourceSelectedGetterWrites
-		if query.lexicalGetterWriteBody() {
+		if query.selectedGetterWrites == nil && query.lexicalGetterWriteBody() {
 			previousWrites := query.selectedGetterWrites
 			query.selectedGetterWrites = &selectedWrites
 			defer func() { query.selectedGetterWrites = previousWrites }()

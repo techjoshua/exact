@@ -217,7 +217,7 @@ func collectDirectCallableEffects(
 		}
 		if localIndex.possibleByteStorage && (ast.IsCallExpression(node) || ast.IsPropertyAccessExpression(node)) && localByteStorageOperation(node, owner.values) {
 			if ast.IsCallExpression(node) && hasByteStorageConversion(node, typeChecker) {
-				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
+				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts, &getterWrites)
 			}
 			return true
 		}
@@ -344,7 +344,7 @@ func collectDirectCallableEffects(
 				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts, &getterWrites)
 			}
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
-				hasOwn.construction = appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
+				hasOwn.construction = appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts, &getterWrites)
 			}
 		}
 		if !ast.IsCallExpression(node) {
@@ -545,7 +545,7 @@ func collectDirectCallableEffects(
 		// still visits its key and inline callback creation. Keep edge selection
 		// and callback placement on their existing owners below.
 		if fact.normalInputs != nil || !ordinaryComponentLifecycleCall(node, typeChecker, owner) && (protocol || !directInvocationLeaf(call, typeChecker)) {
-			observer := sourceEffectsObserver{}
+			observer := sourceEffectsObserver{getterWrites: &getterWrites}
 			if hasOwn.traps != nil && hasOwn.traps[node] != nil && ast.IsPropertyAccessExpression(call.Expression) && call.Expression.Name().Text() == "hasOwn" {
 				observer.hasOwn = &hasOwn
 				observer.hasOwnCall = node

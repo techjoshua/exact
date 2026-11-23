@@ -7,13 +7,13 @@ import (
 
 // appendImplicitAccessorEffects models the ordinary operations that read an object's values
 // without a property-access expression. Enumeration of keys alone does not invoke getters.
-func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) (selectedProxy *ast.Node) {
+func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts, getterWrites *sourceSelectedGetterWrites) (selectedProxy *ast.Node) {
 	if work != nil && fact.normalInputs == nil && len(bindings) == 0 && ast.IsNewExpression(node) {
 		if consumer, known := work.memberNodes[fact.node]; known && work.stageConstructionEffects(facts, consumer, node, owner) {
 			return
 		}
 	}
-	visitImplicitAccessors(node, typeChecker, bindings, owner, fact.node, fact.nativeCalls, func(candidates accessorCandidates) {
+	visitImplicitAccessorsWithGetterWrites(node, typeChecker, bindings, owner, fact.node, fact.nativeCalls, getterWrites, func(candidates accessorCandidates) {
 		selectedProxy = candidates.selectedProxy
 		appendOpaqueAccessorEffect(fact, candidates)
 		appendSourceValueWrites(fact, candidates, typeChecker)
@@ -25,6 +25,10 @@ func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets 
 // visitImplicitAccessors shares value-reading operations with eager module placement.
 // Enumeration of class prototype properties does not execute their accessors.
 func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer *ast.Node, receipts []*sourceNativeInvocation, visit func(accessorCandidates), normal ...*sourceValueInputs) {
+	visitImplicitAccessorsWithGetterWrites(node, typeChecker, bindings, owner, consumer, receipts, nil, visit, normal...)
+}
+
+func visitImplicitAccessorsWithGetterWrites(node *ast.Node, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, consumer *ast.Node, receipts []*sourceNativeInvocation, getterWrites *sourceSelectedGetterWrites, visit func(accessorCandidates), normal ...*sourceValueInputs) {
 	if ast.IsTemplateSpan(node) && !templateNeedsConversionEffects(node, typeChecker, owner) {
 		visit(accessorCandidates{})
 		return
@@ -56,6 +60,7 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 			return
 		}
 		query = newSourceDependencyQuery(node, typeChecker, owner, consumer)
+		query.selectedGetterWrites = getterWrites
 		defer query.publishDependencyStatistics()
 	}
 	result := accessorCandidates{}

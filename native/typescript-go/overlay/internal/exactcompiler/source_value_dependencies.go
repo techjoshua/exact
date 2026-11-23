@@ -28,6 +28,7 @@ func sourceInvocationDependenciesObserved(node, reading *ast.Node, c *checker.Ch
 	query := newSourceDependencyQuery(reading, c, owner, consumer)
 	observe.issuer = query
 	query.sourceEffects = observe
+	query.selectedGetterWrites = observe.getterWrites
 	defer func() { query.sourceEffects = sourceEffectsObserver{} }()
 	query.dependencyUse = node
 	defer query.publishDependencyStatistics()

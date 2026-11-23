@@ -213,3 +213,53 @@ func pendingConstructionSummary(t *testing.T, source string, wantBrowser, wantUn
 	t.Fatal("missing invoke summary")
 	return CallableSummary{}
 }
+
+func TestArrayGetterInstallsConstructionSetter(t *testing.T) {
+	const source = `class Failure extends Error {
+  code: string;
+  constructor(code: string) { super('fixture'); this.name = 'Failure'; this.code = code; }
+}
+function read(values: number[], index: number) { void values[index]; }
+function validate(values: number[], length: number) {
+  const invalid = () => new Failure('invalid-element');
+  if (!Array.isArray(values) || values.length !== length) throw invalid();
+  for (let index = 0; index < length; index++) {
+    const value = values[index]!;
+    if (!Number.isFinite(value)) throw invalid();
+  }
+}
+function invoke(useInvalid: boolean) {
+  const values = [1];
+  Object.defineProperty(values, '0', {
+    get() {
+      Object.defineProperty(Failure.prototype, 'name', {
+        configurable: true,
+        set(value: string) { document.title = value; }
+      });
+      return useInvalid ? Infinity : 1;
+    }
+  });
+  try {
+    CHECK
+  } catch (error) {
+    if (!(error instanceof Failure)) throw error;
+    return error.code;
+  } finally {
+    Reflect.deleteProperty(Failure.prototype, 'name');
+  }
+}`
+	for _, test := range []struct {
+		name, body string
+		browser    bool
+	}{
+		{"caller constructor", "read(values, 0); throw new Failure('valid-element');", true},
+		{"validator constructor", "validate(values, 1); return 'valid';", true},
+		{"direct index", "void values[0]; throw new Failure('valid-element');", true},
+		{"dormant getter", "void values.length; throw new Failure('valid-element');", false},
+		{"later getter", "const error = new Failure('valid-element'); void values[0]; throw error;", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			checkPendingConstructionTaskBody(t, strings.Replace(source, "CHECK", test.body, 1), "this.state.label=invoke(this.state.label==='initial')", test.browser, false)
+		})
+	}
+}

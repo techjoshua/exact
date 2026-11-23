@@ -107,6 +107,9 @@ func (work *callableEffectWork) stageSourceDeclarationCall(facts []callableFacts
 		return false
 	}
 	source, ok := describeStagedDeclarationEffectsInputs(call, fact.node, owner)
+	if ok && localArrayGetterInputMayWrite(source, fact.node, owner.values) {
+		return false
+	}
 	if !ok {
 		// An ordinary Effects request can forward source roles, but cannot
 		// take over the original binder needed by a lexical default.
@@ -240,4 +243,48 @@ func stagedDeclarationEffectsOwner(declaration, caller *ast.Node) bool {
 		return false
 	}
 	return ast.IsSourceFile(declaration.Parent) || enclosingCallableNode(declaration.Parent) == caller
+}
+
+// A concrete local array with an earlier authored indexed getter can publish
+// writes during the declaration Call. Keep that Call with the ordinary source
+// walk so a subsequent constructor Set can use the same Get's writer input.
+func localArrayGetterInputMayWrite(source *sourceStagedInputSubstitution, caller *ast.Node, owner *sourceValueOwner) bool {
+	invocation := source.invocation
+	index := owner.index(ast.GetSourceFileOfNode(invocation.operation))
+	for _, actual := range invocation.actuals {
+		argument := unwrapSourceCallableReference(actual.expression)
+		if argument == nil || !ast.IsIdentifier(argument) {
+			continue
+		}
+		symbol := owner.checker.GetSymbolAtLocation(argument)
+		if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) || enclosingCallableNode(symbol.ValueDeclaration) != caller {
+			continue
+		}
+		origin := unwrapSourceCallableReference(symbol.ValueDeclaration.Initializer())
+		if origin == nil || !ast.IsArrayLiteralExpression(origin) {
+			continue
+		}
+		for _, site := range index.originCalls[origin] {
+			if site.End() > invocation.operation.Pos() || enclosingCallableNode(site) != caller {
+				continue
+			}
+			call := site.AsCallExpression()
+			if !reflectiveDescriptorCall(call, owner.checker) {
+				continue
+			}
+			if _, indexed := sourceArrayIndex(sourceLiteralMemberName(call.Arguments.Nodes[1])); !indexed {
+				continue
+			}
+			descriptor := unwrapSourceCallableReference(call.Arguments.Nodes[2])
+			if descriptor == nil || !ast.IsObjectLiteralExpression(descriptor) {
+				continue
+			}
+			for _, member := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
+				if (ast.IsMethodDeclaration(member) || ast.IsPropertyAssignment(member)) && member.Name() != nil && callableNameText(member.Name()) == "get" {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

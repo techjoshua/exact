@@ -5,11 +5,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // sourceConstructionSetterWrites belongs to one original constructor Effects walk.
 // Recorded writes describe possible effects from the already selected Set body.
 type sourceConstructionSetterWrites struct {
-	owner       *sourceValueQuery
-	constructor *sourceValueInputs
-	site        *ast.Node
-	selection   *sourcePreparedInvocation
-	writes      []sourceConstructionSetterWrite
+	owner        *sourceValueQuery
+	constructor  *sourceValueInputs
+	site, caller *ast.Node
+	selection    *sourcePreparedInvocation
+	writes       []sourceConstructionSetterWrite
 }
 
 type sourceConstructionSetterWrite struct {

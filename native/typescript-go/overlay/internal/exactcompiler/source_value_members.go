@@ -742,6 +742,11 @@ func (query *sourceValueQuery) arrayValues(origin *ast.Node, projection []string
 	}
 	if query.arrayIndexMayAtGet(get, origin, projection, name, mode) {
 		indexGet = get
+	} else if get == nil && reference != nil && query.dependenciesOnly && query.selectedGetterWrites != nil &&
+		mode == accessorRead && reference.operation == query.protectedMember && reference.matches(projection, name) && reference.key.resolved {
+		if _, indexed := sourceArrayIndex(reference.key.name); indexed {
+			indexGet = &sourceGetInputs{operation: reference.operation, receiver: sourceValue{node: origin}, propertyKey: reference.key.name}
+		}
 	} else if query.stagedLocalGetEffectsSelection(get, origin, projection, name, mode) && stagedEmptyArrayDataConstruction(origin) {
 		// Same SOURCE lookup relation as the literal member visitor: preserve
 		// the original receiver/Get, changing only the descriptive lookup root.
