@@ -1019,10 +1019,9 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			return
 		}
 		if ast.IsDecorator(node) && ast.IsFunctionLike(root) {
-			for _, decorator := range sourceDefinitionDecorators(root) {
-				if decorator == node {
-					return
-				}
+			owner := node.Parent
+			if owner == root || (owner != nil && owner.Kind == ast.KindParameter && owner.Parent == root) {
+				return
 			}
 		}
 		if node == root.Name() && ast.IsComputedPropertyName(node) {
