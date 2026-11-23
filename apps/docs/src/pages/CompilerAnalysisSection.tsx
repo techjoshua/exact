@@ -25,6 +25,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				If the component reads a getter on that stored object, the getter’s dependencies
 				affect where the component can render. A getter that reads <code>document.title</code>
 				requires the browser. Saving the field before calling the setter keeps the earlier object.
+				When a factory assigns to a local object’s data property before returning it, a
+				later read can use the new value. If that value contains a getter, component
+				placement follows the getter the read can actually invoke.
 			</p>
 			<p>
 				When a task has no platform requirement or explicit placement, its analysis explains the

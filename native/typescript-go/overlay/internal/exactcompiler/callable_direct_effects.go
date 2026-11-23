@@ -126,6 +126,9 @@ func collectDirectCallableEffects(
 	localIndex := owner.values.index(sourceFile)
 	possibleEvent := localIndex.possibleEventConstructor
 	hasOwn := sourceHasOwnWalk{checker: typeChecker, regions: localIndex.operationRegions, uses: localIndex.privateUses, dynamic: localIndex.incomplete || localIndex.normalDynamicScope}
+	// This ordinary walk owns the left operand's effects even when a finite
+	// primitive decision makes the right operand unreachable.
+	var logicalFlow *sourceValueQuery
 	consumeNode := func(node *ast.Node) bool {
 		recordMutationWriterTemplate(fact, node, owner)
 		recordOriginalMutationBodyOperation(fact, node, owner)
@@ -135,6 +138,18 @@ func collectDirectCallableEffects(
 		if moduleFlow != nil {
 			if possible, _ := moduleFlow.reachable(node, nil); !possible {
 				return false
+			}
+		}
+		if moduleFlow == nil && !precisionRequested && node.Parent != nil && ast.IsBinaryExpression(node.Parent) {
+			branch := node.Parent.AsBinaryExpression()
+			op := branch.OperatorToken.Kind
+			if node == branch.Right && (op == ast.KindBarBarToken || op == ast.KindAmpersandAmpersandToken || op == ast.KindQuestionQuestionToken) {
+				if logicalFlow == nil {
+					logicalFlow = &sourceValueQuery{owner: owner.values, executable: owner, effectOwner: fact.node, dependenciesOnly: true}
+				}
+				if known, truthy, nullish := logicalFlow.literalDecision(branch.Left, nil); known && !sourceLogicalTakesRight(op, truthy, nullish) {
+					return false
+				}
 			}
 		}
 		if ast.IsForOfStatement(node) {

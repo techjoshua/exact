@@ -213,11 +213,16 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 			sources := query.lexicalGetterWriterSources(operation.sources, get, bindings, result)
 			indexes = query.occurrenceSourceViewIn(origin, result, sources, sourceIndexes[:0])
 		}
-		var localOwner, localRead *ast.Node
-		if query.dependenciesOnly && len(query.creators) != 0 && ast.IsObjectLiteralExpression(origin) && query.moduleRead() == nil {
+		var localOwner, localRead, moduleReturn *ast.Node
+		if query.dependenciesOnly && len(query.creators) != 0 && ast.IsObjectLiteralExpression(origin) {
 			localOwner = enclosingCallableNode(origin)
 			if localOwner != nil && query.creators[localOwner].returning != nil {
-				localRead = query.localMemberReadBoundary(localOwner)
+				if query.moduleRead() == nil {
+					localRead = query.localMemberReadBoundary(localOwner)
+				} else if (mode == accessorRead || mode == accessorAcquire) && query.confinedModuleReturnedObject(origin, localOwner, bindings, result) {
+					localRead = query.localMemberReadBoundary(localOwner)
+					moduleReturn = query.creators[localOwner].invocation
+				}
 			}
 		}
 		constructorTask := query.promiseConstructorTaskPlacement(get, projection, name, mode)
@@ -279,6 +284,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 
 				query.pendingWriterGet(assignment, origin, bindings, get)
 				var inputs []sourceMemberWriterInput
+				selectedLocalReturn := false
 				if relative, transferred := query.pendingWriterCapture(assignment, origin, bindings, result, get, false); transferred {
 					if relative == nil {
 						continue
@@ -310,6 +316,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 						// This activation is already selected by the return projection.
 						// Its direct writes use the same captured inputs as the receiver.
 						inputs = []sourceMemberWriterInput{{scope: acquiredCallableScope{bindings: bindings, creators: query.creators}}}
+						selectedLocalReturn = moduleReturn != nil
 					} else {
 						inputs = query.memberWriterInputs(assignment.left, bindings, result, cut)
 					}
@@ -319,6 +326,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 					inputs = query.localSetterWriterInputs(assignment.left, origin, cut, bindings, result, inputs)
 				}
 				for _, input := range inputs {
+					localReturnWrite := selectedLocalReturn && input.call == nil && input.implicitMember == nil
 					// Entering an actual input/capture scope creates this migration
 					// debt. Candidate discovery alone supplies no acquired inputs;
 					// reconstruction keeps its own marker even if it returns none.
@@ -414,6 +422,7 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 								result.valueIncomplete = true
 								continue
 							}
+							performedReturnWrite := false
 							if sourceProjectionOverlap(written, demand) {
 								var possible bool
 								// Once this receiver route is incomplete, another possible writer lookup
@@ -430,6 +439,12 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 									} else {
 										producer, possible = query.moduleWriteProducer(assignment.left, assignmentBindings, result)
 									}
+								}
+								performedReturnWrite = localReturnWrite && len(origins) == 1 && !temporary.opaque &&
+									len(written) == 1 && directSourceDataSlot(origin, written, assignment.left, query.owner.checker) &&
+									query.sourceWritePrecedesAt(assignment.left, nil, localRead, assignmentBindings)
+								if performedReturnWrite {
+									producer = moduleReturn
 								}
 								if descriptorData && producer == nil && !input.incomplete && input.call != nil && query.descriptorWriterPrecedes(assignment.left, input.call, cut.operation, bindings, assignmentBindings) {
 									producer = input.call
@@ -470,6 +485,11 @@ func (query *sourceValueQuery) memberValuesAtGetWithStandard(origin *ast.Node, p
 									at = query.reading
 								}
 								replacement := !containsString(written, "*") && !containsString(written, "") && len(origins) == 1 && !temporary.opaque && query.replacesSourceValue(origin, written, assignment.left, mode, producer, assignmentBindings)
+								if performedReturnWrite {
+									// The selected Call happened before the module read, and the Set
+									// happened before the factory's local observation.
+									replacement = true
+								}
 								writer := enclosingCallableNode(assignment.left)
 								// This lookup adds only opacity. Existing incompleteness keeps its cause
 								// (or the accessor's receiver fallback), while every RHS is still visited below.

@@ -4143,6 +4143,16 @@ An uncorrelated possible getter uses an unknown receiver and nil operation, keep
 lexical arrow captures and retains uncertainty. It cannot discharge an actual Get
 or borrow the descriptor target as its receiver. Existing normal descriptor
 consumers retain their separate operation and lifetime checks.
+For a direct module read of a confined object returned by a synchronous
+factory, the compiler can use the selected invocation and local read boundary
+to recognize a completed assignment to an own data property. This lets the
+selected property contribute its browser or server effects to component
+placement. Earlier reads retain their original values. Uncertain writes and
+writes from other invocations retain their separate alternatives.
+Ordinary callable effect collection uses finite primitive branch facts for
+short-circuit expressions. The left operand retains its evaluation effects.
+A proved skipped right operand contributes no environment requirement.
+
 Each alternative keeps its original Call and captured source scope. Known wrappers transfer those bindings through reached body Call demands, including forwarded callback invocation. Creating or storing a callback does not invoke it. Recursive source contexts use the existing finite dependency-entry join, and unresolved invocation alternatives retain uncertainty. Argument values are observed
 at that Call, while later field reads retain the original reader boundary rather than borrowing a
 factory return boundary. Unproved Call timing retains alternatives and uncertainty. These source
