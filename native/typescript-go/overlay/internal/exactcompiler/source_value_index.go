@@ -112,7 +112,8 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			owner.indexWork++
 			privateErased := owner.indexPrivateUse(index.privateUses, node)
 			owner.indexNormalOccurrence(&index, source, node, privateErased)
-			if !ast.IsPartOfTypeNode(node) {
+			partOfType := ast.IsPartOfTypeNode(node)
+			if !partOfType {
 				if node.Kind == ast.KindThisKeyword {
 					region := owner.memberOperationRegion(&index, node)
 					region.receivers = append(region.receivers, node)
@@ -137,6 +138,17 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 						if query.thenMutationSyntax(node) {
 							region.thenOperations = append(region.thenOperations, node)
 						}
+					} else if ast.IsNewExpression(node) || ast.IsTaggedTemplateExpression(node) {
+						if ast.IsNewExpression(node) && (!index.possibleEventConstructor || !index.possibleByteStorage) {
+							name := unwrapSourceCallableReference(node.Expression())
+							if ast.IsIdentifier(name) {
+								index.possibleEventConstructor = index.possibleEventConstructor || name.Text() == "Event" || name.Text() == "EventTarget"
+								index.possibleByteStorage = index.possibleByteStorage || standardByteStorageName(name.Text())
+							}
+						}
+						// These executable forms do not have call-index ownership proof.
+						index.numberOpenCalls = append(index.numberOpenCalls, node)
+						region.openCalls = append(region.openCalls, node)
 					}
 				}
 				if privateRuntimeReference(node, false) {
@@ -150,21 +162,8 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 			if reference, _ := executableDeclarationReference(node); reference != nil && !node.IsTypeOnly() && !(ast.IsImportDeclaration(node) && node.AsImportDeclaration().ImportClause != nil && node.AsImportDeclaration().ImportClause.AsImportClause().IsTypeOnly()) {
 				index.runtimeImports = append(index.runtimeImports, node)
 			}
-			if ast.IsPartOfTypeNode(node) {
+			if partOfType {
 				return false
-			}
-			if ast.IsNewExpression(node) || ast.IsTaggedTemplateExpression(node) {
-				if ast.IsNewExpression(node) && (!index.possibleEventConstructor || !index.possibleByteStorage) {
-					name := unwrapSourceCallableReference(node.Expression())
-					if ast.IsIdentifier(name) {
-						index.possibleEventConstructor = index.possibleEventConstructor || name.Text() == "Event" || name.Text() == "EventTarget"
-						index.possibleByteStorage = index.possibleByteStorage || standardByteStorageName(name.Text())
-					}
-				}
-				// These executable forms do not have call-index ownership proof.
-				index.numberOpenCalls = append(index.numberOpenCalls, node)
-				region := owner.memberOperationRegion(&index, node)
-				region.openCalls = append(region.openCalls, node)
 			}
 			// Numeric conversion can invoke authored valueOf/@@toPrimitive code.
 			// A source-local function body alone cannot close this implicit work.
