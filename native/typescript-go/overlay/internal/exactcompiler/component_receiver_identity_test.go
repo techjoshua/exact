@@ -27,9 +27,9 @@ func TestComponentReceiverIdentity(t *testing.T) {
 			if row.name == "shadow" {
 				generic = "<Component>"
 			}
-			body := "return 'value';"
+			body := "return () => 'value';"
 			if row.name == "structural-protocol" {
-				body = "return this.map();"
+				body = "const value = this.map(); return () => value;"
 			}
 			source := row.setup + `export function probe` + generic + `(this:` + row.receiver + `){` + body + `}`
 			for _, kind := range []string{"analyze", "compile"} {
@@ -46,7 +46,7 @@ func TestComponentReceiverIdentity(t *testing.T) {
 						t.Fatalf("%s/%s component=%v want %v", kind, target, found, row.component)
 					}
 					if !row.component && kind == "compile" {
-						sourceNodeScript(t, response.Code, `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out});assert.equal(out.probe.call({label:'original',map(){return 'value'}}),'value');`)
+						sourceNodeScript(t, response.Code, `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out});assert.equal(out.probe.call({label:'original',map(){return 'value'}})(),'value');`)
 					}
 				}
 			}

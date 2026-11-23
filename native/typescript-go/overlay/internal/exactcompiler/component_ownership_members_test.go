@@ -236,13 +236,14 @@ func TestComputedLifecycleKeyEvaluationSurvivesServerErasure(t *testing.T) {
 
 // Ordinary object, class and typed function receivers stay separate from lexical component arrows.
 func TestComponentProtocolReceiverBoundaries(t *testing.T) {
+	root, config := formsSourceFixture(t)
 	for _, ordinary := range []string{
 		`const foreign={own(value:number){return value+1},run(){return this['own'](2)}};`,
 		`class Other{own(value:number){return value+1}run(){return this['own'](2)}}const foreign=new Other();`,
 		`const foreign={own(value:number){return value+1},run:function(this:{own(value:number):number}){return this['own'](2)}};`,
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
-			response := NewSession().Execute(Request{Kind: "compile", ID: "protocol-receiver-boundaries.tsx", Target: target, Diagnostics: "semantic", Source: `import{type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;` + ordinary + `const register=()=>this['onMount'](()=>this.state.value=foreign.run());register();return()=> <output>{this.state.value}</output>}`})
+			response := formsCompileSource(t, root, config, `import{type Component}from'@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;`+ordinary+`const register=()=>this['onMount'](()=>this.state.value=foreign.run());register();return()=> <output>{this.state.value}</output>}`, target)
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("receiver boundary rejected: %s %#v", response.Error, response.Diagnostics)
 			}

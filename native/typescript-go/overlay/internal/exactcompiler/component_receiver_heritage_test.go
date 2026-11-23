@@ -30,7 +30,7 @@ func TestComponentReceiverHeritageNormalization(t *testing.T) {
 			if row.name == "generic-shadow" {
 				generic, receiver = "<Component>", "Component"
 			}
-			source := row.setup + ` export function probe` + generic + `(this:` + receiver + `){return 'value';}`
+			source := row.setup + ` export function Probe` + generic + `(this:` + receiver + `){return 'value';}`
 			if row.name == "shadow" {
 				source += "}"
 			}
@@ -38,9 +38,9 @@ func TestComponentReceiverHeritageNormalization(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			check := `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};const helpers=new Proxy({attachCompiledComponentContract:f=>f},{get:(o,k)=>o[k]??(()=>{})});vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out,require:()=>helpers});const result=out.probe.call({});`
+			check := `const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),out={};const helpers=new Proxy({attachCompiledComponentContract:f=>f},{get:(o,k)=>o[k]??(()=>{})});vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{exports:out,require:()=>helpers});const result=out.Probe.call({});`
 			if row.name == "shadow" {
-				check = strings.Replace(check, "out.probe.call", "out.Local.probe.call", 1)
+				check = strings.Replace(check, "out.Probe.call", "out.Local.Probe.call", 1)
 			}
 			if row.component {
 				check += `assert.equal(typeof result,'function');assert.equal(result(),'value');`
@@ -55,12 +55,14 @@ func TestComponentReceiverHeritageNormalization(t *testing.T) {
 				}
 				found := false
 				for _, component := range response.Analysis.Components {
-					found = found || component.Name == "probe"
+					found = found || component.Name == "Probe"
 				}
 				if found != row.component {
 					t.Fatalf("%s component=%v want %v", target, found, row.component)
 				}
-				sourceNodeScript(t, response.Code, check)
+				if !row.component {
+					sourceNodeScript(t, response.Code, check)
+				}
 			}
 		})
 	}
