@@ -489,6 +489,11 @@ across reuse. They do not transfer current Get/event receipts or applied reader
 revisions into a replacement program: publication still requires that generation's
 source owners. Fresh and reused Sessions must agree on diagnostics, placement,
 runtime effects and emitted behavior after a source edit.
+Context-effect discovery checks the member name before resolving its receiver.
+The compiler builds the lexical replacement index for context binding analysis only
+when it finds a checked context read assigned to a named binding. It uses the
+index to distinguish stable bindings from bindings with replacement writes.
+
 Completed secret-type qualification queries are
 shared by member and source-result policy analysis, including dependency component analysis.
 They are retained separately for each exclusive checker owned by the unchanged authored program,

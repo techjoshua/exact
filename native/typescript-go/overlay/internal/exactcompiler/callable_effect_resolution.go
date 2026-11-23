@@ -18,10 +18,12 @@ func contextEffect(
 		return ContextEffect{}, false
 	}
 	member := call.Expression.AsPropertyAccessExpression()
-	if member.Expression == nil || !componentContextReceiver(member.Expression, typeChecker) ||
-		member.Name() == nil ||
-		(member.Name().Text() != "getContext" && member.Name().Text() != "hasContext" &&
-			member.Name().Text() != "setContext") {
+	if member.Expression == nil || member.Name() == nil {
+		return ContextEffect{}, false
+	}
+	name := member.Name().Text()
+	if (name != "getContext" && name != "hasContext" && name != "setContext") ||
+		!componentContextReceiver(member.Expression, typeChecker) {
 		return ContextEffect{}, false
 	}
 	token := "unknown"
@@ -49,7 +51,7 @@ func contextEffect(
 		}
 	}
 	kind := "read"
-	switch member.Name().Text() {
+	switch name {
 	case "hasContext":
 		kind = "probe"
 	case "setContext":
@@ -103,7 +105,7 @@ func componentContextReceiver(
 // variable cannot inherit another binding's execution contract.
 func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Checker) map[ast.SymbolId]ContextEffect {
 	result := make(map[ast.SymbolId]ContextEffect)
-	writes := policyAliasWrites(sourceFile, typeChecker)
+	var writes map[ast.SymbolId][]policyAliasWrite
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) {
 			return true
@@ -112,9 +114,21 @@ func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		if declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
 			return true
 		}
+		effect, ok := contextBindingInitializerEffect(declaration.Initializer, sourceFile, typeChecker)
+		if !ok {
+			return true
+		}
 		symbol := typeChecker.GetSymbolAtLocation(declaration.Name())
-		if effect, ok := contextBindingInitializerEffect(declaration.Initializer, sourceFile, typeChecker); ok && symbol != nil && len(writes[ast.GetSymbolId(symbol)]) == 0 {
-			result[ast.GetSymbolId(symbol)] = effect
+		if symbol == nil {
+			return true
+		}
+		// Only an admitted context read can require the source-wide write index.
+		if writes == nil {
+			writes = policyAliasWrites(sourceFile, typeChecker)
+		}
+		id := ast.GetSymbolId(symbol)
+		if len(writes[id]) == 0 {
+			result[id] = effect
 		}
 		return true
 	})
