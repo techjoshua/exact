@@ -13,17 +13,25 @@ func (q *sourceValueQuery) localNumericWriterCall(call *ast.Node, bindings sourc
 	if !ast.IsIdentifier(expression) || ast.IsOptionalChain(call) || arguments == nil || len(arguments.Nodes) != 1 {
 		return false
 	}
+	source := ast.GetSourceFileOfNode(call)
+	if id, proved := q.owner.indexes[source].numericWriterCalls[call]; proved {
+		if _, substituted := bindings[id]; substituted {
+			return false
+		}
+		// Keep the original index acquisition and its import preparation boundary.
+		return !q.owner.index(source).incomplete
+	}
 	c := q.owner.checker
 	symbol := c.GetSymbolAtLocation(expression)
 	if symbol == nil || len(symbol.Declarations) != 1 || !envelopeSynchronousFunction(symbol.ValueDeclaration) {
 		return false
 	}
 	fn := symbol.ValueDeclaration
-	source := ast.GetSourceFileOfNode(call)
 	if ast.GetSourceFileOfNode(fn) != source || !ast.IsExternalModule(source) {
 		return false
 	}
-	if _, substituted := bindings[ast.GetSymbolId(symbol)]; substituted {
+	id := ast.GetSymbolId(symbol)
+	if _, substituted := bindings[id]; substituted {
 		return false
 	}
 	parameters, statements := fn.Parameters(), fn.Body().AsBlock().Statements.Nodes
@@ -36,11 +44,17 @@ func (q *sourceValueQuery) localNumericWriterCall(call *ast.Node, bindings sourc
 		return false
 	}
 	index := q.owner.index(source)
-	if index.incomplete || index.normalDynamicScope || q.owner.bindingWritten(symbol) {
+	if index.incomplete || index.normalDynamicScope || len(index.bindings[id]) != 0 ||
+		!numericWriterExpression(statements[0].AsReturnStatement().Expression, c, parameters[0]) ||
+		!numericWriterExpression(arguments.Nodes[0], c, nil) {
 		return false
 	}
-	return numericWriterExpression(statements[0].AsReturnStatement().Expression, c, parameters[0]) &&
-		numericWriterExpression(arguments.Nodes[0], c, nil)
+	if index.numericWriterCalls == nil {
+		index.numericWriterCalls = make(map[*ast.Node]ast.SymbolId)
+		q.owner.indexes[source] = index
+	}
+	index.numericWriterCalls[call] = id
+	return true
 }
 
 // numericWriterExpression accepts arithmetic syntax whose operands cannot

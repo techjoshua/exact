@@ -4168,6 +4168,10 @@ checked lexical numeric expression. Original evaluation still owns operand effec
 the result. Accessors, authored coercion, mutable callees and unresolved inputs remain
 under ordinary writer discovery. The confined filter-result proof requires a local
 constant declaration. An imported receiver follows its original member analysis.
+The numeric writer classifier shares successful lexical call classifications across
+writer queries in the same checker-owned source index. Each occurrence still checks
+for a substituted callee and an in-progress source index. Source and checker
+replacement invalidate the index and its classifications.
 After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
 when all its bindings are already resolved. Member paths and pending initializer uses retain
 the original projection and sealing steps because either can contribute uncertainty to fallback.

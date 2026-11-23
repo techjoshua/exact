@@ -10,7 +10,9 @@ type sourceValueIndex struct {
 	normalOrdinal                           int
 	normalExported                          map[ast.SymbolId]bool
 	normalExportUnknown, normalDynamicScope bool
-	privateUses                             *sourcePrivateUses
+	// Positive numeric writer proofs share this source index across dependency queries.
+	numericWriterCalls map[*ast.Node]ast.SymbolId
+	privateUses        *sourcePrivateUses
 	// incomplete prevents a reentrant consumer from treating an unpublished index as empty.
 	incomplete               bool
 	importsPrepared          bool
