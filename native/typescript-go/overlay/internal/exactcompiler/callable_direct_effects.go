@@ -1001,12 +1001,10 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 		creation := node != root && isCallableNode(node)
 		if emit {
 			fold(sourceNormalFold{node: node, kind: sourceNormalEnter})
-		}
-		defer func() {
-			if emit {
+			defer func() {
 				fold(sourceNormalFold{node: node, children: children, erasedChildren: erasedChildren, creation: creation, kind: normalFoldKind(node, creation)})
-			}
-		}()
+			}()
+		}
 
 		if creation {
 			for _, decorator := range sourceDefinitionDecorators(node) {
