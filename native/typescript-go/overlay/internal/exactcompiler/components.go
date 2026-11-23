@@ -22,10 +22,11 @@ var componentProtocolCalls = map[string]struct{}{
 }
 
 type componentCandidate struct {
-	name     string
-	node     *ast.Node
-	exported bool
-	signals  []string
+	name                    string
+	node                    *ast.Node
+	exported                bool
+	scopeKnown, moduleLevel bool
+	signals                 []string
 }
 
 // collectComponents discovers the declarations which own eXact component
@@ -337,6 +338,10 @@ func filterDurableComponentCandidates(
 }
 
 func componentCandidateIsModuleLevel(candidate componentCandidate) bool {
+	if candidate.scopeKnown {
+		return candidate.moduleLevel
+	}
+	// Direct consumers can also construct a candidate without discovery.
 	if ast.IsFunctionDeclaration(candidate.node) {
 		return candidate.node.Parent != nil && ast.IsSourceFile(candidate.node.Parent)
 	}
@@ -472,9 +477,11 @@ func appendRawComponentCandidate(candidates []componentCandidate, node *ast.Node
 	case ast.IsFunctionDeclaration(node):
 		if name := node.Name(); name != nil {
 			return append(candidates, componentCandidate{
-				name:     name.Text(),
-				node:     node,
-				exported: ast.HasSyntacticModifier(node, ast.ModifierFlagsExport),
+				name:        name.Text(),
+				node:        node,
+				exported:    ast.HasSyntacticModifier(node, ast.ModifierFlagsExport),
+				scopeKnown:  true,
+				moduleLevel: node.Parent != nil && ast.IsSourceFile(node.Parent),
 			})
 		}
 	case ast.IsVariableDeclaration(node):
@@ -488,6 +495,9 @@ func appendRawComponentCandidate(candidates []componentCandidate, node *ast.Node
 				node: initializer,
 				exported: variableStatement != nil &&
 					ast.HasSyntacticModifier(variableStatement, ast.ModifierFlagsExport),
+				scopeKnown: true,
+				moduleLevel: variableStatement != nil && node.Parent.Parent == variableStatement &&
+					variableStatement.Parent != nil && ast.IsSourceFile(variableStatement.Parent),
 			})
 		}
 	}
@@ -551,25 +561,27 @@ func enclosingVariableStatement(node *ast.Node) *ast.Node {
 // hasNormalizationComponentSignal answers the planners' eligibility question. An
 // uppercase definition with an authenticated receiver already has a typed signal.
 func hasNormalizationComponentSignal(candidate componentCandidate, sourceFile *ast.SourceFile) bool {
-	typedReceiver := hasComponentReceiver(candidate.node, sourceFile)
+	annotation := componentReceiverAnnotation(candidate.node)
+	typedReceiver := authenticComponentReceiver(annotation, sourceFile)
 	if typedReceiver && componentName(candidate.name) {
 		return true
 	}
-	return len(componentSignalsWithReceiver(candidate, sourceFile, typedReceiver)) != 0
+	return len(componentSignalsWithReceiver(candidate, sourceFile, annotation, typedReceiver)) != 0
 }
 
 func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) []string {
-	return componentSignalsWithReceiver(candidate, sourceFile, hasComponentReceiver(candidate.node, sourceFile))
+	annotation := componentReceiverAnnotation(candidate.node)
+	return componentSignalsWithReceiver(candidate, sourceFile, annotation, authenticComponentReceiver(annotation, sourceFile))
 }
 
-func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.SourceFile, typedReceiver bool) []string {
+func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.SourceFile, annotation *ast.Node, typedReceiver bool) []string {
 	// Publish the stable lexical order directly. Each signal has one producer.
 	signals := []string{}
 	if typedReceiver && !componentName(candidate.name) && !componentReceiverReturnsView(candidate.node) {
 		return signals
 	}
 	if componentCandidateIsModuleLevel(candidate) &&
-		(typedReceiver || componentReceiverAnnotation(candidate.node) == nil) &&
+		(typedReceiver || annotation == nil) &&
 		containsComponentProtocolCall(candidate.node) {
 		signals = append(signals, "component-protocol")
 	}

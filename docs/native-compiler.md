@@ -1136,6 +1136,12 @@ outside the configuration's include list. Invalid configuration and checking err
 Native extension analysis receives the authored source tree and authored coordinates. Compiler
 normalization of destructured props, component returns, and setup computations happens in the
 compilation path, so extension-produced edits remain applicable to the source submitted by the host.
+
+Candidate discovery retains module ownership for the current parse. Component
+eligibility also shares one receiver annotation lookup between authentication
+and protocol classification. An authored annotation without framework identity
+still blocks protocol-only qualification.
+
 Standalone localization analysis supplies native ESNext and DOM declarations when no project
 configuration is provided. Ordinary compilation retains its default library selection, and an
 explicit project configuration controls both paths. Session cache identities include this analysis

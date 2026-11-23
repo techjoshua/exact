@@ -10,7 +10,10 @@ import (
 // lexical shadowing, including type parameters. Imports, local type aliases and interface heritage
 // retain identity, while structural compatibility supplies no such authority.
 func hasComponentReceiver(node *ast.Node, sourceFile *ast.SourceFile) bool {
-	annotation := componentReceiverAnnotation(node)
+	return authenticComponentReceiver(componentReceiverAnnotation(node), sourceFile)
+}
+
+func authenticComponentReceiver(annotation *ast.Node, sourceFile *ast.SourceFile) bool {
 	if annotation == nil {
 		return false
 	}

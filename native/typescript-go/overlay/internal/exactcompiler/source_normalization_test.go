@@ -90,6 +90,14 @@ func TestNormalizationCollectsCallablesInDeclarationOrder(t *testing.T) {
 		if candidate.name != want[index] || candidate.exported != (index == 0) {
 			t.Fatalf("candidate %d = %q (exported %t), want %q", index, candidate.name, candidate.exported, want[index])
 		}
+		moduleLevel := index == 0 || index == 3
+		if !candidate.scopeKnown || componentCandidateIsModuleLevel(candidate) != moduleLevel {
+			t.Fatalf("candidate %q has wrong discovered module ownership, want %t", candidate.name, moduleLevel)
+		}
+		candidate.scopeKnown = false
+		if componentCandidateIsModuleLevel(candidate) != moduleLevel {
+			t.Fatalf("candidate %q has wrong direct module ownership, want %t", candidate.name, moduleLevel)
+		}
 	}
 	if !directlyDeclaredInSetup(candidates[2].node, candidates[0].node) {
 		t.Fatal("setup-local candidate lost its lexical owner")
