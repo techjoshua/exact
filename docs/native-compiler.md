@@ -1979,6 +1979,20 @@ the scoped observer recorded 4,082 repeat classifications in each matched
 emitting `color.ts`. These counts describe classifier requests. ThemeScope
 output and end-to-end latency remain unmeasured.
 
+Indexed member-writer discovery skips a direct, immutable module-local helper
+when its only work is returning a fresh object copied from a fresh own-data
+literal. Source inspection preserves authored getters and operand effects.
+The original call retains ownership of returned values and separately
+registered writer work.
+
+A paired original ThemeScope client comparison at `43291513f` observed
+64 eligible preset visits, all with zero writer inputs and identical
+uncertainty. The guarded trial avoided 2,477 charged recovery steps in that
+prefix. Timers around the matched visits measured about 0.73 ms of baseline
+recovery and about 0.15 ms for the proof and exclusion together. The timers
+include observation overhead and measure a single sampled prefix. Each
+24-second diagnostic emitted the same `color.ts` response.
+
 ### Related defect families and repair boundaries
 
 State lowering preserves two contracts: the framework's reactive ownership and the authored
