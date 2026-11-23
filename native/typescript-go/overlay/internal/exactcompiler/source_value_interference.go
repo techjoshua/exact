@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // sourcePendingWriterInput excludes only the writer candidate whose inputs are
 // currently being matched. It is not projection recursion or Call authority.
@@ -83,6 +86,11 @@ func (query *sourceValueQuery) interferenceInSources(origin *ast.Node, projectio
 // scanInterferenceInSources is the existing single receiver-write consumer.
 // Write inventory work changes only callee preparation, not this body algorithm.
 func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, projection []string, name string, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, sources []*ast.SourceFile, boundary sourceMemberOperationProof, nativeInputs []*sourceNativeInvocation) {
+	if query.dependenciesOnly && (mode == accessorRead || mode == accessorAcquire) &&
+		len(projection) == 1 && projection[0] == "*" && name == "" &&
+		privateArrayLoopIterable(origin, query.owner.checker) {
+		return
+	}
 	var operandOrigin sourceOriginBuffer
 	// One scan retains the same origin, demand, bindings and restored creator context.
 	// Cache complete predicates only, never a query failure or an acquired mutable cell.
@@ -388,6 +396,29 @@ func (query *sourceValueQuery) scanInterferenceInSources(origin *ast.Node, proje
 			visit(index.originCalls[creator.invocation])
 		}
 	}
+}
+
+// privateArrayLoopIterable proves the anonymous allocation goes straight to
+// the standard iterator and exposes only its own dense elements. The spread
+// inputs can run authored code while building the array, but never receive it.
+func privateArrayLoopIterable(origin *ast.Node, c *checker.Checker) bool {
+	if !ast.IsArrayLiteralExpression(origin) || !ast.IsForOfStatement(origin.Parent) {
+		return false
+	}
+	loop := origin.Parent.AsForInOrOfStatement()
+	if loop.Expression != origin || !ast.IsVariableDeclarationList(loop.Initializer) {
+		return false
+	}
+	bindings := loop.Initializer.AsVariableDeclarationList().Declarations.Nodes
+	if len(bindings) != 1 || standardArrayLoopSource(bindings[0], c) != origin {
+		return false
+	}
+	for _, element := range origin.AsArrayLiteralExpression().Elements.Nodes {
+		if element.Kind == ast.KindOmittedExpression {
+			return false
+		}
+	}
+	return true
 }
 
 // receiverInterference follows only writes and forwarded arguments that can reach the
