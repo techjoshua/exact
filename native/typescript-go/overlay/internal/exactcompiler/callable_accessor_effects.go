@@ -395,11 +395,22 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	if query.deferDescriptorProjection(node, bindings, result, actualGet) {
 		return nil, true
 	}
-	// Allocation association is the reader's already-acquired receiver scope,
-	// distinct from the original consumer cut used only for ordering.
-	receiverScope := query.acquireCallableScope(bindings, result)
-	if actualGet != nil && actualGet.receiver.capture != nil {
-		receiverScope = query.copyCallableScope(*actualGet.receiver.capture, result)
+	// Native matching uses the acquired receiver directly. Seal the same
+	// initializer inputs without retaining an unused allocation scope.
+	var receiverScope *acquiredCallableScope
+	if actualGet != nil && actualGet.receiver.native != nil {
+		query.captureCallableScope(bindings, result, false)
+		if capture := actualGet.receiver.capture; capture != nil {
+			query.memberWriterScope(sourceMemberWriterInput{scope: *capture}, func() {
+				query.captureCallableScope(capture.bindings, result, false)
+			})
+		}
+	} else {
+		scope := query.acquireCallableScope(bindings, result)
+		if actualGet != nil && actualGet.receiver.capture != nil {
+			scope = query.copyCallableScope(*actualGet.receiver.capture, result)
+		}
+		receiverScope = &scope
 	}
 	var values []sourceValue
 	possible := false
@@ -408,7 +419,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 		// rows below remain responsible for values, opacity and disjointness.
 		part := accessorCandidates{}
 		row := sourceMemberWriterInput{renderGetEffects: true}
-		query.reflectiveMemberValueInScope(origin, projection, name, node, mode, bindings, &part, actualGet, &row, &receiverScope)
+		query.reflectiveMemberValueInScope(origin, projection, name, node, mode, bindings, &part, actualGet, &row, receiverScope)
 		for _, effect := range part.effects {
 			if effect.operation == actualGet.operation {
 				result.retainCallableEffect(effect.operation, effect.declaration)
@@ -431,7 +442,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	for _, row := range rows {
 		query.memberWriterScope(row, func() {
 			part := accessorCandidates{}
-			value, may := query.reflectiveMemberValueInScope(origin, projection, name, node, mode, row.scope.bindings, &part, actualGet, &row, &receiverScope)
+			value, may := query.reflectiveMemberValueInScope(origin, projection, name, node, mode, row.scope.bindings, &part, actualGet, &row, receiverScope)
 			allDirectExcluded = allDirectExcluded && row.directTargetExcluded && !row.incomplete && !may && value == nil && !part.opaque && !part.valueIncomplete && !part.receiverIncomplete && !part.fieldReceiverIncomplete && !part.thenIncomplete
 			possible = possible || may
 			if may && row.incomplete {
