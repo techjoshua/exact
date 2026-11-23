@@ -246,7 +246,7 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 					selection: func(value bool) { complete = value },
 					body: func(body *ast.Node, bound sourceValueBindings, inputs *sourceValueInputs, _ *ast.Node, part *accessorCandidates) {
 						if body != writer {
-							q.memberWriterBodyCalls(body, call, bound, inputs, part, collect)
+							q.memberWriterBodyCalls(body, call, inputs, part, collect)
 							return
 						}
 						bodySeen = true
@@ -693,11 +693,14 @@ func (q *sourceValueQuery) guardedObjectArgument(call, argument *ast.Node) bool 
 // memberWriterBodyCalls follows only reached Call demands under the selected
 // wrapper's original inputs. It does not execute its body or publish effects.
 // The shared finite dependency entry relation joins recursive source contexts.
-func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings sourceValueBindings, inputs *sourceValueInputs, result *accessorCandidates, visit func(*ast.Node, sourceValueBindings)) {
+func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, inputs *sourceValueInputs, result *accessorCandidates, visit func(*ast.Node, sourceValueBindings)) {
 	if _, ordinary := ordinaryResultCategory(body); !ordinary {
 		return
 	}
-	release, fresh := q.enterDependencyBody(body, bindings, inputs, call, result)
+	// Invocation gives this consumer the same bindings as inputs.bindings.
+	// Entry admission already walks those original inputs.
+	bindings := inputs.bindings
+	release, fresh := q.enterDependencyBody(body, nil, inputs, call, result)
 	defer release()
 	if !fresh {
 		result.opaque = true

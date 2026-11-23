@@ -4172,6 +4172,8 @@ The numeric writer classifier shares successful lexical call classifications acr
 writer queries in the same checker-owned source index. Each occurrence still checks
 for a substituted callee and an in-progress source index. Source and checker
 replacement invalidate the index and its classifications.
+Writer wrapper admission records its original invocation bindings once. An entry
+that also has a separate captured binding map keeps both sets of source facts.
 After dependency-body admission, a wrapper with no indexed nested call needs no
 writable binding or creator map. Member paths and pending initializer uses still
 undergo projection and sealing because either can contribute fallback uncertainty.

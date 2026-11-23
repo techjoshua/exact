@@ -213,3 +213,33 @@ func TestSymbolicReentrantCallbackEmitted(t *testing.T) {
 		})
 	}
 }
+
+// A writer wrapper passes the invocation once. Separate capture inputs and
+// source alternatives retain their own facts.
+func TestWriterDependencyEntryUsesInvocationBindings(t *testing.T) {
+	source := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/entry.ts", Path: tspath.Path("/entry.ts")}, `function wrapper() {} wrapper(); const origin = {};`, core.ScriptKindTS)
+	body := source.Statements.Nodes[0]
+	call := source.Statements.Nodes[1].AsExpressionStatement().Expression
+	origin := source.Statements.Nodes[2]
+	terms := sourceValueBindings{1: {{node: origin, path: []string{"h"}}}}
+	inputs := &sourceValueInputs{invocation: call, bindings: terms}
+	query := &sourceValueQuery{dependenciesOnly: true, active: make(map[*ast.Node]bool), creators: map[*ast.Node]sourceValueCreation{body: {invocation: call}}}
+	result := accessorCandidates{}
+	outer, entered := query.enterDependencyBody(body, nil, inputs, call, &result)
+	defer outer()
+	if !entered || result.opaque {
+		t.Fatal("original invocation failed to enter")
+	}
+	query.active[body] = true
+	repeated, fresh := query.enterDependencyBody(body, terms, inputs, call, &result)
+	repeated()
+	if fresh {
+		t.Fatal("the same explicit bindings changed an active alternative")
+	}
+	captures := sourceValueBindings{2: {{node: origin}}}
+	extra, fresh := query.enterDependencyBody(body, captures, inputs, call, &result)
+	extra()
+	if !fresh {
+		t.Fatal("independent captures lost their separate entry")
+	}
+}
