@@ -114,13 +114,19 @@ func planCanonicalComponentReturns(
 	sourceFile *ast.SourceFile,
 	candidates, durable []componentCandidate,
 ) []sourceEdit {
-	callables := make(map[string]*ast.Node)
-	for _, candidate := range candidates {
-		callables[candidate.name] = candidate.node
+	var callables map[string]*ast.Node
+	lookupCallable := func(name string) *ast.Node {
+		if callables == nil {
+			callables = make(map[string]*ast.Node)
+			for _, candidate := range candidates {
+				callables[candidate.name] = candidate.node
+			}
+		}
+		return callables[name]
 	}
 	edits := []sourceEdit{}
 	for _, candidate := range durable {
-		if len(componentSignals(candidate, sourceFile)) == 0 {
+		if !hasNormalizationComponentSignal(candidate, sourceFile) {
 			continue
 		}
 		if ast.IsArrowFunction(candidate.node) {
@@ -128,7 +134,7 @@ func planCanonicalComponentReturns(
 			if body != nil && !ast.IsBlock(body) &&
 				!ast.IsArrowFunction(body) &&
 				!ast.IsFunctionExpression(body) &&
-				!obviouslyCallableReturn(body, callables) {
+				!obviouslyCallableReturn(body, lookupCallable) {
 				edits = appendCanonicalRenderWrapper(edits, sourceFile, body)
 			}
 			continue
@@ -138,7 +144,7 @@ func planCanonicalComponentReturns(
 			if expression == nil || ast.IsArrowFunction(expression) ||
 				ast.IsFunctionExpression(expression) ||
 				ast.IsFunctionDeclaration(expression) ||
-				obviouslyCallableReturn(expression, callables) {
+				obviouslyCallableReturn(expression, lookupCallable) {
 				continue
 			}
 			edits = appendCanonicalRenderWrapper(edits, sourceFile, expression)
@@ -163,9 +169,9 @@ func appendCanonicalRenderWrapper(edits []sourceEdit, sourceFile *ast.SourceFile
 // always normalized to a directly returned lexical arrow.
 func obviouslyCallableReturn(
 	expression *ast.Node,
-	callables map[string]*ast.Node,
+	lookupCallable func(string) *ast.Node,
 ) bool {
-	return obviouslyCallableReturnWithSeen(expression, callables, make(map[string]struct{}))
+	return obviouslyCallableReturnWithSeen(expression, lookupCallable, make(map[string]struct{}))
 }
 
 // obviouslyCallableReturnWithSeen recognizes statically local setup helpers without
@@ -174,11 +180,11 @@ func obviouslyCallableReturn(
 // this pass only preserves the authored callable boundary.
 func obviouslyCallableReturnWithSeen(
 	expression *ast.Node,
-	callables map[string]*ast.Node,
+	lookupCallable func(string) *ast.Node,
 	seen map[string]struct{},
 ) bool {
 	if ast.IsIdentifier(expression) {
-		return callables[expression.Text()] != nil
+		return lookupCallable(expression.Text()) != nil
 	}
 	if !ast.IsCallExpression(expression) {
 		return false
@@ -186,7 +192,7 @@ func obviouslyCallableReturnWithSeen(
 	call := expression.AsCallExpression()
 	callee := call.Expression
 	if ast.IsIdentifier(callee) {
-		return callableReturnsCallable(callee.Text(), callables, seen)
+		return callableReturnsCallable(callee.Text(), lookupCallable, seen)
 	}
 	if !ast.IsPropertyAccessExpression(callee) {
 		return false
@@ -202,7 +208,7 @@ func obviouslyCallableReturnWithSeen(
 		ast.IsIdentifier(member.Expression) &&
 		call.Arguments != nil && len(call.Arguments.Nodes) != 0 &&
 		call.Arguments.Nodes[0].Kind == ast.KindThisKeyword &&
-		callableReturnsCallable(member.Expression.Text(), callables, seen)
+		callableReturnsCallable(member.Expression.Text(), lookupCallable, seen)
 }
 
 // callableReturnsCallable follows local helper returns until it finds a lexical
@@ -210,10 +216,10 @@ func obviouslyCallableReturnWithSeen(
 // ordinary canonical wrapping and semantic diagnostics.
 func callableReturnsCallable(
 	name string,
-	callables map[string]*ast.Node,
+	lookupCallable func(string) *ast.Node,
 	seen map[string]struct{},
 ) bool {
-	callable := callables[name]
+	callable := lookupCallable(name)
 	if callable == nil {
 		return false
 	}
@@ -227,7 +233,7 @@ func callableReturnsCallable(
 		if expression == nil ||
 			(!ast.IsArrowFunction(expression) &&
 				!ast.IsFunctionExpression(expression) &&
-				!obviouslyCallableReturnWithSeen(expression, callables, seen)) {
+				!obviouslyCallableReturnWithSeen(expression, lookupCallable, seen)) {
 			return false
 		}
 	}

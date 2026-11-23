@@ -181,7 +181,7 @@ func normalizationRenderCallables(
 		result[target] = struct{}{}
 	}
 	for _, candidate := range durable {
-		if len(componentSignals(candidate, sourceFile)) == 0 {
+		if !hasNormalizationComponentSignal(candidate, sourceFile) {
 			continue
 		}
 		if ast.IsArrowFunction(candidate.node) {

@@ -548,10 +548,23 @@ func enclosingVariableStatement(node *ast.Node) *ast.Node {
 	return nil
 }
 
+// hasNormalizationComponentSignal answers the planners' eligibility question. An
+// uppercase definition with an authenticated receiver already has a typed signal.
+func hasNormalizationComponentSignal(candidate componentCandidate, sourceFile *ast.SourceFile) bool {
+	typedReceiver := hasComponentReceiver(candidate.node, sourceFile)
+	if typedReceiver && componentName(candidate.name) {
+		return true
+	}
+	return len(componentSignalsWithReceiver(candidate, sourceFile, typedReceiver)) != 0
+}
+
 func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) []string {
+	return componentSignalsWithReceiver(candidate, sourceFile, hasComponentReceiver(candidate.node, sourceFile))
+}
+
+func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.SourceFile, typedReceiver bool) []string {
 	// Publish the stable lexical order directly. Each signal has one producer.
 	signals := []string{}
-	typedReceiver := hasComponentReceiver(candidate.node, sourceFile)
 	if typedReceiver && !componentName(candidate.name) && !componentReceiverReturnsView(candidate.node) {
 		return signals
 	}

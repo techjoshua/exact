@@ -28,7 +28,7 @@ func planSuppliedPropsNormalization(
 			// Only object bindings consume this qualification. Check their
 			// supported fields below so malformed bindings keep their diagnostic.
 			if !qualified {
-				if !containsSuppliedPropsTarget(component, sourceFile) && len(componentSignals(candidate, sourceFile)) == 0 {
+				if !containsSuppliedPropsTarget(component, sourceFile) && !hasNormalizationComponentSignal(candidate, sourceFile) {
 					break
 				}
 				qualified = true
