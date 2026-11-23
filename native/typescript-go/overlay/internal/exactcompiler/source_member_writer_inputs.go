@@ -587,6 +587,9 @@ func (q *sourceValueQuery) memberWriterScopes(writer, call *ast.Node, bindings s
 					result.valueIncomplete = result.valueIncomplete || calleeCovered
 					return
 				}
+				if position == 0 && request != nil && request.call == call && request.atRecovery(q) && request.receiver != nil && request.receiver.operandZeroNeverInvoked {
+					return
+				}
 				part := acquire()
 				retain(part)
 				if calleeCovered {

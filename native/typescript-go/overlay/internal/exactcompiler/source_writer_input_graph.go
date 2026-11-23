@@ -19,6 +19,7 @@ const (
 type sourceWriterInputNode struct {
 	traceRecipeReason string // diagnostic-only explanation of an already evaluated branch
 
+	operandZeroNeverInvoked bool // Direct writer exposure at a genuine Array.isArray call.
 	expression, declaration *ast.Node
 	kind                    sourceWriterInputKind
 	symbol                  ast.SymbolId
@@ -234,6 +235,10 @@ func (g *sourceWriterInputGraph) recipe(q *sourceValueQuery, expression *ast.Nod
 		// Reuse the existing genuine-standard acquisition policy. This is only
 		// absence of an authored source body at that entry, not operation purity.
 		n.kind = writerInputExternal
+		if ast.IsPropertyAccessExpression(expression) {
+			member := expression.AsPropertyAccessExpression()
+			n.operandZeroNeverInvoked = ast.IsIdentifier(member.Expression) && member.Expression.Text() == "Array" && member.Name().Text() == "isArray"
+		}
 	case expression.Kind == ast.KindThisKeyword:
 		n.kind = writerInputBinding
 		g.edge(sourceWriterInputEdge{from: expression, to: g.consumer, role: "receiver", position: -1})

@@ -1678,6 +1678,10 @@ uncertainty, and the traversal depth bound still applies. Selecting a method ret
 receiver and effects without issuing a normal Get or Call receipt. Unresolved construction
 or receiver alternatives remain independent residuals beside known method effects.
 
+For a direct call to the standard `Array.isArray`, the member-writer query can skip searching
+for writers invoked by the predicate through its argument. Evaluating the argument can still
+invoke a writer through a getter or iterator before the predicate runs.
+
 A dormant writer is distinct from a performed producer. Direct source calls, finite callback
 candidates and the existing call index retain possible routes. Unproved routes stay incomplete,
 and possible writes do not authorize certain replacement or private entry. At a module read,

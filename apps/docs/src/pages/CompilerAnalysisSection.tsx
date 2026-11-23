@@ -325,6 +325,9 @@ export const value = readers[0]!();`}
 				selected before later argument evaluation replaces the property. If a method getter or an
 				earlier argument changes a local callback, a later argument reads the new callback.
 				Calling it can install a getter whose browser requirements apply when the task reads it.
+				Passing a function to <code>Array.isArray</code> leaves its body deferred. In
+				<code>Array.isArray(input.value)</code>, the getter for <code>value</code> still runs and
+				can invoke the function itself.
 			</p>
 			<p>
 				When a helper is defined in the compiled source, ordinary direct calls,
