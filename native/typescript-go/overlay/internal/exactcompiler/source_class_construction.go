@@ -169,6 +169,15 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 	}
 
 	var values []sourceValue
+	if q.dependenciesOnly && q.unrepresentedEmptyMapConstruction(reference, site, symbol, bindings) {
+		// This declaration-only acquisition has no source body or value.
+		// The original New and later member consumers keep their own work.
+		part := accessorCandidates{valueIncomplete: true}
+		mergeAccessorCandidates(result, part)
+		selected.base.valueIncomplete = true
+		selected.acquired = selectionProjection(part)
+		return selected
+	}
 	if q.dependenciesOnly {
 		// Abstract acquisition preserves source alternatives without demanding
 		// a normal callee output. Executable ownership above still takes priority.
@@ -197,6 +206,43 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 		selected.declarations = append(selected.declarations, value.node)
 	}
 	return selected
+}
+
+// unrepresentedEmptyMapConstruction avoids generic source acquisition of the
+// unmodified bare library binding during a later source dependency query. It
+// supplies no native instance, result, or member-selection authority.
+func (q *sourceValueQuery) unrepresentedEmptyMapConstruction(reference, site *ast.Node, symbol *ast.Symbol, bindings sourceValueBindings) bool {
+	if !ast.IsNewExpression(site) || reference != site.Expression() || !ast.IsIdentifier(reference) ||
+		reference.Text() != "Map" || q.reading == nil || q.reading == site ||
+		q.inputs != nil || q.operation != nil || q.returnObservation != nil ||
+		q.stagedMember != nil || q.stagedWriter != nil || q.calleeWriteInventory != nil ||
+		q.memberReceiverPreparation != nil || q.installedMemberPhase != nil || q.constructionCall != nil ||
+		q.standardConstructionSource == site {
+		return false
+	}
+	if args := site.AsNewExpression().Arguments; args != nil && len(args.Nodes) != 0 {
+		return false
+	}
+	if symbol == nil || symbol != q.owner.checker.GetGlobalSymbol("Map", ast.SymbolFlagsValue, nil) ||
+		symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		return false
+	}
+	value := symbol.ValueDeclaration
+	if !ast.IsVariableDeclaration(value) || value.Initializer() != nil ||
+		!standardLibrarySource(ast.GetSourceFileOfNode(value)) {
+		return false
+	}
+	for _, decl := range symbol.Declarations {
+		if decl != value && (!ast.IsInterfaceDeclaration(decl) || !standardLibrarySource(ast.GetSourceFileOfNode(decl))) {
+			return false
+		}
+	}
+	id := ast.GetSymbolId(symbol)
+	if _, substituted := bindings[id]; substituted || q.live[id] {
+		return false
+	}
+	index := q.owner.index(ast.GetSourceFileOfNode(site))
+	return !index.incomplete && !index.normalDynamicScope && len(index.bindings[id]) == 0
 }
 
 // sourceConstructorDefinition qualifies a selected source body, never a signature.

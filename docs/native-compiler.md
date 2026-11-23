@@ -1938,6 +1938,20 @@ Both uninstrumented requests reached the 120-second deadline on the original
 37-input workload. The scoped counts establish removed work at the observed
 site. Completed target output and end-to-end latency remain unmeasured.
 
+A later source-dependency query can avoid reacquiring the bare library
+constructor for a zero-argument `new Map()` when the binding is unchanged in
+the indexed source and has no live substitution. The original constructor,
+arguments, and later member operations retain their evaluation owners. This
+shortcut preserves unresolved source-result information and supplies no
+constructed instance or member-selection proof. An authored or replaced
+constructor keeps ordinary selection.
+
+At `9f387ac76`, the paired 28-second ThemeScope diagnostic reached
+45,056 eligible visits at `copyThemeData` in both arms. The candidate
+bypassed the empty generic callee acquisition on those visits. Completed
+responses matched aside from timings and did not include the ThemeScope
+component. These counts measure scoped compiler work.
+
 ### Related defect families and repair boundaries
 
 State lowering preserves two contracts: the framework's reactive ownership and the authored
