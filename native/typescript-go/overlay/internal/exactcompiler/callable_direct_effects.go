@@ -994,8 +994,10 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 				return
 			}
 			erased := isStructural(child)
-			children = append(children, child)
-			erasedChildren = append(erasedChildren, erased)
+			if emit {
+				children = append(children, child)
+				erasedChildren = append(erasedChildren, erased)
+			}
 			walk(child, !erased)
 		}
 		creation := node != root && isCallableNode(node)
