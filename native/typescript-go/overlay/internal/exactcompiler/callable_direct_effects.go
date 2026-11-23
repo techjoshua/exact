@@ -997,7 +997,7 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			}
 		}()
 
-		if node != root && isCallableNode(node) {
+		if creation {
 			for _, decorator := range sourceDefinitionDecorators(node) {
 				descend(decorator)
 			}
