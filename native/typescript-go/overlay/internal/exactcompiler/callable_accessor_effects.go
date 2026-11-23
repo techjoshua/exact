@@ -380,6 +380,18 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	}
 	var values []sourceValue
 	possible := false
+	if query.componentRenderDescriptorWriter(node, origin, actualGet, cut, mode, bindings) {
+		// The setup/render relation supplies only a possible getter edge. Ordinary
+		// rows below remain responsible for values, opacity and disjointness.
+		part := accessorCandidates{}
+		row := sourceMemberWriterInput{renderGetEffects: true}
+		query.reflectiveMemberValueInScope(origin, projection, name, node, mode, bindings, &part, actualGet, &row, &receiverScope)
+		for _, effect := range part.effects {
+			if effect.operation == actualGet.operation {
+				result.retainCallableEffect(effect.operation, effect.declaration)
+			}
+		}
+	}
 	rows := query.memberWriterInputs(node, bindings, result, cut)
 	if input, selected := query.returnedReceiverReflectiveWriter(node, origin, mode, bindings, result); selected {
 		rows = append(rows, input)
@@ -424,6 +436,46 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 		query.stagedMember.reflectiveDisjoint(node)
 	}
 	return values, possible
+}
+
+// componentRenderDescriptorWriter relates an original render Get to a possible
+// installation on its component-local allocation. Framework selection supplies
+// the render identity even when no authored Call invokes the component.
+func (q *sourceValueQuery) componentRenderDescriptorWriter(writer, origin *ast.Node, get *sourceGetInputs, cut *sourceMemberWriterReadCut, mode accessorTraversal, bindings sourceValueBindings) bool {
+	if mode != accessorRead && mode != accessorAcquire || get == nil || get.operation == nil || cut == nil || cut.operation != get.operation || cut.use != get.operation || q.executable == nil || q.executable.project == nil || !q.descriptorWriterCall(writer.AsCallExpression()) {
+		return false
+	}
+	setup := enclosingCallableNode(writer)
+	if _, known := q.owner.components[setup]; !known || enclosingCallableNode(origin) != setup {
+		return false
+	}
+	reader := enclosingCallableNode(get.operation)
+	if reader == nil || reader != q.effectOwner || reader == setup {
+		return false
+	}
+	// An immediate Call already carries the helper's effects into its caller.
+	// Keep the getter edge on the original Get inside that helper.
+	renders := projectComponentRenders(q.executable.project, ast.GetSourceFileOfNode(setup))
+	for render := reader; render != nil && render != setup; {
+		for _, selected := range renders {
+			if !selected.micro && selected.component.node == setup && selected.callable == render &&
+				writer.End() <= selected.returned.Pos() && !q.componentSetupReturnExcludesWriter(writer, selected.returned, bindings) {
+				possible, _ := q.reachable(writer, bindings)
+				return possible
+			}
+		}
+		callee := render
+		for callee.Parent != nil && ast.IsParenthesizedExpression(callee.Parent) {
+			callee = callee.Parent
+		}
+		call := callee.Parent
+		if call == nil || !ast.IsCallExpression(call) || call.Expression() != callee || !ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render) ||
+			ast.HasSyntacticModifier(render, ast.ModifierFlagsAsync) || ast.IsFunctionExpression(render) && render.AsFunctionExpression().AsteriskToken != nil {
+			break
+		}
+		render = enclosingCallableNode(call)
+	}
+	return false
 }
 
 // returnedReceiverReflectiveWriter preserves a possible descriptor on a local
@@ -808,7 +860,16 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 				if ast.IsShorthandPropertyAssignment(member) {
 					body = member.Name()
 				}
-				query.reflectiveSourceGet(body, node, key, actualGet, bindings, result)
+				if input.renderGetEffects {
+					selected := query.reflectiveGetterCandidates(body, node, bindings)
+					for _, value := range selected.values {
+						if len(value.path) == 0 && value.node != nil && ast.IsFunctionLike(value.node) && value.node.Body() != nil {
+							result.retainCallableEffect(actualGet.operation, value.node)
+						}
+					}
+				} else {
+					query.reflectiveSourceGet(body, node, key, actualGet, bindings, result)
+				}
 				continue
 			}
 			if (get || set) && ast.IsFunctionLike(body) && body.Body() != nil {

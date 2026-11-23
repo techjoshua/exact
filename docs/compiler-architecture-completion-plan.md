@@ -812,6 +812,16 @@ without inventing an opaque operation. Independent foreign work remains unknown.
 calls evaluate arguments and activated defaults while their bodies remain deferred. This
 source contract does not model generator resume state.
 
+A descriptor installed in the component's setup body before its selected render return
+can contribute getter dependencies to an original property read in that render or in a
+directly and synchronously invoked function within it. The existing Call edge carries
+effects from the invoked function. A setup branch that returns another view instead of
+falling through to the selected return can exclude its installation from that view's
+read. Receiver identity, key and getter selection remain with the reflective writer
+analysis. The relation contributes a possible effect edge. Ordinary uncertainty and
+normal value acquisition remain with their existing owners. A descriptor installed by a
+`finally` block after the textual return is outside this setup-order proof.
+
 Selected standard collection declarations and source input effects are separate
 obligations. An application augmentation does not change an unrelated native method's
 declaration contract. Structural component props and callback elements still require

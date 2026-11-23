@@ -7,19 +7,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // selected body keeps its captures, without a normal Get lease or output.
 // The shared Get owner separates input/body effects from returned values.
 func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.Node, key string, actualGet *sourceGetInputs, bindings sourceValueBindings, result *accessorCandidates) {
-	selected := accessorCandidates{}
-	if ast.IsFunctionLike(expression) {
-		selected.values = []sourceValue{{node: expression}}
-	} else {
-		func() {
-			reading, initializing, returning := query.reading, query.initializing, query.returning
-			defer func() { query.reading, query.initializing, query.returning = reading, initializing, returning }()
-			query.reading, query.initializing, query.returning = definition, definition, nil
-			query.withActiveInvocation(definition, func() {
-				selected = query.accessors(expression, nil, "", accessorAcquire, bindings, nil)
-			})
-		}()
-	}
+	selected := query.reflectiveGetterCandidates(expression, definition, bindings)
 	// Unknown callable alternatives retain their own invocation uncertainty.
 	// Definition-time selection effects belong to the earlier operation.
 	result.opaque = true
@@ -59,4 +47,22 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 			}
 		})
 	}
+}
+
+// reflectiveGetterCandidates selects the getter at installation time with its original captures.
+func (query *sourceValueQuery) reflectiveGetterCandidates(expression, definition *ast.Node, bindings sourceValueBindings) accessorCandidates {
+	selected := accessorCandidates{}
+	if ast.IsFunctionLike(expression) {
+		selected.values = []sourceValue{{node: expression}}
+	} else {
+		func() {
+			reading, initializing, returning := query.reading, query.initializing, query.returning
+			defer func() { query.reading, query.initializing, query.returning = reading, initializing, returning }()
+			query.reading, query.initializing, query.returning = definition, definition, nil
+			query.withActiveInvocation(definition, func() {
+				selected = query.accessors(expression, nil, "", accessorAcquire, bindings, nil)
+			})
+		}()
+	}
+	return selected
 }

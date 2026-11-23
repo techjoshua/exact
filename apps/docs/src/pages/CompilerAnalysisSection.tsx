@@ -347,6 +347,12 @@ export const value = readers[0]!();`}
 				function type alone does not make an external callable portable.
 			</p>
 			<p>
+				A view can read a local property whose getter was installed before setup returned that
+				view. When the compiler can trace the property read to the installation, it accounts
+				for the getter’s environment requirements. This includes reads inside a synchronous
+				function called directly in the view.
+			</p>
+			<p>
 				Applications can install conforming polyfills for the built-ins described by the target's
 				standard libraries. The compiler trusts those contracts without inspecting each polyfill
 				implementation. Published libraries keep the same contract when their consumers select a

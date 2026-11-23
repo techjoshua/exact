@@ -660,6 +660,45 @@ func (query *sourceValueQuery) completionWrite(work, returned *ast.Node, binding
 	return possible, query.precedes(work, returned, bindings)
 }
 
+// componentSetupReturnExcludesWriter proves that a writer's If arm and the
+// selected setup return cannot both execute on that path. The fallthrough case
+// shares a statement-list region so it cannot cross a finally or a catch that
+// could select another return after the arm exits.
+func (query *sourceValueQuery) componentSetupReturnExcludesWriter(writer, returned *ast.Node, bindings sourceValueBindings) bool {
+	containsReturn := func(region *ast.Node) bool {
+		return region != nil && region.Pos() <= returned.Pos() && returned.End() <= region.End()
+	}
+	excluded := false
+	for child := writer; child.Parent != nil; child = child.Parent {
+		if !query.charge(&accessorCandidates{}, child) {
+			return false
+		}
+		parent := child.Parent
+		if ast.IsFunctionLike(parent) {
+			return excluded
+		}
+		// Repeated or abrupt regions can carry a descriptor to a later
+		// selection, even though these occurrences are lexically disjoint.
+		if ast.IsIterationStatement(parent, false) || ast.IsSwitchStatement(parent) || ast.IsTryStatement(parent) {
+			return false
+		}
+		if excluded || !ast.IsIfStatement(parent) {
+			continue
+		}
+		branch := parent.AsIfStatement()
+		if child != branch.ThenStatement && child != branch.ElseStatement {
+			continue
+		}
+		if containsReturn(parent) {
+			excluded = !containsReturn(child) && (containsReturn(branch.ThenStatement) || containsReturn(branch.ElseStatement))
+		} else if parent.Parent != nil && ast.IsBlock(parent.Parent) && containsReturn(parent.Parent) && parent.End() <= returned.Pos() {
+			outcomes := query.completionFor(child, bindings, true).outcomes
+			excluded = outcomes != 0 && outcomes&(sourceReturnNormal|sourceReturnUnknown) == 0
+		}
+	}
+	return false
+}
+
 // returnCompletes excludes a selected value superseded by a definitely abrupt
 // enclosing finally. The original return expression still executes in its owner.
 // Unproved finalizers keep both return alternatives rather than choosing one.
