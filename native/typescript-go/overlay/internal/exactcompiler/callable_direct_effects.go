@@ -971,23 +971,25 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 		}
 		return describeNormalOperand(node)
 	}
-	var walk func(*ast.Node)
-	walk = func(node *ast.Node) {
-		isStructural := sourceNormalStructural
-		if len(structural) == 1 {
-			isStructural = structural[0]
-		}
+	isStructural := sourceNormalStructural
+	if len(structural) == 1 {
+		isStructural = structural[0]
+	}
+	var walk func(*ast.Node, bool)
+	walk = func(node *ast.Node, emit bool) {
 		var children []*ast.Node
 		var erasedChildren []bool
 		descend := func(child *ast.Node) {
-			if fold != nil {
-				children = append(children, child)
-				erasedChildren = append(erasedChildren, isStructural(child))
+			if fold == nil {
+				walk(child, false)
+				return
 			}
-			walk(child)
+			erased := isStructural(child)
+			children = append(children, child)
+			erasedChildren = append(erasedChildren, erased)
+			walk(child, !erased)
 		}
 		creation := node != root && isCallableNode(node)
-		emit := fold != nil && !isStructural(node)
 		if emit {
 			fold(sourceNormalFold{node: node, kind: sourceNormalEnter})
 		}
@@ -1132,7 +1134,7 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 			operand(demand)
 		}
 	}
-	walk(root)
+	walk(root, fold != nil && !isStructural(root))
 }
 
 func directlyOwnedSpan(start int, end int, owner int, facts []callableFacts) bool {
