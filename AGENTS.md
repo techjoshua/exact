@@ -9,6 +9,54 @@ behavior, implementation defects, or gaps in the shared contract before drawing 
 conclusions. A partial pilot is not expected to support the entire language. Use alternative
 bases and prototypes as comparison evidence unless the user agrees to change direction.
 
+## Compiler engineering priorities
+
+The compiler's scope is component code. Analysis of helpers or ordinary authored
+operations belongs only when it is needed to compile component initialization,
+reactive relationships, tasks, or their required boundaries. Before adding or
+retaining compiler functionality, demonstrate the concrete component consumer and
+the behavior it requires. A standalone JavaScript fixture, internal analysis
+closure assertion, or possible future use is not sufficient justification. Remove
+unnecessary machinery rather than preserving it for its own sake.
+
+The compiler turns components into coordinated client/server state machines. Add analysis and
+machinery only when an actual transpilation, dependency, reactive, ownership, lifecycle or policy
+consumer needs it. Do not build a general JavaScript interpreter or require optional value and
+callee precision merely to preserve ordinary authored operations.
+
+- Prefer direct compiler-generated alternatives whenever feasible. Runtime management must serve
+  a demonstrated dynamic component consumer that direct generated code and its existing context
+  cannot adequately serve. Preserve evaluated values, origin and identity where they cross
+  boundaries, together with required ABI, security and lifecycle contracts; these do not require
+  a universal opaque receipt representation for every operation.
+- Keep compilation fast and allocation-conscious. Reuse source indexes and existing results,
+  combine compatible walks and loops, and avoid repeated acquisition or analysis of the same
+  inputs. Memoize expensive stable facts with explicit source, configuration and generation
+  validity. Do not reuse graph-local execution authority as cached semantic information.
+- Produce portable components. The same component source, logical identity, target and
+  configuration must produce the same implementation and portable contracts in an application
+  and a component library. Analyze its callees as needed. Facts about its callers may refine
+  their particular uses, but cannot determine the component's own placement or implementation.
+- Trust checked primitive types and established standard built-in contracts. Do not interrogate
+  or emit checks to prove that a number or boolean follows its normal semantics, or defend
+  against nonconforming changes to standard built-ins. Recognize lexical shadowing and ordinary
+  authored methods. Preserve the callbacks, getters, coercions and other authored work that a
+  supported standard algorithm actually invokes. Follow the existing built-in trust policy in
+  [the compiler plan](docs/compiler-architecture-completion-plan.md#agreed-standard-built-in-trust-policy).
+- Favor clear advisory warnings when behavior cannot be guaranteed and a usable emitted path
+  remains. Explain what may differ, why, and what the developer can do. Support targeted
+  JSDoc-style acknowledgments through the existing `@exact ignore=CODE` convention, with each
+  warning's supported scope documented. Acknowledgments silence advisories, not type errors,
+  unsafe placement or transport, security requirements, or internal compiler failures. Do not
+  turn unfinished compiler work into successful analysis by changing its diagnostic severity.
+- Treat every added abstraction and line of code as a maintenance cost. Prefer the smallest
+  shared summary and conservative result that serve the real consumer. Require a concrete need
+  before adding finer simulation, additional traversals or another semantic subsystem.
+- Keep tracing an internal debugging aid. Extend it when that is the fastest reliable way to
+  answer a specific blocking question, then return to compiler work. Avoid speculative tracing
+  optimization. Disabled tracing should perform no tracing-specific allocation, formatting,
+  traversal or semantic evaluation. Observe original evaluations without replaying them.
+
 ## Maintainability requirements
 
 All repository changes must follow the

@@ -25,6 +25,34 @@ Complete the agreed compiler architecture: ordinary TypeScript and TSX must comp
 
 The AST already represents source nesting. The project does not need another parser or a compile-time JavaScript runtime to preserve that nesting. It needs consistent semantic analysis and transformation contracts over the existing syntax and plans.
 
+Implementation choices follow the [compiler engineering priorities](../AGENTS.md#compiler-engineering-priorities).
+Use the least analysis needed by actual component, reactive, ownership and client/server consumers.
+Prefer conservative shared summaries over exact runtime simulation when those summaries suffice.
+Reuse indexes and valid summaries, combine compatible traversals, and avoid repeated work and
+allocations. Memoization must retain explicit source/configuration invalidation and must not cache
+graph-local execution authority. Internal tracing may be extended for a concrete blocking question,
+but should do no tracing-specific allocation or analysis when disabled.
+
+Direct compiler-generated DOM and SSR paths are the agreed preference wherever feasible.
+Use existing generated wiring and component/root context for closed output; justify runtime
+management by the concrete dynamic consumer that needs it. Retain evaluated values and their
+origin or occurrence identity at escaping and transferable child boundaries, including deferred
+composition and keyed work. Preserve once-only authored evaluation, portable application/library
+artifacts, lifecycle ownership, and independent ABI, transport and authorization checks. None of
+these requires a universal per-intrinsic opaque receipt, private payload store or generic executor.
+The bounded direct-output prototype is complete and remains private pending scoped integration
+acceptance. Its source-bound consumers cover reactive button updates and events, DOM identity/disposal, SSR
+hydration of the same nodes, textarea projection, and Throw cleanup. Public Vite enhancement
+checks cover reactive presentation and failed-adoption disposal of both constructed owners.
+A saved-child control retains one keyed source occurrence through Activity parking and preserves
+creation origin separately from receiving placement; it does not settle cross-source-site
+key/program compatibility. A fixed component has matching application/library implementation and
+portable facts on both targets. A representative pre-direct epoch-6 artifact runs on the new
+providers, while real incompatible older providers reject new output before application setup.
+These pinned-cohort checks select neither a released provider minimum nor whole-artifact ABI
+compatibility. The original 30-second analysis timeout remains unresolved; performance is unmeasured. Existing
+dynamic paths remain until their consumers and compatible replacements are validated.
+
 The recent implementation drifted toward proving narrowly recognized source executions. Direct initializer Calls, returned closures, array destinations and successive Calls received separate admission and receipt handoffs. These produced some valid precision improvements, but did not establish the general composition path. Reports then confused analysis-engine coverage with transpilation capability. Both mistakes must be corrected.
 
 The work is complete only when supported operations compose through their shared contracts, original authored examples work without fixture workarounds, applicable environments are validated, and superseded special-purpose paths have been consolidated. Another isolated prerequisite passing is not completion of the original problem.
@@ -393,6 +421,11 @@ Analyze symbolic operations with abstract facts, including:
 
 Concrete-known evaluation is a refinement of these facts. It is not the only way to transfer a browser dependency or preserve a function through an array.
 
+Trust checked primitive types and established standard built-in contracts under section 5.10.
+Do not revalidate ordinary number or boolean semantics, emit runtime interrogation of them, or
+model hypothetical nonconforming changes to standard built-ins. This does not erase authored
+getter, callback or conversion effects that the selected standard algorithm actually invokes.
+
 Keep these questions separate: Can the operation be represented? What may it depend on? What effects may it have? Is a precise value known? Is the requested framework boundary authorized? A negative answer to precise-value knowledge cannot automatically answer all the others negatively.
 
 ### 5.4 Function and closure contract
@@ -404,6 +437,8 @@ Preserve ordinary JavaScript closures where no transformation requires otherwise
 For analysis, build summaries parameterized by arguments, receiver and free bindings. Start with symbolic relationships such as `reads captured input.value`, rather than exact captured values or compile-time function activations. A returned closure retains a relationship to its captured binding or abstract object, not a snapshot of that binding's old value.
 
 Transport that relationship through ordinary binding, array/object storage, return and argument operations. Reads at a later program point consult the applicable write state. Source callable category does not require body-entry permission. Effect-summary edges are not proof that a body definitely ran.
+
+A bounded default-source specialization can retain an immutable same-module FunctionDeclaration reference after the original binder records bypassed, required or conditional selection. Conditional binding preserves the original caller role beside the known default donor. Reading that reference does not invoke its BODY. Source registration, independent BODY delivery, currentness and graph closure remain separate obligations. Direct default-formal invocation, effectful initializers and native eager factories with default parameters remain outside this staged specialization.
 
 Only add value or alias precision when a specific consumer needs it. The original projected-call placement case needs enough dependency flow to connect the captured member read to the browser-derived write. Closure generation itself does not require that analysis. Recording only that a free variable is used is sufficient for many capture-emission decisions, but does not by itself establish its eventual placement, secret qualification or reactive field dependencies.
 
@@ -561,6 +596,16 @@ Runtime continuation state is generated-program state. It may retain temporaries
 ### 5.7 Policy and placement contract
 
 Abstract analysis supplies guarded dependencies and effects to placement and policy. Those consumers make their decisions under explicit framework rules. Retaining the ordinary AST is not a reason to emit an unsafe cross-target artifact.
+
+When behavior cannot be guaranteed but a usable emitted path remains, prefer an advisory warning
+to rejection. Explain what may behave differently, why the analysis cannot guarantee it, and the
+available remedy. Reuse targeted JSDoc-style `@exact ignore=CODE` acknowledgments, documenting the
+scope supported by each warning. Extending that support is implementation work, not a claim that
+every existing diagnostic is suppressible. Acknowledgment changes reporting only. Type errors,
+unsafe placement or transport, security requirements and internal compiler failures retain their
+own error contracts. Missing compiler work must be repaired rather than reclassified as runtime
+uncertainty. Precision required solely by an optional optimization should not become a general
+condition of transpilation.
 
 EXACT2101 must continue to reject genuinely unresolved executable placement. The repair is to recover supported dependency/effect relationships, not to disable the diagnostic. Deferred secret inspection must not establish public aggregate disclosure. Whole-value qualification includes call and construct member result contracts as well as record fields and indexed payloads. A public sibling projection is checked using its selected checker type, including a resolved generic invocation, while argument policies and execution effects remain independently enforced.
 
@@ -962,6 +1007,18 @@ Classify each remaining fact by its actual consumer, in addition to section 8's 
 
 Closed application compilation may substitute compiler-visible callers' inputs at their particular uses. Open library consumers require relative summaries and retained uncertainty for callers that are not known. Source substitutions remain conditional use facts in both settings. A fact observed at one application call must never become an unconditional exported-library certificate of purity, target safety, stable identity, NoWrites or completion.
 
+Component compilation has a shared portable contract. Given the same component source, target and
+compiler configuration, application and component-library builds must produce the same component
+implementation and portable dependency, effect and ownership contracts. Application-only caller,
+input or execution-prefix facts may refine the enclosing application's uses, but cannot grant
+authority or specialize the component implementation when library compilation lacks those facts.
+Package wrappers, manifests and bundling remain separate from the component implementation.
+
+Apply this requirement to every compiler subsystem, including source acquisition, mutation outputs,
+placement, lifecycle and client/server coordination. Acceptance must compare both build contexts and
+include a control where only the application has a known caller. A missing portable proof remains
+pending or refused consistently instead of being completed from application-only context.
+
 Keep native syntax, the existing normal Await owner and task/runtime ownership wherever they already satisfy the core contract. The core still requires finite usable compilation, the unchanged original ordinary and mounted behaviors, known dependencies with independent uncertainty, placement and secret/serialization checks, and emitted order, cleanup and generation fencing. It does not promise that every unknown program compiles. Existing artifact decisions remain in force, and a new public limitation still requires agreement. A partial migration, an analysis stall or a dropped required donor cannot be relabeled optional precision.
 
 #### Await consumer acceptance rows
@@ -1090,6 +1147,8 @@ No bulk deletion is authorized by this plan. Each removal needs a consumer audit
 ## 12. Acceptance and progress reporting
 
 ### Current execution boundary
+
+The frozen staged lexical-default candidate has qualified original binding and getter-return SOURCE, direct returns, forwarding through a nondefault consumer, and mixed ordinary/default formals. Both targets pass application/library output parity and emitted Node behavior; retained donor edits and unsupported-source controls also pass. A separate live-generation control qualifies the central declaration-Effects API through independent BODY closure, including refusal of unbound and expired-generation sources. Clone API controls preserve reusable binding descriptions while requiring fresh graph observations, BODY delivery and consumer receipts; a genuine source edit rejects the retired Call through the current registrar. Automatic routing through that fallback, unobserved defensive branches, integration with constructed-source refinement, and the cache/prototype and combined Core gates remain open. These bounded results do not change accepted milestone credit.
 
 The additive render-capability slice at `24a616c5b` is implemented and independently audited
 within the [scope and limits above](#scoped-evidence-and-abi-boundary). Runtime ownership migration

@@ -321,6 +321,23 @@ these sibling updates. Repeated-handle controls preserve existing positional own
 do not establish recreated-handle identity or cross-parent relocation, or repair compiler child
 admission and lexical supplier authority.
 
+A standalone paired SDK control at `905742d49` qualifies recreated keyed component inputs at
+one ordinary element root. Two JSX sites selected the same component. Both targets emitted the
+selected component and evaluated key at each site. With `serverComponents: false` and retained
+workspace providers, strict hydration in jsdom adopted the original server button across sites.
+Delivering the same key retained the live instance, button and edited counter. Changing only the
+key created a fresh instance and button, reset the counter, ran the old cleanup once and released
+its ref. Disposing the stale hydration handle left the replacement interactive.
+
+The mounted root compares the admitted client artifact, key and component domain within the
+current container. The compiler can stop after preserving component selection and key evaluation
+at each site. This decision needs no proof of equality between key expressions. Initial marked
+adoption has a different requester: the marker reader checks the artifact ID and complete range.
+A server marker with key `saved` also passed strict adoption with a different client key and
+retained the original node. Subsequent deliveries followed the client key. Whether strict root
+adoption should reject that initial discrepancy remains an open contract question. The control
+covers ordinary element roots with matching structure and one domain.
+
 Project-isolation checks additionally include unrelated client and server initializers in the same
 TypeScript program. Native partition tests protect file-local pruning and preserve the owning
 initializer's target restriction. Compiler helper tests cover parameter forms, imported rendering,
