@@ -136,6 +136,13 @@ func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceVal
 	if known, truthy, nullish = query.literalDecision(node, bindings); known || node == nil {
 		return
 	}
+	// The source-only reachability consumer needs a branch decision. After
+	// its literal checks, generic acquisition can only return the same
+	// negation or no comparison value for these two forms.
+	sourceOnly := query.dependenciesOnly && query.operation == nil && query.returnObservation == nil
+	if sourceOnly && ast.IsPrefixUnaryExpression(node) && node.AsPrefixUnaryExpression().Operator == ast.KindExclamationToken {
+		return false, false, false
+	}
 	// A logical predicate needs only the selected operand's predicate. Asking
 	// acquisition for the whole expression would ask for its left predicate
 	// again and then traverse that left subtree again, duplicating nested work.
@@ -146,6 +153,9 @@ func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceVal
 		if op == ast.KindEqualsEqualsEqualsToken || op == ast.KindExclamationEqualsEqualsToken {
 			if equal, fixed := query.applyNumberHintEquality(binary.Left, binary.Right, bindings); fixed {
 				return true, equal == (op == ast.KindEqualsEqualsEqualsToken), false
+			}
+			if sourceOnly {
+				return false, false, false
 			}
 		}
 		if op == ast.KindBarBarToken || op == ast.KindAmpersandAmpersandToken || op == ast.KindQuestionQuestionToken {
