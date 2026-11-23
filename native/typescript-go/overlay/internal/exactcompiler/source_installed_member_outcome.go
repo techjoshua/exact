@@ -50,12 +50,13 @@ func (q *sourceValueQuery) installedMemberInventory(origin *ast.Node, projection
 		return false
 	}
 	pending := sourceInstalledMemberPending{application: cloneInstalledMemberApplication(&e.application), request: e.application.request, coverage: b.coverage.request, phase: e.application.phase}
-	for _, prior := range result.installedMemberPending {
+	for _, prior := range result.memberHandoffs().installedMemberPending {
 		if sameOperationRequest(prior.request, pending.request) && sameOperationRequest(prior.coverage, pending.coverage) && prior.phase == pending.phase {
 			return true
 		}
 	}
-	result.installedMemberPending = append(result.installedMemberPending, pending)
+	handoffs := result.editMemberHandoffs()
+	handoffs.installedMemberPending = append(handoffs.installedMemberPending, pending)
 	return true
 }
 
@@ -181,7 +182,7 @@ func (work *callableEffectWork) recordInstalledMemberPhase(facts []callableFacts
 		recipe.delta.required = appendEntryLawRequirement(recipe.delta.required, event.application.nativeGet)
 	}
 	recipe.delta.required = appendEntryLawRequirement(recipe.delta.required, b.coverage.request)
-	for _, pending := range result.installedMemberPending[event.pendingStart:] {
+	for _, pending := range result.memberHandoffs().installedMemberPending[event.pendingStart:] {
 		if sameOperationRequest(pending.request, event.application.request) {
 			continue
 		}
@@ -315,7 +316,7 @@ func (q *sourceValueQuery) installedMemberRequirement(demand sourceFieldDemand, 
 	if len(candidates) != 1 || candidates[0] == nil || !q.installedMemberInputOwned(q.installedMemberInput) {
 		return nil
 	}
-	for _, reading := range candidates[0].installedMemberReadings {
+	for _, reading := range candidates[0].memberHandoffs().installedMemberReadings {
 		application := &reading.application
 		if reading.demand == demand && application.generation == q.owner.generation && application.request.consumer == q.effectOwner && application.memberCut == q.relativeInputCut(demand.operation) && sameInstalledMemberInputEdge(application.binding, q.installedMemberInput.binding) && validInstalledMemberApplication(application) {
 			copy := reading
@@ -346,12 +347,13 @@ func (q *sourceValueQuery) publishInstalledMemberReading(event *sourceInstalledM
 		return
 	}
 	reading := q.installedMemberReading(event, demand)
-	for _, prior := range event.result.installedMemberReadings {
+	for _, prior := range event.result.memberHandoffs().installedMemberReadings {
 		if sameInstalledMemberReading(&prior, reading) {
 			return
 		}
 	}
-	event.result.installedMemberReadings = append(event.result.installedMemberReadings, *reading)
+	handoffs := event.result.editMemberHandoffs()
+	handoffs.installedMemberReadings = append(handoffs.installedMemberReadings, *reading)
 }
 
 func sameInstalledMemberReading(a, b *sourceInstalledMemberRequirement) bool {

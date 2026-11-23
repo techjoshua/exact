@@ -25,7 +25,7 @@ func (event *sourceInstalledMemberEvent) observeInstalledMemberResult(result *ac
 	}
 	event.result = result
 	event.inputStart = len(result.inputs)
-	event.pendingStart = len(result.installedMemberPending)
+	event.pendingStart = len(result.memberHandoffs().installedMemberPending)
 	event.effectStart, event.environmentStart, event.contextStart = len(result.effects), len(result.environmentEffects), len(result.contextEffects)
 	event.fieldCallStart, event.callOutcomeStart = len(result.fieldCalls), len(result.callOutcomes)
 	event.fieldFallbackStart, event.callFallbackStart = len(result.fieldFallbacks), len(result.callFallbacks)

@@ -33,21 +33,42 @@ type sourceAccessorMutation struct {
 	verdict         sourceWriteVerdict
 }
 
-type accessorCandidates struct {
-	selectedProxy           *ast.Node                            // Original implicit construction only; never joined across candidate merges.
+// sourceCandidateMemberHandoffs holds the optional original member-phase
+// payloads. The candidate result owns a value-copy of each slice header.
+type sourceCandidateMemberHandoffs struct {
 	installedMemberReadings []sourceInstalledMemberRequirement   // detached original Get-to-field handoff
 	installedCallSelections []sourceInstalledCallSelectionSource // detached actual callee source descriptions
 	installedMemberPending  []sourceInstalledMemberPending       // exact compiler-owned phase requirement, not opacity
 	standardMemberTransfers []sourceStandardMemberTransfer       // source-only Get transfers, no execution authority
+}
+
+// memberHandoffs reads the optional slice headers without allocating.
+func (c *accessorCandidates) memberHandoffs() sourceCandidateMemberHandoffs {
+	if c.handoffs == nil {
+		return sourceCandidateMemberHandoffs{}
+	}
+	return *c.handoffs
+}
+
+// editMemberHandoffs detaches the headers before appending or replacing a
+// slice. Candidate snapshots can share payload elements as before.
+func (c *accessorCandidates) editMemberHandoffs() *sourceCandidateMemberHandoffs {
+	next := c.memberHandoffs()
+	c.handoffs = &next
+	return &next
+}
+
+type accessorCandidates struct {
+	handoffs      *sourceCandidateMemberHandoffs
+	selectedProxy *ast.Node // Original implicit construction only; never joined across candidate merges.
 
 	environmentEffects []EnvironmentEffectSource
 	contextEffects     []ContextEffect
 
-	ownedComponents                 *sourceCandidateComponents
-	ownedGets                       []*ownedGetPopulation
-	ownedClaims                     []*ownedGetFactObligation
-	ownedSealed, ownedReferenceOnly bool
-	ownedLocalCauses                []string
+	ownedComponents  *sourceCandidateComponents
+	ownedGets        []*ownedGetPopulation
+	ownedClaims      []*ownedGetFactObligation
+	ownedLocalCauses []string
 
 	accessorMutations []sourceAccessorMutation
 
@@ -61,20 +82,31 @@ type accessorCandidates struct {
 	// Missing input demands are separate from residual operation opacity.
 	fieldFallbacks []sourceFieldDemand
 	// callFallbacks retain callee-selection refusal separately from residual Get/effect opacity.
-	callFallbacks           []sourceCallOutcome
-	fieldOutcomes           []sourceFieldOutcome
-	callOutcomes            []sourceCallOutcome
-	fieldCalls              []sourceFieldCall
-	ownSlots                []*sourceOwnSlot
-	fieldAlternatives       []sourceFieldAlternative
-	fieldReceiverIncomplete bool
+	callFallbacks     []sourceCallOutcome
+	fieldOutcomes     []sourceFieldOutcome
+	callOutcomes      []sourceCallOutcome
+	fieldCalls        []sourceFieldCall
+	ownSlots          []*sourceOwnSlot
+	fieldAlternatives []sourceFieldAlternative
 
 	reflective     []*sourceReflectiveOperation
 	nativeCalls    []*sourceNativeInvocation
 	normalCalls    []*sourceInvocationResult
 	owned          []sourceOwnedObligations
 	thenReferences []sourceThenReference
-	thenIncomplete bool
+	ordinaryBodies []sourceInvocationBody
+	inputs         []*sourceValueInputs
+	producers      []*ast.Node
+	values         []sourceValue
+	// callableScopes is indexed by values occurrence, never just by declaration.
+	callableScopes map[int]acquiredCallableScope
+	declarations   []*ast.Node
+	writes         []sourceValueWrite
+	cause          *ast.Node
+
+	ownedSealed, ownedReferenceOnly bool
+	fieldReceiverIncomplete         bool
+	thenIncomplete                  bool
 	// receiverIncomplete retains an unaccounted receiver alternative independently
 	// from acquired callable values. A source-callable member demand consumes it.
 	// Ordinary native execution classification remains on its existing owner.
@@ -88,21 +120,12 @@ type accessorCandidates struct {
 	invocationOwned bool
 	// replacedInvocation prevents a signature/base-body edge from overriding acquired methods.
 	replacedInvocation bool
-	ordinaryBodies     []sourceInvocationBody
 	// ownOperation retains a modeled method/descriptor change independently of its value.
 	ownOperation bool
-	inputs       []*sourceValueInputs
 	// sourceOwned prevents structural getter declarations from restoring a superseded value.
 	sourceOwned bool
-	producers   []*ast.Node
-	values      []sourceValue
-	// callableScopes is indexed by values occurrence, never just by declaration.
-	callableScopes map[int]acquiredCallableScope
-	declarations   []*ast.Node
-	opaque         bool
-	selected       bool
-	writes         []sourceValueWrite
-	cause          *ast.Node
+	opaque      bool
+	selected    bool
 }
 
 // accessorTraversal distinguishes property reads, reachable argument values and own-value serialization.

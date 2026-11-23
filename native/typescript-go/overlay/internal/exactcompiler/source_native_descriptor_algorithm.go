@@ -340,7 +340,9 @@ func (q *sourceValueQuery) publishDescriptorMayEffects(part accessorCandidates, 
 	// These are direct original algorithm field phases, not body-call rows.
 	// Preserve their exact typed dependencies through this Effects-only publisher.
 	payload.fieldOutcomes = append([]sourceFieldOutcome(nil), part.fieldOutcomes...)
-	payload.installedMemberPending = append([]sourceInstalledMemberPending(nil), part.installedMemberPending...)
+	if pending := part.memberHandoffs().installedMemberPending; len(pending) != 0 {
+		payload.editMemberHandoffs().installedMemberPending = append([]sourceInstalledMemberPending(nil), pending...)
+	}
 	payload.inputs = append([]*sourceValueInputs(nil), part.inputs...)
 	payload.ordinaryBodies = append(payload.ordinaryBodies, part.ordinaryBodies...)
 	payload.producers = append(payload.producers, part.producers...)

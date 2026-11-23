@@ -34,7 +34,7 @@ func (q *sourceValueQuery) beginInstalledCallBody(body, call *ast.Node, inputs *
 	}
 	description := cloneInstalledMemberInputDescription(inputs.installedMemberDescription)
 	description.selection = nil
-	for _, selected := range result.installedCallSelections {
+	for _, selected := range result.memberHandoffs().installedCallSelections {
 		if selected.call == call && selected.generation == q.owner.generation && validInstalledCallSelectionSource(&selected) {
 			description.selection = append(description.selection, *cloneInstalledCallSelectionSource(&selected))
 		}

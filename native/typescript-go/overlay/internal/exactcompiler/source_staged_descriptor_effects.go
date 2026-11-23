@@ -211,7 +211,7 @@ func (work *callableEffectWork) prepareDescriptorEffects(facts []callableFacts, 
 			retainField(outcome)
 		}
 	}
-	for _, pending := range candidates.installedMemberPending {
+	for _, pending := range candidates.memberHandoffs().installedMemberPending {
 		if !work.descriptorInstalledPendingRegistered(current.nativeGet, pending) {
 			enumeration.represented = false
 			continue
@@ -385,7 +385,7 @@ func descriptorGetterBodyPhase(c accessorCandidates, observation sourceBodyEffec
 		receiver, gap := describeRelativeBoundValues([]sourceValue{get.receiver}, sourceRelativeRole{}, application.memberCut)
 		return gap == relativeInputsSupported && !receiver.unknown && len(receiver.pending) == 0 && len(receiver.sources) == 1 && sameOperationEndpoint(receiver.sources[0], application.receiver)
 	}
-	for _, pending := range c.installedMemberPending {
+	for _, pending := range c.memberHandoffs().installedMemberPending {
 		if matches(pending.application) {
 			return true
 		}

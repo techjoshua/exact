@@ -307,27 +307,31 @@ func normalGetOutput(slot *sourceNormalOperation) sourceResultObservation {
 // selectionProjection transfers only retained selection facts. Producer effects
 // have already been published and must not be merged by later lookup.
 func selectionProjection(c accessorCandidates) sourceSelectionProjection {
-	return sourceSelectionProjection{installedCallSelections: cloneInstalledCallSelections(c.installedCallSelections), standardMemberTransfers: c.standardMemberTransfers, ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
+	handoffs := c.memberHandoffs()
+	return sourceSelectionProjection{installedCallSelections: cloneInstalledCallSelections(handoffs.installedCallSelections), standardMemberTransfers: handoffs.standardMemberTransfers, ownedComponents: candidateReferenceView(c), ownedGets: c.ownedGets, values: c.values, callableScopes: c.callableScopes, ordinaryBodies: c.ordinaryBodies, sourceCallable: c.sourceCallable, sourceOwned: c.sourceOwned, selected: c.selected, opaque: c.opaque, valueIncomplete: c.valueIncomplete, receiverIncomplete: c.receiverIncomplete}
 }
 
 // candidates restores the original by-value shape at existing generic consumers.
 // Selection already owns its cloned/reference payloads; conversion clones nothing.
 func (c sourceSelectionProjection) candidates() accessorCandidates {
+	var handoffs *sourceCandidateMemberHandoffs
+	if len(c.installedCallSelections)+len(c.standardMemberTransfers) != 0 {
+		handoffs = &sourceCandidateMemberHandoffs{installedCallSelections: c.installedCallSelections, standardMemberTransfers: c.standardMemberTransfers}
+	}
 	return accessorCandidates{
-		installedCallSelections: c.installedCallSelections,
-		standardMemberTransfers: c.standardMemberTransfers,
-		ownedComponents:         c.ownedComponents,
-		ownedGets:               c.ownedGets,
-		values:                  c.values,
-		callableScopes:          c.callableScopes,
-		ordinaryBodies:          c.ordinaryBodies,
-		sourceCallable:          c.sourceCallable,
-		sourceOwned:             c.sourceOwned,
-		selected:                c.selected,
-		opaque:                  c.opaque,
-		valueIncomplete:         c.valueIncomplete,
-		receiverIncomplete:      c.receiverIncomplete,
-		invocationOwned:         c.invocationOwned,
+		handoffs:           handoffs,
+		ownedComponents:    c.ownedComponents,
+		ownedGets:          c.ownedGets,
+		values:             c.values,
+		callableScopes:     c.callableScopes,
+		ordinaryBodies:     c.ordinaryBodies,
+		sourceCallable:     c.sourceCallable,
+		sourceOwned:        c.sourceOwned,
+		selected:           c.selected,
+		opaque:             c.opaque,
+		valueIncomplete:    c.valueIncomplete,
+		receiverIncomplete: c.receiverIncomplete,
+		invocationOwned:    c.invocationOwned,
 	}
 }
 

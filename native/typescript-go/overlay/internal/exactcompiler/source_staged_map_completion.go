@@ -75,5 +75,5 @@ func stagedMapEnumerationPrefixRepresented(result accessorCandidates) bool {
 			len(result.ownedGets)+len(result.ownedClaims)+len(result.ownedLocalCauses)+len(result.accessorMutations)+len(result.nativeDescriptorEffects)+len(result.descriptorFallbacks)+
 			len(result.writeBodies)+len(result.writeOutcomes)+len(result.fieldFallbacks)+len(result.callFallbacks)+len(result.fieldOutcomes)+len(result.callOutcomes)+
 			len(result.fieldCalls)+len(result.ownSlots)+len(result.fieldAlternatives)+len(result.reflective)+len(result.nativeCalls)+len(result.normalCalls)+len(result.owned)+
-			len(result.thenReferences)+len(result.ordinaryBodies)+len(result.writes)+len(result.standardMemberTransfers) == 0
+			len(result.thenReferences)+len(result.ordinaryBodies)+len(result.writes)+len(result.memberHandoffs().standardMemberTransfers) == 0
 }

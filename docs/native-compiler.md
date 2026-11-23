@@ -3211,6 +3211,14 @@ before invocation reconstruction even if reconstruction returns no scopes.
 An indexed writer with no discovered inputs does not set this marker by itself;
 its source, Get and pending requirements remain independently owned.
 
+An accessor candidate allocates its installed-member readings, installed call
+selections, pending phases and standard-construction transfers only when an
+original producer publishes them. A copied result keeps its own slice headers.
+A later append detaches those headers while preserving the existing element
+ownership. Late donor publication still uses the original result and the
+section offsets from entry. Return selection carries only the same detached
+selection and transfer rows required by its consumer.
+
 The original member owner separately publishes its finite source-set disposition.
 Every assignment, reflective relation and open-operation protocol receives an exact
 child request before local extraction can finish. Deferred and later function writes

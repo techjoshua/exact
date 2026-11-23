@@ -174,7 +174,8 @@ func (q *sourceValueQuery) finishInstalledSourceCallSelection(result *accessorCa
 		return
 	}
 	copy := cloneInstalledCallSelectionSource(&e.source)
-	result.installedCallSelections = append(result.installedCallSelections, *copy)
+	handoffs := result.editMemberHandoffs()
+	handoffs.installedCallSelections = append(handoffs.installedCallSelections, *copy)
 }
 
 func sameInstalledCallSelections(a, b []sourceInstalledCallSelectionSource) bool {

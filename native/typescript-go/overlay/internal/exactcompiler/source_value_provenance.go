@@ -657,10 +657,13 @@ func (query *sourceValueQuery) originsAtInto(node, at *ast.Node, bindings source
 }
 
 func mergeAccessorCandidates(result *accessorCandidates, other accessorCandidates) {
-	result.installedMemberReadings = append(result.installedMemberReadings, cloneInstalledMemberReadings(other.installedMemberReadings)...)
-	result.installedCallSelections = append(result.installedCallSelections, cloneInstalledCallSelections(other.installedCallSelections)...)
-	result.installedMemberPending = append(result.installedMemberPending, other.installedMemberPending...)
-	result.standardMemberTransfers = append(result.standardMemberTransfers, other.standardMemberTransfers...)
+	if donor := other.handoffs; donor != nil {
+		part := result.editMemberHandoffs()
+		part.installedMemberReadings = append(part.installedMemberReadings, cloneInstalledMemberReadings(donor.installedMemberReadings)...)
+		part.installedCallSelections = append(part.installedCallSelections, cloneInstalledCallSelections(donor.installedCallSelections)...)
+		part.installedMemberPending = append(part.installedMemberPending, donor.installedMemberPending...)
+		part.standardMemberTransfers = append(part.standardMemberTransfers, donor.standardMemberTransfers...)
+	}
 	mergeCandidateComponents(result, other)
 	result.environmentEffects = append(result.environmentEffects, other.environmentEffects...)
 	result.contextEffects = append(result.contextEffects, other.contextEffects...)

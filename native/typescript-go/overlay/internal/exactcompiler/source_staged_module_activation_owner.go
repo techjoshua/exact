@@ -18,7 +18,7 @@ type sourceStagedNativeEntry struct {
 // standard alternative and no invoked body/protocol. Pure/empty summaries and
 // NoWrites metadata cannot supply this independent capability.
 func stagedNativeGetNoUserEntry(selected sourceValue, result *accessorCandidates) bool {
-	return stagedNativeCalleeEffectsRepresented(selected, result) && !result.sourceCallable && !result.invocationOwned && !result.replacedInvocation && len(result.standardMemberTransfers)+len(result.ownSlots)+len(result.fieldAlternatives)+len(result.ownedLocalCauses) == 0 && len(result.declarations)+len(result.producers)+len(result.owned)+len(result.ownedGets)+len(result.ownedClaims)+len(result.thenReferences)+len(result.fieldOutcomes)+len(result.callOutcomes)+len(result.writeOutcomes) == 0 && !result.thenIncomplete
+	return stagedNativeCalleeEffectsRepresented(selected, result) && !result.sourceCallable && !result.invocationOwned && !result.replacedInvocation && len(result.memberHandoffs().standardMemberTransfers)+len(result.ownSlots)+len(result.fieldAlternatives)+len(result.ownedLocalCauses) == 0 && len(result.declarations)+len(result.producers)+len(result.owned)+len(result.ownedGets)+len(result.ownedClaims)+len(result.thenReferences)+len(result.fieldOutcomes)+len(result.callOutcomes)+len(result.writeOutcomes) == 0 && !result.thenIncomplete
 }
 
 func (q *sourceValueQuery) recordStagedNativeEntry(get *sourceGetInputs, selected sourceValue, result *accessorCandidates) {

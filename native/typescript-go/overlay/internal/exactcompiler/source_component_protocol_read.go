@@ -296,7 +296,8 @@ func (q *sourceValueQuery) consumeComponentContextRead(s *sourceBoundComponentPr
 	// The framework model describes its own initial fields; this inventory asks
 	// only about authored work and unresolved source children, never field values,
 	// absence or purity. Exported/unknown token aliases retain external-writer debt.
-	closed := !part.opaque && !part.receiverIncomplete && !part.fieldReceiverIncomplete && !part.valueIncomplete && !part.thenIncomplete && len(part.installedMemberPending) == 0 && len(part.installedMemberReadings) == 0 && len(part.installedCallSelections) == 0 && len(part.standardMemberTransfers) == 0
+	handoffs := part.memberHandoffs()
+	closed := !part.opaque && !part.receiverIncomplete && !part.fieldReceiverIncomplete && !part.valueIncomplete && !part.thenIncomplete && len(handoffs.installedMemberPending) == 0 && len(handoffs.installedMemberReadings) == 0 && len(handoffs.installedCallSelections) == 0 && len(handoffs.standardMemberTransfers) == 0
 	if origin == s.tokenOrigin {
 		index := q.owner.index(ast.GetSourceFileOfNode(origin))
 		closed = closed && s.tokenSymbol != nil && !index.incomplete && !index.normalDynamicScope && !index.normalExportUnknown && !index.normalExported[ast.GetSymbolId(s.tokenSymbol)]

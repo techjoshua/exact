@@ -31,7 +31,7 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 	if query.dependenciesOnly {
 		// Only a reached original New may have supplied this contribution. The
 		// ordinary source constructor/Proxy alternatives below remain independent.
-		transferStart := len(result.standardMemberTransfers)
+		transferStart := len(result.memberHandoffs().standardMemberTransfers)
 		if query.standardConstructionMember(demand, arguments, result, visit, visitOrigins) {
 			return // Original standard Set source; no normal constructor output.
 		}

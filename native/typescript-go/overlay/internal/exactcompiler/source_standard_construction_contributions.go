@@ -221,14 +221,15 @@ func (q *sourceValueQuery) publishStandardMemberGet(receiver, selected sourceVal
 	if r.member.standardTransferSerial == 0 {
 		return
 	}
-	result.standardMemberTransfers = append(result.standardMemberTransfers, sourceStandardMemberTransfer{ticketSerial: r.member.standardTransferSerial, site: receiver.node, get: demand.get, call: r.call, owner: r.consumer, method: selected.node})
+	handoffs := result.editMemberHandoffs()
+	handoffs.standardMemberTransfers = append(handoffs.standardMemberTransfers, sourceStandardMemberTransfer{ticketSerial: r.member.standardTransferSerial, site: receiver.node, get: demand.get, call: r.call, owner: r.consumer, method: selected.node})
 }
 
 func (r *sourceWriterInputRequest) transferredStandardMember(acquired accessorCandidates, value sourceValue) bool {
 	if r == nil || r.member == nil || value.native == nil || !standardMemberEffect(value.native.kind) {
 		return false
 	}
-	for _, transfer := range acquired.standardMemberTransfers {
+	for _, transfer := range acquired.memberHandoffs().standardMemberTransfers {
 		if transfer.complete && transfer.ticketSerial != 0 && transfer.ticketSerial == r.member.standardTransferSerial && transfer.site == value.native.acquired && transfer.get == r.member.demand.get && transfer.call == r.call && transfer.owner == r.consumer && transfer.method == value.node {
 			return true
 		}
@@ -292,8 +293,9 @@ func (r *sourceWriterInputRequest) standardMemberAssignmentArguments(q *sourceVa
 // A conditional native branch cannot ACK over a known unrepresented constructor
 // return, field population or Proxy alternative. Those branches keep recovery.
 func finishStandardConstructionGet(result *accessorCandidates, start int, site *ast.Node, complete bool) {
-	for i := start; i < len(result.standardMemberTransfers); i++ {
-		transfer := &result.standardMemberTransfers[i]
+	transfers := result.memberHandoffs().standardMemberTransfers
+	for i := start; i < len(transfers); i++ {
+		transfer := &transfers[i]
 		if transfer.site == site {
 			transfer.complete = complete
 		}
