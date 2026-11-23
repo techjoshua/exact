@@ -129,8 +129,8 @@ func TestReflectiveRelevanceOriginalAcquisition(t *testing.T) {
 }
 
 // Disjointness of the eventual mutation target cannot erase evaluation of the
-// original key or descriptor. Throw prevents the mutation, while the stored
-// descriptor callback remains dormant. Both emitted targets keep that order.
+// original key or descriptor. Throw prevents the mutation, and the unrelated
+// helper remains dormant. Both emitted targets keep that order.
 func TestReflectiveRelevanceEvaluationSessionAndArtifacts(t *testing.T) {
 	const source = `function key(){document.title;return 'field'}function descriptor():PropertyDescriptor{window.name;throw new Error('descriptor-evaluation')}function dormant(){return navigator.userAgent}export function invoke(){return Object.defineProperty({},key(),descriptor())}`
 	for _, target := range []Target{TargetClient, TargetServer} {
@@ -139,15 +139,43 @@ func TestReflectiveRelevanceEvaluationSessionAndArtifacts(t *testing.T) {
 		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 			t.Fatal(target, response.Error, response.Diagnostics)
 		}
+		taskSource := "import { type Component, TaskContext } from '@exactjs/core';\n" + source + `
+export function Page(this: Component<{ message: string }>) {
+	this.state.message = 'ready';
+	const owner = this;
+	function run(_task: TaskContext = TaskContext.client()) {
+		try {
+			invoke();
+			owner.state.message = 'unexpected success';
+		} catch (error) {
+			owner.state.message = (error as Error).message;
+		}
+	}
+	return () => <button onClick={() => run()}>{this.state.message}</button>;
+}
+`
+		fixture := newExecutableTSXFixture(t, taskSource)
+		request := fixture.request("compile", "entry.tsx")
+		request.Target = target
+		componentResponse := fixture.session.Execute(request)
+		if componentResponse.Error != "" || hasErrorDiagnostic(componentResponse.Diagnostics) || componentResponse.Code == "" {
+			t.Fatal(target, componentResponse.Error, componentResponse.Diagnostics)
+		}
+		findComponent(t, componentResponse.Analysis.Components, "Page")
+		if tasks := componentResponse.Analysis.Tasks; len(tasks) != 1 || tasks[0].Placement != "client" || !tasks[0].BrowserEffects {
+			t.Fatalf("%s original operand effects must reach the client task: %#v", target, tasks)
+		}
 		document, window, navigator := false, false, false
-		for _, effect := range executableSummary(t, response, "invoke").EffectSources {
+		summary := executableSummary(t, componentResponse, "invoke")
+		for _, effect := range summary.EffectSources {
 			document = document || effect.Environment == "browser" && effect.Description == "document"
 			window = window || effect.Environment == "browser" && effect.Description == "window"
 			navigator = navigator || effect.Environment == "browser" && effect.Description == "navigator"
 		}
 		if !document || !window || navigator {
-			t.Fatal("original reflective operand effects/dormancy differ", executableSummary(t, response, "invoke"))
+			t.Fatal("original reflective operand effects/dormancy differ", summary)
 		}
+
 		file := filepath.Join(t.TempDir(), "reflective-evaluation.mts")
 		if err := os.WriteFile(file, []byte(response.Code), 0600); err != nil {
 			t.Fatal(err)

@@ -24,6 +24,12 @@ export function Page(this: Component<{ display: string }>) {
 	};
 	return () => <button onClick={() => refresh()}>{this.state.display}</button>;
 }`
+	return newExecutableTSXFixture(t, source)
+}
+
+// newExecutableTSXFixture roots a single component for semantic compilation.
+func newExecutableTSXFixture(t *testing.T, source string) *executableFixture {
+	t.Helper()
 	fixture := newExecutableFixture(t, map[string]string{"entry.tsx": source})
 	const config = `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","target":"ES2022","strict":true,"skipLibCheck":true,"jsx":"preserve","jsxImportSource":"@exactjs/jsx"},"files":["entry.tsx"]}`
 	if err := os.WriteFile(fixture.request("analyze", "entry.tsx").ConfigFile, []byte(config), 0600); err != nil {
