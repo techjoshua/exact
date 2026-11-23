@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"strconv"
 	"strings"
 
@@ -73,7 +74,7 @@ func nativeEventPropNames(node *ast.Node, typeChecker *checker.Checker) map[stri
 // planNativePropCasing runs before analysis so event placement and every static HTML fast path
 // see the same canonical spelling. Source-edit mapping preserves authored diagnostic positions.
 func planNativePropCasing(source *ast.SourceFile, typeChecker *checker.Checker) []sourceEdit {
-	if usesForeignJSXRuntime(source) {
+	if usesForeignJSXRuntime(source) || source.LanguageVariant == core.LanguageVariantStandard {
 		return nil
 	}
 	var edits []sourceEdit
