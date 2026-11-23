@@ -107,12 +107,11 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 	var writes []*ast.Node
 	if source != nil && !source.IsDeclarationFile {
 		traceSourceName := source.FileName() // existing index source metadata, no parent lookup
-		walkNode(source.AsNode(), func(node *ast.Node) bool {
+		walkSourceIndex(source.AsNode(), false, func(node *ast.Node, erased, partOfType bool) {
 			progressIndexSpan(traceSourceName, progressPointer(node), node.Pos(), node.End(), int(node.Kind))
 			owner.indexWork++
-			privateErased := owner.indexPrivateUse(index.privateUses, node)
-			owner.indexNormalOccurrence(&index, source, node, privateErased)
-			partOfType := ast.IsPartOfTypeNode(node)
+			owner.indexPrivateUse(index.privateUses, node, erased)
+			owner.indexNormalOccurrence(&index, source, node, erased)
 			if !partOfType {
 				if node.Kind == ast.KindThisKeyword {
 					region := owner.memberOperationRegion(&index, node)
@@ -151,10 +150,10 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 						region.openCalls = append(region.openCalls, node)
 					}
 				}
-				if privateRuntimeReference(node, false) {
+				if privateRuntimeReference(node) {
 					region := owner.memberOperationRegion(&index, node)
 					region.references = append(region.references, node)
-					if !privateErased {
+					if !erased {
 						owner.indexPrivateReference(index.privateUses, node, region)
 					}
 				}
@@ -163,7 +162,7 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 				index.runtimeImports = append(index.runtimeImports, node)
 			}
 			if partOfType {
-				return false
+				return
 			}
 			// Numeric conversion can invoke authored valueOf/@@toPrimitive code.
 			// A source-local function body alone cannot close this implicit work.
@@ -208,7 +207,6 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 					members = append(members, entry)
 				}
 			}
-			return true
 		})
 	}
 	index.privateUses.complete = source != nil && !source.IsDeclarationFile
@@ -451,4 +449,19 @@ func (owner *sourceValueOwner) localNullRecordAllocation(root, origin *ast.Node)
 	}
 	decl := symbol.ValueDeclaration
 	return ast.IsVariableDeclaration(decl) && ast.IsIdentifier(decl.Name()) && decl.Parent.Flags&ast.NodeFlagsConst != 0 && decl.Initializer() != nil && unwrapSourceCallableReference(decl.Initializer()) == origin
+}
+
+// walkSourceIndex carries only import/export erasure across edges. The nearest
+// statement participates in that decision before it cuts off outer ancestors.
+func walkSourceIndex(node *ast.Node, inherited bool, visit func(*ast.Node, bool, bool)) {
+	partOfType := ast.IsPartOfTypeNode(node)
+	visit(node, inherited || partOfType || semanticTypeOnlyParent(node.Parent), partOfType)
+	if partOfType {
+		return
+	}
+	childErased := inherited && !ast.IsStatement(node) || typeOnlyImportOrExport(node)
+	node.ForEachChild(func(child *ast.Node) bool {
+		walkSourceIndex(child, childErased, visit)
+		return false
+	})
 }

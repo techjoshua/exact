@@ -227,42 +227,34 @@ func semanticImportMetadata(
 }
 
 func semanticTypeOnly(node *ast.Node) bool {
-	return semanticTypeOnlyWithSteps(node, nil)
-}
-
-// semanticTypeOnlyWithSteps preserves erasure while exposing its own visited
-// nodes to an indexing owner's work accounting. Checker/library internals are
-// separate opaque units, not elapsed-time bounds.
-func semanticTypeOnlyWithSteps(node *ast.Node, step func(*ast.Node)) bool {
-	if step != nil {
-		step(node)
-	}
-	if node.Parent != nil && (ast.IsTypeAliasDeclaration(node.Parent) || ast.IsInterfaceDeclaration(node.Parent) || ast.IsTypeParameterDeclaration(node.Parent)) {
-		return true
-	}
-	if ast.IsPartOfTypeNode(node) {
+	if semanticTypeOnlyParent(node.Parent) || ast.IsPartOfTypeNode(node) {
 		return true
 	}
 	for current := node.Parent; current != nil; current = current.Parent {
-		if step != nil {
-			step(current)
-		}
-		if ast.IsImportSpecifier(current) && current.AsImportSpecifier().IsTypeOnly {
-			return true
-		}
-		if ast.IsImportClause(current) &&
-			current.AsImportClause().PhaseModifier == ast.KindTypeKeyword {
-			return true
-		}
-		if ast.IsExportSpecifier(current) && current.AsExportSpecifier().IsTypeOnly {
-			return true
-		}
-		if ast.IsExportDeclaration(current) && current.AsExportDeclaration().IsTypeOnly {
+		if typeOnlyImportOrExport(current) {
 			return true
 		}
 		if ast.IsStatement(current) {
 			break
 		}
+	}
+	return false
+}
+
+func semanticTypeOnlyParent(parent *ast.Node) bool {
+	return parent != nil && (ast.IsTypeAliasDeclaration(parent) || ast.IsInterfaceDeclaration(parent) || ast.IsTypeParameterDeclaration(parent))
+}
+
+func typeOnlyImportOrExport(node *ast.Node) bool {
+	switch node.Kind {
+	case ast.KindImportSpecifier:
+		return node.AsImportSpecifier().IsTypeOnly
+	case ast.KindImportClause:
+		return node.AsImportClause().PhaseModifier == ast.KindTypeKeyword
+	case ast.KindExportSpecifier:
+		return node.AsExportSpecifier().IsTypeOnly
+	case ast.KindExportDeclaration:
+		return node.AsExportDeclaration().IsTypeOnly
 	}
 	return false
 }

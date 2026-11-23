@@ -24,16 +24,16 @@ func (owner *sourceValueOwner) privateUseIndexStep(pop *sourcePrivateUses) {
 
 // privateRuntimeReference filters syntax before missing-symbol handling.
 // Names never supply positive identity. Type erasure comes from the index pass.
-func privateRuntimeReference(node *ast.Node, erased bool) bool {
-	return !erased && ast.IsIdentifier(node) && (node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) || !ast.IsDeclarationName(node) && !isStaticPropertyName(node))
+func privateRuntimeReference(node *ast.Node) bool {
+	return ast.IsIdentifier(node) && (node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) || !ast.IsDeclarationName(node) && !isStaticPropertyName(node))
 }
 
 // indexPrivateUse records coverage in the existing source pass, before its
-// filters. It returns erasure for the callback's later runtime-reference step.
-func (owner *sourceValueOwner) indexPrivateUse(pop *sourcePrivateUses, node *ast.Node) bool {
+// filters. The traversal supplies erasure at the same node.
+func (owner *sourceValueOwner) indexPrivateUse(pop *sourcePrivateUses, node *ast.Node, erased bool) {
 	owner.privateUseIndexStep(pop)
-	if semanticTypeOnlyWithSteps(node, func(*ast.Node) { owner.privateUseIndexStep(pop) }) {
-		return true
+	if erased {
+		return
 	}
 	if ast.IsExportAssignment(node) {
 		pop.refused = true
@@ -61,15 +61,11 @@ func (owner *sourceValueOwner) indexPrivateUse(pop *sourcePrivateUses, node *ast
 			pop.refused = true
 		}
 	}
-	return false
 }
 
 // indexPrivateReference reuses the region already assigned by the index. It
 // never searches ancestors again to rediscover captures during each proof.
 func (owner *sourceValueOwner) indexPrivateReference(pop *sourcePrivateUses, node *ast.Node, region *sourceMemberOperationRegion) {
-	if !privateRuntimeReference(node, false) {
-		return
-	}
 	owner.privateUseIndexStep(pop)
 	pop.checkerLookups++
 	owner.indexWork++ // one opaque checker-call unit, not its internal time
