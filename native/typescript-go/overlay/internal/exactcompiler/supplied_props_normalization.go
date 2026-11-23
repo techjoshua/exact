@@ -2,9 +2,10 @@ package exactcompiler
 
 import (
 	"fmt"
-	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"strconv"
 	"strings"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // planSuppliedPropsNormalization exposes destructured component inputs before dependency analysis.
@@ -18,20 +19,19 @@ func planSuppliedPropsNormalization(
 	roots := make(map[string]struct{})
 	for _, candidate := range candidates {
 		component := candidate.node
-		usesTarget := false
-		walkNode(component, func(node *ast.Node) bool {
-			if ast.IsJsxSelfClosingElement(node) && sourceText(sourceFile, openingTag(node)) == "_target" {
-				usesTarget = true
-			}
-			return true
-		})
-		if !usesTarget && len(componentSignals(candidate, sourceFile)) == 0 {
-			continue
-		}
+		qualified := false
 		for _, parameter := range component.Parameters() {
 			name := parameter.Name()
 			if name == nil || !ast.IsObjectBindingPattern(name) {
 				continue
+			}
+			// Only object bindings consume this qualification. Check their
+			// supported fields below so malformed bindings keep their diagnostic.
+			if !qualified {
+				if !containsSuppliedPropsTarget(component, sourceFile) && len(componentSignals(candidate, sourceFile)) == 0 {
+					break
+				}
+				qualified = true
 			}
 			input := "__exactSuppliedProps"
 			for index := 1; strings.Contains(source, input); index++ {
@@ -75,6 +75,19 @@ func planSuppliedPropsNormalization(
 		}
 	}
 	return edits, roots, nil
+}
+
+// containsSuppliedPropsTarget checks the callable subtree, including nested syntax,
+// using the exact authored spelling of a self-closing target.
+func containsSuppliedPropsTarget(component *ast.Node, sourceFile *ast.SourceFile) bool {
+	usesTarget := false
+	walkNode(component, func(node *ast.Node) bool {
+		if ast.IsJsxSelfClosingElement(node) && sourceText(sourceFile, openingTag(node)) == "_target" {
+			usesTarget = true
+		}
+		return true
+	})
+	return usesTarget
 }
 
 // suppliedPropsBindingStatement recognizes only compiler-introduced props aliases in this pass.

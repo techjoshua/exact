@@ -1323,14 +1323,16 @@ The member matcher uses that occurrence and the active calls to select source ca
 These observations do not establish reusable recovery results. Those bounded counts and
 timings describe the earlier SDK replay on `caf20d50e`.
 
-On the revised no-edit path, the first whole-source revisit follows the retained JSX syntax
-walk. Canonical return planning walks the same tree to discover callable declarations, then
-examines the candidate regions for lexical micro-component shape, task policy, component
-signals and direct returns. Supplied props planning starts the next whole-source candidate
-search on the same tree. Record facts for each consumer during the common traversal before
-replacing a walk, and revalidate generation ownership at edit boundaries. Later destructuring,
-computation, native prop casing, executable slot and callable preparation revisits remain.
-TypeScript parsing, binding and the checker lease remain upstream services.
+Canonical return planning and supplied props reuse the discovery inventory on the no-edit
+path. Canonical planning still examines candidate regions for component signals and direct
+returns. Supplied props first checks the original callable parameters for an object binding.
+Only a callable with such a binding needs a target search or the component-signal fallback.
+Nested, rest and computed bindings continue through existing validation once the callable
+qualifies. The target search still revisits eligible callable subtrees, including nested
+syntax within their bounds. Measure that residual before extending discovery with any
+parse-local target facts. Later destructuring, computation, native prop casing, executable
+slot and callable preparation revisits remain. TypeScript parsing, binding and the checker
+lease remain upstream services.
 
 Continue from the earliest proven avoidable operation in the forward execution prefix. For
 formatter validation, qualify the independent effects of the native copy's input Gets and
