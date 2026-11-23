@@ -150,6 +150,11 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				binding, the diagnostic can point to that binding in the helper.
 			</p>
 			<p>
+				When a local numeric helper only computes a value from a checked numeric input,
+				the compiler can skip searching that call for property writes. Reading a property
+				to get the number or converting an object can still run authored code.
+			</p>
+			<p>
 				A standard <code>Map.set</code> on a fresh local Map stores values without invoking
 				them. The compiler can skip looking for a writer callback when it can trace the Map
 				from creation to return without another use. A getter used to compute the key still

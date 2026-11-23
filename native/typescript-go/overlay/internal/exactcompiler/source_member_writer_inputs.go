@@ -212,6 +212,10 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 			progressWriterEvent(q, "discovery-retired", 0)
 			return
 		}
+		if (request == nil || request.descriptorWork == nil) && q.localNumericWriterCall(call, bindings) {
+			progressWriterEvent(q, "discovery-retired", 0)
+			return
+		}
 		// Discovery and handled source work are not legacy input acquisition.
 		// Once any candidate needs reconstruction, retain that debt for the
 		// entire original Get, including when later candidates are excluded.

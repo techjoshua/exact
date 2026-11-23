@@ -643,6 +643,24 @@ initialization context. The reader now uses the original selection and writer
 analysis. Reuse would require a matching selected initialization prefix or independent
 evidence that the additional sources cannot replace the acquired method.
 
+On the frozen 20-source Theme request at `7c92dc89a`, the imported
+`themeSurfaceBundles` alias reached the confined filter-result probe in
+`createTone`. Its checker symbol had no local value declaration, and the
+probe panicked before component emission. Refusing that proof restores
+ordinary member analysis. A paired imported-array component rendered its
+initial value on the server and updated the same mounted button.
+
+The resumed request repeatedly prepared the three original
+`linearToSrgb` calls as possible writers while resolving the same map
+lookup. Their authored bodies only compute a number from a numeric input.
+The writer-only cut bypassed reconstruction at 15,360 observed calls in
+a matched-count comparison. Paired component artifacts preserved an eager
+getter, object coercion, the computed values and an update on the same node.
+Both original client requests remained pending at the 32-second external
+cutoff without a `components.ts` artifact. ThemeScope placement, hydration,
+ordered CSS and preference subscription behavior still require the original
+paired artifacts.
+
 Constraining the receiver-history work on direct Throws of the original
 `ThemeResolutionError` moved the private request to `copyThemeData(found)` in
 `resolveTemperament`. The emitted constructor and thrown payload were identical in the

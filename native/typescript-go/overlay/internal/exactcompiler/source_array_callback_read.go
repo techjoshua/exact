@@ -53,7 +53,7 @@ func (q *sourceValueQuery) confinedArrayConsumerSource(receiver *ast.Node) *ast.
 	call := receiver
 	if receiver != nil && ast.IsIdentifier(receiver) {
 		symbol := q.owner.checker.GetSymbolAtLocation(receiver)
-		if symbol == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+		if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
 			return nil
 		}
 		decl := symbol.ValueDeclaration

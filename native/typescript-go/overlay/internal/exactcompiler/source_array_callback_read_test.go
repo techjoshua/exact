@@ -1,7 +1,9 @@
 package exactcompiler
 
 import (
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -83,6 +85,44 @@ export function Workspace(this: Component<{count:number;items:string[]}>) {
 					t.Fatalf("expected %s placement: %#v", row.placement, response.Analysis.Components)
 				}
 			})
+		}
+	}
+}
+
+// An imported array has a checker alias, while the confined-filter proof needs
+// a local const declaration. The original map remains owned by the reactive read.
+func TestReactiveImportedArrayMapPlacement(t *testing.T) {
+	config := timeSemanticConfig(t)
+	root := filepath.Dir(config)
+	entry := filepath.Join(root, "page.tsx")
+	provider := filepath.Join(root, "bundles.ts")
+	const page = `import type { Component } from '@exactjs/core';
+import { bundles } from './bundles.js';
+function presentation(step: number) {
+  return bundles.map(bundle => bundle + step).join(',');
+}
+export function Page(this: Component<{step:number}>) {
+  this.state.step = 1;
+  const text = this.reactive(() => presentation(this.state.step));
+  return () => <button onClick={() => this.state.step++}>{text.get()}</button>;
+}
+`
+	session := NewSession()
+	setup := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config, Sources: []ProjectSource{
+		{ID: provider, Source: `export const bundles = Object.freeze([0, 1]);`},
+		{ID: entry, Source: page},
+	}})
+	if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
+		t.Fatal(setup.Error, setup.Diagnostics)
+	}
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config,
+			Source: page, Target: target, Diagnostics: "semantic", ServerComponents: true})
+		if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
+			t.Fatalf("%s: %s %#v", target, response.Error, response.Diagnostics)
+		}
+		if len(response.Analysis.Components) != 1 || !strings.Contains(response.Code, "bundles.map") {
+			t.Fatalf("%s: lost the original reactive map: %#v", target, response.Analysis.Components)
 		}
 	}
 }

@@ -4162,6 +4162,12 @@ When that private binding supplies its array literal to a local function whose s
 returns the parameter's `length`, writer recovery can omit the call. A native Array has a non-configurable
 own data `length`. The original call, array construction and later member reads keep their
 effects. Other argument sources and mutable callable bindings follow ordinary writer recovery.
+Writer discovery can skip a direct call to an unchanged local numeric helper whose return
+uses only its numeric parameter, literals and arithmetic. The argument must also be a
+checked lexical numeric expression. Original evaluation still owns operand effects and
+the result. Accessors, authored coercion, mutable callees and unresolved inputs remain
+under ordinary writer discovery. The confined filter-result proof requires a local
+constant declaration. An imported receiver follows its original member analysis.
 After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
 when all its bindings are already resolved. Member paths and pending initializer uses retain
 the original projection and sealing steps because either can contribute uncertainty to fallback.
