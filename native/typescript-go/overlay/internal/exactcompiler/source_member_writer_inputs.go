@@ -713,7 +713,14 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, bindings 
 	if len(nodes) == 0 && !memberWriterInputsNeedResolution(bindings) {
 		return
 	}
-	scope := q.acquireCallableScope(q.memberWriterActualValues(body, call, bindings, result), result)
+	actuals := q.memberWriterActualValues(body, call, bindings, result)
+	if len(nodes) == 0 {
+		// Preserve projection and initializer sealing after admission. Only
+		// the nested Call loop can consume the writable captured scope.
+		q.captureCallableScope(actuals, result, false)
+		return
+	}
+	scope := q.acquireCallableScope(actuals, result)
 	scope.creators[body] = sourceValueCreation{invocation: call}
 	previous, had := q.active[body]
 	q.active[body] = true

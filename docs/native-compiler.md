@@ -4172,9 +4172,9 @@ The numeric writer classifier shares successful lexical call classifications acr
 writer queries in the same checker-owned source index. Each occurrence still checks
 for a substituted callee and an in-progress source index. Source and checker
 replacement invalidate the index and its classifications.
-After dependency-body admission, a wrapper with no indexed nested Call needs no writer scope
-when all its bindings are already resolved. Member paths and pending initializer uses retain
-the original projection and sealing steps because either can contribute uncertainty to fallback.
+After dependency-body admission, a wrapper with no indexed nested call needs no
+writable binding or creator map. Member paths and pending initializer uses still
+undergo projection and sealing because either can contribute fallback uncertainty.
 Constructor-context disjointness requires the existing allocation law on both alternatives. Source interference uses the same
 original Call's existing performed-write proof rather than losing it at the input boundary.
 
