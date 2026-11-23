@@ -135,8 +135,14 @@ func TestHostSubsystemServerRendererOptions(t *testing.T) {
 		", {}, {}":                         false,
 	} {
 		for _, renderer := range []string{"renderToString", "renderToHydratableString"} {
-			source := `import {` + renderer + `} from "@exactjs/ssr";declare const extension:unknown,reactMarkup:boolean,outputExtensions:unknown[],markers:boolean,extra:number,key:string,settings:object;function Page(){return ()=> <p>page</p>;}export const output=` + renderer + `(<Page/>` + options + `);`
-			response := NewSession().Execute(Request{Kind: "compile", ID: "/virtual/renderer-options.tsx", Source: source, Target: TargetServer})
+			// Each option is supplied to a callable server entry; module initialization
+			// has no renderer call or unsupplied ambient values.
+			source := `import {` + renderer + `} from "@exactjs/ssr";
+				function Page(){return ()=> <p>page</p>;}
+				export function render(extension:unknown,reactMarkup:boolean,outputExtensions:unknown[],markers:boolean,extra:number,key:string,settings:object){
+					return ` + renderer + `(<Page/>` + options + `);
+				}`
+			response := NewSession().Execute(Request{Kind: "compile", ID: "renderer-options.tsx", Source: source, Target: TargetServer})
 			if response.Error != "" {
 				t.Fatal(response.Error)
 			}
