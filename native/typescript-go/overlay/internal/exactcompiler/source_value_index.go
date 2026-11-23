@@ -130,6 +130,14 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 				if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) || ast.IsCallExpression(node) || ast.IsNewExpression(node) || ast.IsTaggedTemplateExpression(node) {
 					region := owner.memberOperationRegion(&index, node)
 					region.members = append(region.members, node)
+					if ast.IsCallExpression(node) {
+						index.calls = append(index.calls, node)
+						region.calls = append(region.calls, node)
+						query := sourceValueQuery{owner: owner}
+						if query.thenMutationSyntax(node) {
+							region.thenOperations = append(region.thenOperations, node)
+						}
+					}
 				}
 				if privateRuntimeReference(node, false) {
 					region := owner.memberOperationRegion(&index, node)
@@ -157,15 +165,6 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 				index.numberOpenCalls = append(index.numberOpenCalls, node)
 				region := owner.memberOperationRegion(&index, node)
 				region.openCalls = append(region.openCalls, node)
-			}
-			if ast.IsCallExpression(node) {
-				index.calls = append(index.calls, node)
-				region := owner.memberOperationRegion(&index, node)
-				region.calls = append(region.calls, node)
-				query := sourceValueQuery{owner: owner}
-				if query.thenMutationSyntax(node) {
-					region.thenOperations = append(region.thenOperations, node)
-				}
 			}
 			// Numeric conversion can invoke authored valueOf/@@toPrimitive code.
 			// A source-local function body alone cannot close this implicit work.
