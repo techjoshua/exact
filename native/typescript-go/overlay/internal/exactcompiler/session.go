@@ -160,13 +160,30 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		authoredSource = request.Source[:boundary]
 		packageEnhancementSuffix = request.Source[boundary:]
 	}
+	if request.ConfigFile == "" {
+		request.ConfigFile = nearestTypeScriptConfig(fileName)
+	}
+
+	projectKey := nativeProjectKey(request, fileName)
+	project := s.projects[projectKey]
 	var normalization normalizedSource
 	// Extension-owned source edits use the same authored coordinates as the supplied source.
 	// Framework normalization belongs to compilation and must not shift this analysis tree.
 	if request.Kind == "extension" {
 		normalization = newNormalizedSource(authoredSource)
 	} else {
-		normalization, err = normalizeAuthoredSource(fileName, authoredSource)
+		var synchronized bool
+		if (request.Kind == "compile" || authored != nil) && request.PackageEnhancementBoundary == 0 && project != nil {
+			key := project.fs.canonical(fileName)
+			normalization = project.normalizations[key]
+			// Checked refinements clear the marker. The stored overlay and
+			// exact authored input must still name this synchronized source.
+			synchronized = normalization.synchronized && key == fileName &&
+				normalization.authored == authoredSource && project.sources[key] == normalization.text
+		}
+		if !synchronized {
+			normalization, err = normalizeAuthoredSource(fileName, authoredSource)
+		}
 	}
 	if err != nil {
 		response.Error = err.Error()
@@ -180,13 +197,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		request.PackageEnhancementBoundary = utf16Length(request.Source)
 		request.Source += packageEnhancementSuffix
 	}
-	if request.ConfigFile == "" {
-		request.ConfigFile = nearestTypeScriptConfig(fileName)
-	}
-
-	projectKey := nativeProjectKey(request, fileName)
 	programStarted := time.Now()
-	project := s.projects[projectKey]
 	if project == nil {
 		var configDiagnostics []*ast.Diagnostic
 		project, configDiagnostics, err = newProjectState(request, fileName)

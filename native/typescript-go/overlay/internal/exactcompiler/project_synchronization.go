@@ -133,6 +133,7 @@ func normalizeSynchronizedSource(source ProjectSource, root string) (string, nor
 		return "", normalizedSource{}, err
 	}
 	normalization.text += suffix
+	normalization.synchronized = source.PackageEnhancementBoundary == 0
 	return fileName, normalization, nil
 }
 
@@ -155,6 +156,8 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 	rootFiles := append([]string(nil), state.config.FileNames()...)
 	for _, source := range sources {
 		key := state.fs.canonical(source.fileName)
+		// A folded key cannot attest which original filename reached the parser.
+		source.normalization.synchronized = source.normalization.synchronized && key == source.fileName
 		state.retainNormalization(source.fileName, source.normalization)
 		if previous, exists := state.sources[key]; exists && previous == source.source {
 			continue

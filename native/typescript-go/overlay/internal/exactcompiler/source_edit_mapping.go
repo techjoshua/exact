@@ -27,6 +27,7 @@ type normalizedSource struct {
 	text            string
 	authored        string
 	authoredOffsets []int
+	synchronized    bool // Ordinary pre-checker snapshot at its exact map key.
 }
 
 func newNormalizedSource(source string) normalizedSource {
@@ -42,6 +43,7 @@ func (source *normalizedSource) apply(edits []sourceEdit) {
 	if len(edits) == 0 {
 		return
 	}
+	source.synchronized = false
 	if text, offsets, ok := batchSourceEdits(source.text, source.authoredOffsets, edits); ok {
 		source.text, source.authoredOffsets = text, offsets
 		return

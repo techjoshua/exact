@@ -912,7 +912,10 @@ Authored dependency overlays do not overwrite it. Entry diagnostics retain a syn
 name for source-map projection, while imported diagnostics keep their own source locations.
 Retained normalization identity includes the prepared package-enhancement suffix, while authored
 offsets remain separate for diagnostics and source maps. Synchronization and per-module requests
-therefore agree on unchanged source identity. Imported normalized computations retain compiler-owned
+therefore agree on unchanged source identity. A compile and its private authored check reuse
+the synchronized pre-checker normalization for identical authored bytes at the same exact
+project and file. Virtual suffixes and checker amendments require fresh normalization.
+Imported normalized computations retain compiler-owned
 task origins and placement after their defining module is compiled. Authored and suffix edits still
 invalidate dependent facts.
 The native corpus runner uses UTF-16 code-unit boundaries for prepared suffixes, matching the
