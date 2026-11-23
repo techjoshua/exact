@@ -212,7 +212,7 @@ func (query *sourceValueQuery) branchDecision(node *ast.Node, bindings sourceVal
 // return under its actual input plan. It does not execute source code, borrow a
 // signature body, or certify a native global. Other body shapes stay unknown.
 func (query *sourceValueQuery) sourceCallBranchDecision(node *ast.Node, bindings sourceValueBindings) (known, truthy, nullish bool) {
-	if query.active[node] {
+	if query.active[node] || query.unrepresentedArrayBranchCallee(node, bindings) {
 		return
 	}
 	candidates := query.receiverCandidates(node, bindings)
@@ -271,6 +271,52 @@ func (query *sourceValueQuery) sourceCallBranchDecision(node *ast.Node, bindings
 		truthy, nullish = truth, null
 	}
 	return true, truthy, nullish
+}
+
+// unrepresentedArrayBranchCallee recognizes a direct declaration-only receiver
+// whose ordinary source acquisition has no callable return body. Keep both
+// branch alternatives. The original Get, Call, and arguments retain their own
+// effect consumers. Changed bindings and installed selections use acquisition.
+func (query *sourceValueQuery) unrepresentedArrayBranchCallee(node *ast.Node, bindings sourceValueBindings) bool {
+	if !query.dependenciesOnly || query.operation != nil || query.returnObservation != nil || query.stagedMember != nil ||
+		query.calleeWriteInventory != nil || query.constructionCall != nil || query.inputs != nil || query.reading == node || ast.IsOptionalChain(node) {
+		return false
+	}
+	member := node.Expression()
+	if !ast.IsPropertyAccessExpression(member) || ast.IsOptionalChain(member) || member.Name().Text() != "isArray" {
+		return false
+	}
+	receiver := member.Expression()
+	c := query.owner.checker
+	if !ast.IsIdentifier(receiver) || receiver.Text() != "Array" {
+		return false
+	}
+	symbol := c.GetSymbolAtLocation(receiver)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		return false
+	}
+	value := symbol.ValueDeclaration
+	if !ast.IsVariableDeclaration(value) || value.Initializer() != nil ||
+		!standardLibrarySource(ast.GetSourceFileOfNode(value)) || !nativeReceiverMemberDeclarations(member, c) {
+		return false
+	}
+	// Declaration files cannot contribute entries to the binding writer index.
+	// A merged declaration in executable source leaves acquisition in charge.
+	for _, declaration := range symbol.Declarations {
+		if declaration != value && (!ast.IsInterfaceDeclaration(declaration) || !ast.GetSourceFileOfNode(declaration).IsDeclarationFile) {
+			return false
+		}
+	}
+	if native, _ := query.nativeEntryRoot(symbol, false, []string{"isArray"}); native != nil {
+		return false
+	}
+	id := ast.GetSymbolId(symbol)
+	if _, substituted := bindings[id]; substituted {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(receiver)
+	index := query.owner.index(source)
+	return !index.incomplete && !index.normalDynamicScope && len(index.bindings[id]) == 0
 }
 
 // expressionBranch qualifies only conditionally evaluated children. Receivers,
