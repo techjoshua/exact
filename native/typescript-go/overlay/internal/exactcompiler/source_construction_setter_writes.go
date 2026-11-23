@@ -8,6 +8,7 @@ type sourceConstructionSetterWrites struct {
 	owner       *sourceValueQuery
 	constructor *sourceValueInputs
 	site        *ast.Node
+	selection   *sourcePreparedInvocation
 	writes      []sourceConstructionSetterWrite
 }
 
@@ -17,12 +18,15 @@ type sourceConstructionSetterWrite struct {
 }
 
 func (q *sourceValueQuery) constructionSetterRead(get *sourceGetInputs) bool {
+	return get != nil && len(get.receiver.path) == 0 && q.directConstructionSetAt(get.receiver.node)
+}
+
+// directConstructionSetAt matches a member of the active constructor and its
+// original allocation. A setter body or nested construction uses its own inputs.
+func (q *sourceValueQuery) directConstructionSetAt(site *ast.Node) bool {
 	frame := q.constructionSetterWrites
-	if frame == nil || frame.owner != q || q.inputs != frame.constructor || get == nil || q.protectedMember == nil ||
-		get.receiver.node != frame.site || len(get.receiver.path) != 0 {
-		return false
-	}
-	return directConstructionSetterMember(q.protectedMember, frame.constructor.declaration)
+	return frame != nil && frame.owner == q && q.inputs == frame.constructor && frame.site == site &&
+		q.protectedMember != nil && directConstructionSetterMember(q.protectedMember, frame.constructor.declaration)
 }
 
 func directConstructionSetterMember(target, constructor *ast.Node) bool {

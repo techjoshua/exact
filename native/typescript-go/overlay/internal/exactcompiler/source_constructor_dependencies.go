@@ -142,7 +142,7 @@ func (q *sourceValueQuery) retainConstructorInputDependencies(site, constructor 
 	inputs := q.bindInvocationInputsAtScope(constructor, site, bindings, &selected.scope, result, false)
 	inputs.bindings[0] = []sourceValue{{node: site}}
 	previous := q.constructionSetterWrites
-	writes := sourceConstructionSetterWrites{owner: q, constructor: inputs, site: site}
+	writes := sourceConstructionSetterWrites{owner: q, constructor: inputs, site: site, selection: selected}
 	q.constructionSetterWrites = &writes
 	defer func() {
 		writes = sourceConstructionSetterWrites{}

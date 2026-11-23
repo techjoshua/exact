@@ -35,7 +35,24 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 		if query.standardConstructionMember(demand, arguments, result, visit, visitOrigins) {
 			return // Original standard Set source; no normal constructor output.
 		}
-		selected := query.selectSourceConstruction(value, arguments, result)
+		var selected *sourcePreparedInvocation
+		var completionBindings sourceValueBindings
+		if mode == accessorSet|accessorNoGet && query.directConstructionSetAt(value) {
+			// The New selected its callee before entering this constructor.
+			// Keep the original alternatives. Prototype and writer lookup below
+			// still use the live Set cut and its own current bindings.
+			frame := query.constructionSetterWrites
+			prior := frame.selection
+			if len(prior.declarations) == 1 && prior.declarations[0] == frame.constructor.declaration.Parent &&
+				!prior.base.valueIncomplete && !prior.acquired.opaque && !prior.acquired.receiverIncomplete {
+				selected = prior
+				completionBindings = query.acquireCallableScope(arguments, result).bindings
+			}
+		}
+		if selected == nil {
+			selected = query.selectSourceConstruction(value, arguments, result)
+			completionBindings = selected.scope.bindings
+		}
 		known := false
 		transferComplete := len(selected.declarations) == 0 // authored constructor alternatives keep original recovery
 		for _, alternative := range selected.acquired.values {
@@ -54,7 +71,7 @@ func (query *sourceValueQuery) visitConstructedAccessor(demand sourceConstructed
 				continue
 			}
 			known = true
-			if !query.sourceConstructionFieldReceiver(value, target) && !query.sourceConstructionFieldsMayComplete(target, selected.scope.bindings) {
+			if !query.sourceConstructionFieldReceiver(value, target) && !query.sourceConstructionFieldsMayComplete(target, completionBindings) {
 				transferComplete = false
 				result.valueIncomplete = true
 				continue
