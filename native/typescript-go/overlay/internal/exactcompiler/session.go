@@ -501,6 +501,7 @@ func (s *Session) executeProjection(request Request, authored *authoredCheckProg
 		stateReads,
 		tasks,
 		project.completedPolicyTypes(generation.checker),
+		project.callableAliasWrites(sourceFile, generation.checker),
 		callables.owner,
 	)
 	assignTaskIDs(tasks, components, request.ID)

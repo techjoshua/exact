@@ -997,6 +997,7 @@ func materializeProjectComponentSource(
 		reads,
 		tasks,
 		completedPolicyTypes,
+		project.callableAliasWrites(dependency, typeChecker),
 		nil)
 	tasks = applyTaskPolicies(tasks, policy)
 	collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)

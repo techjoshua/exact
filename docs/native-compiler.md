@@ -493,6 +493,9 @@ Context-effect discovery checks the member name before resolving its receiver.
 The compiler builds the lexical replacement index for context binding analysis only
 when it finds a checked context read assigned to a named binding. It uses the
 index to distinguish stable bindings from bindings with replacement writes.
+Policy propagation can reuse that completed index for the same source, program
+and checker. The index stores lexical write targets and inputs. Policy subjects
+and authorization decisions are computed for each analysis.
 
 Completed secret-type qualification queries are
 shared by member and source-result policy analysis, including dependency component analysis.

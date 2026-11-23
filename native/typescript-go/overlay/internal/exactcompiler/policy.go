@@ -71,6 +71,7 @@ func collectPolicyAnalysis(
 	stateReads []StateRead,
 	tasks []Task,
 	completedTypes map[checker.TypeId]bool,
+	aliasWrites map[ast.SymbolId][]policyAliasWrite,
 	owner *executableBodyOwner,
 ) policyAnalysis {
 	if completedTypes == nil {
@@ -206,7 +207,7 @@ func collectPolicyAnalysis(
 	})
 	collectCallPolicySubjects(sourceFile, typeChecker, &analysis, addSubject)
 	collectSecretControlWrites(sourceFile, typeChecker, &analysis, addSubject)
-	collectPolicyPropagation(sourceFile, typeChecker, tasks, &analysis, addSubject)
+	collectPolicyPropagation(sourceFile, typeChecker, tasks, &analysis, addSubject, aliasWrites)
 	collectSecretAssignmentReceipts(sourceFile, typeChecker, &analysis)
 	collectSecretQualifications(sourceFile, typeChecker, &analysis)
 	collectTaskPolicyInputs(sourceFile, typeChecker, tasks, &analysis)

@@ -316,6 +316,18 @@ func collectProjectCallableEffects(
 	return result
 }
 
+// callableAliasWrites borrows checked source facts from the exact program and
+// checker. The index carries no callable-graph or execution authority.
+func (project *projectState) callableAliasWrites(source *ast.SourceFile, c *checker.Checker) map[ast.SymbolId][]policyAliasWrite {
+	cache := project.callableCache
+	if cache.ownsGeneration(project.program, c) {
+		if context := cache.bySource[source].sourceContext; context != nil {
+			return context.inventory.aliasWrites
+		}
+	}
+	return nil
+}
+
 // The merged graph is immutable until invalidation. A request owns only its summary
 // slice, while node/symbol indexes and resolved facts retain project graph ownership.
 func projectCallableAnalysisForSource(source *ast.SourceFile, merged callableAnalysis) callableAnalysis {

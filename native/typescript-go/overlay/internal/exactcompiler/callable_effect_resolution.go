@@ -104,6 +104,13 @@ func componentContextReceiver(
 // collectContextBindings keys context authority by checker identity so a shadowed
 // variable cannot inherit another binding's execution contract.
 func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Checker) map[ast.SymbolId]ContextEffect {
+	bindings, _ := collectContextBindingsAndWrites(sourceFile, typeChecker)
+	return bindings
+}
+
+// collectContextBindingsAndWrites publishes the completed replacement index
+// when a context binding needed it. A nil index means no scan ran.
+func collectContextBindingsAndWrites(sourceFile *ast.SourceFile, typeChecker *checker.Checker) (map[ast.SymbolId]ContextEffect, map[ast.SymbolId][]policyAliasWrite) {
 	result := make(map[ast.SymbolId]ContextEffect)
 	var writes map[ast.SymbolId][]policyAliasWrite
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
@@ -132,7 +139,7 @@ func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		}
 		return true
 	})
-	return result
+	return result, writes
 }
 
 // contextBindingReferenceEffect preserves lookup authority through nullable

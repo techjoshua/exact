@@ -226,9 +226,12 @@ func collectPolicyPropagation(
 	tasks []Task,
 	analysis *policyAnalysis,
 	addSubject func(PolicySubject),
+	aliasWrites map[ast.SymbolId][]policyAliasWrite,
 ) {
 	flowKeys := make(map[string]struct{})
-	aliasWrites := policyAliasWrites(sourceFile, typeChecker)
+	if aliasWrites == nil {
+		aliasWrites = policyAliasWrites(sourceFile, typeChecker)
+	}
 	changed := true
 	for changed {
 		changed = false

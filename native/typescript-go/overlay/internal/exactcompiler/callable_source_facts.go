@@ -32,6 +32,7 @@ type callableSourceFacts struct {
 	nodeTargets      map[*ast.Node]int
 	importBindings   externalImportBindings
 	contextBindings  map[ast.SymbolId]ContextEffect
+	aliasWrites      map[ast.SymbolId][]policyAliasWrite // Completed, read-only replacement index.
 }
 
 // prepareCallableSourceFacts retains the ordinary source factory and its exact
@@ -117,9 +118,9 @@ func prepareCallableSourceInventory(sourceFile *ast.SourceFile, typeChecker *che
 		symbolTargets,
 		typeChecker,
 	)
-	contextBindings := collectContextBindings(sourceFile, typeChecker)
+	contextBindings, aliasWrites := collectContextBindingsAndWrites(sourceFile, typeChecker)
 
-	return callableSourceFacts{facts: facts, componentByStart: componentByStart, symbolTargets: symbolTargets, syntacticTargets: syntacticTargets, nodeTargets: nodeTargets, importBindings: importBindings, contextBindings: contextBindings}
+	return callableSourceFacts{facts: facts, componentByStart: componentByStart, symbolTargets: symbolTargets, syntacticTargets: syntacticTargets, nodeTargets: nodeTargets, importBindings: importBindings, contextBindings: contextBindings, aliasWrites: aliasWrites}
 }
 
 // callableSourceInitializer keeps the existing paired initializer description.
