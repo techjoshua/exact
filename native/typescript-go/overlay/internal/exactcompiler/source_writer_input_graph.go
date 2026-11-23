@@ -345,7 +345,8 @@ func (q *sourceValueQuery) registerWriterInputRequest(call *ast.Node) *sourceWri
 		return nil
 	}
 	g := q.executable.writerInputFacts[q.effectOwner]
-	if g == nil {
+	values := q.executable.values
+	if g == nil || values == nil || q.owner == nil || q.owner.checker != values.checker || q.owner.program != values.program || q.owner.generation != values.generation {
 		return nil
 	}
 	q.recordEstimatedCost(1)
@@ -388,6 +389,17 @@ func (q *sourceValueQuery) registerWriterInputRequest(call *ast.Node) *sourceWri
 		member.registerWriterSource(r)
 	}
 	return r
+}
+
+// An external member recipe already checked the declarations on its exact callee.
+// A wrapped callee can resolve differently when the checker falls back to symbol lookup.
+func (r *sourceWriterInputRequest) provesNativeMember(q *sourceValueQuery, call *ast.Node) bool {
+	if r == nil || !r.live || r.issuer != q || r.call != call || r.consumer != q.effectOwner || q.executable.writerInputFacts[q.effectOwner] != r.graph {
+		return false
+	}
+	expression := call.Expression()
+	return r.receiver != nil && r.receiver.kind == writerInputExternal && r.receiver.expression == expression &&
+		(ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression))
 }
 
 func (r *sourceWriterInputRequest) atRecovery(q *sourceValueQuery) bool {

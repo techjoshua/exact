@@ -337,7 +337,7 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 			complete = !result.opaque && !prepared.acquired.receiverIncomplete
 			result.invocationOwned = true
 		}
-		if nativeReceiverMemberDeclarations(call.Expression, query.owner.checker) {
+		if query.pendingMemberRequest.provesNativeMember(query, node) || nativeReceiverMemberDeclarations(call.Expression, query.owner.checker) {
 			return result
 		}
 		enroll()
