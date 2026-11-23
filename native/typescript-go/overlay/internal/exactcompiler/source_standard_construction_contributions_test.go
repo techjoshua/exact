@@ -163,26 +163,13 @@ func TestStandardMemberAssignmentKeepsArgumentRecovery(t *testing.T) {
 // Real source overrides remain effects even beside a genuine construction.
 // Unknown is preserved alongside the writer, rather than replacing its donor.
 func TestStandardConstructionOwnWriterAndUnknown(t *testing.T) {
-	const source = `declare const choose:boolean;const table=new WeakMap<object,object>();if(choose)table.get=function writer(key:object){document.title;return key};export function invoke(prototype:object){return table.get(prototype)}`
-	r := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/native-construction-writer.ts", Source: source, Diagnostics: "semantic"})
-	if r.Error != "" || hasErrorDiagnostic(r.Diagnostics) {
-		t.Fatal(r.Error, r.Diagnostics)
-	}
-	for _, callable := range r.Analysis.Callables {
-		if callable.Name != "invoke" {
-			continue
-		}
-		browser, unknown := false, false
-		for _, effect := range callable.EffectSources {
-			browser = browser || effect.Environment == "browser"
-			unknown = unknown || effect.Environment == "unknown"
-		}
-		if !browser || !unknown {
-			t.Fatal("conditional standard contribution hid writer or unknown", callable.EffectSources)
-		}
-		return
-	}
-	t.Fatal("missing source invocation")
+	const source = `function invoke(prototype:object,choose:boolean){
+const table=new WeakMap<object,object>();
+if(choose)table.get=function writer(key:object){document.title;return key};
+return table.get(prototype);
+}`
+	const publish = `const key={};const value=invoke(key,props.useKnown);this.state.label=value===key?'own':value===undefined?'native':'other'`
+	checkPendingConstructionTaskBody(t, source, publish, true, true)
 }
 
 // Identical source/cuts cannot consume a previously acquired transfer. Only a

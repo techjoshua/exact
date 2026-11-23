@@ -110,9 +110,13 @@ func TestPendingConstructionConstructorInputBoundaries(t *testing.T) {
 	}
 }
 
+// Proxy construction leaves the Get dormant. The task's later Get runs the
+// trap, and the native WeakMap method still rejects the Proxy receiver.
 func TestPendingConstructionProxyGetUnknown(t *testing.T) {
-	const source = `const table=new Proxy(new WeakMap<object,object>(),{get(target,key,receiver){document.title;return Reflect.get(target,key,receiver)}});export function invoke(prototype:object){return table.get(prototype)}`
-	pendingConstructionSummary(t, source, true, true)
+	const publish = `let count=0;
+const table=new Proxy(new WeakMap<object,object>(),{get(target,key,receiver){document.title;count++;return Reflect.get(target,key,receiver)}});
+try{table.get({});this.state.label='succeeded'}catch(error){this.state.label=(error instanceof TypeError?'brand-error':'other-error')+':'+count}`
+	checkPendingConstructionTaskBody(t, "", publish, true, true)
 }
 
 // Application callers may change their own effects. They cannot install actual
@@ -133,7 +137,11 @@ func TestPendingConstructionRelativeDefinitionInvariant(t *testing.T) {
 // authored task that needs them. Its result publishes to rendered state.
 func checkPendingConstructionTask(t *testing.T, source string, wantBrowser, requireUnknown bool) {
 	t.Helper()
-	const publish = `this.state.label=invoke({})===undefined?'missing':'found'`
+	checkPendingConstructionTaskBody(t, source, `this.state.label=invoke({})===undefined?'missing':'found'`, wantBrowser, requireUnknown)
+}
+
+func checkPendingConstructionTaskBody(t *testing.T, source, publish string, wantBrowser, requireUnknown bool) {
+	t.Helper()
 	for _, placement := range []Target{TargetClient, TargetServer} {
 		fixture := newPublicAwaitRequiredFixture(t, source+publicAwaitRequiredPage("", publish, placement))
 		for _, target := range []Target{TargetClient, TargetServer} {
