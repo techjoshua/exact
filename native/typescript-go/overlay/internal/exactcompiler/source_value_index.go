@@ -8,7 +8,7 @@ type sourceValueAssignment struct{ left, right *ast.Node }
 type sourceValueIndex struct {
 	// Direct authored return expressions are lexical facts, even under a
 	// dormant branch. Execution reachability belongs to the selected input.
-	directReturns map[*ast.Node][]*ast.Node
+	directReturns                           map[*ast.Node][]*ast.Node
 	normalOccurrences                       map[*ast.Node]*sourceNormalOccurrence
 	normalOrdinal                           int
 	normalExported                          map[ast.SymbolId]bool
@@ -22,6 +22,7 @@ type sourceValueIndex struct {
 	erasedImports            map[*ast.Node]bool
 	operationRegions         map[*ast.Node]*sourceMemberOperationRegion
 	runtimeImports           []*ast.Node
+	entriesAppendPlans       map[*ast.Node]sourceEntriesAppendPlan
 	bindings                 map[ast.SymbolId][]sourceValueAssignment
 	memberOrigins            map[*ast.Node][]sourceValueAssignment
 	dynamicMembers           []sourceValueAssignment
@@ -109,6 +110,7 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 	}
 	index.privateUses = &sourcePrivateUses{uses: make(map[ast.SymbolId][]sourcePrivateUse), unresolved: make(map[string][]*ast.Node), proofs: make(map[*ast.Node]bool)}
 	var members []sourceValueAssignment
+	var entriesLoops []*ast.Node
 	var writes []*ast.Node
 	if source != nil && !source.IsDeclarationFile {
 		traceSourceName := source.FileName() // existing index source metadata, no parent lookup
@@ -145,6 +147,9 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 					region.members = append(region.members, node)
 					if ast.IsCallExpression(node) {
 						index.calls = append(index.calls, node)
+						if !erased && entriesAppendLoopCandidate(node) {
+							entriesLoops = append(entriesLoops, node)
+						}
 						region.calls = append(region.calls, node)
 						query := sourceValueQuery{owner: owner}
 						if query.thenMutationSyntax(node) {
@@ -308,6 +313,9 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 		if dynamic {
 			index.dynamicCalls = append(index.dynamicCalls, node)
 		}
+	}
+	for _, read := range entriesLoops {
+		owner.indexEntriesAppendPlan(&index, read)
 	}
 	index.erasedImports, index.importsPrepared = owner.prepareImportElision(source, index.runtimeImports)
 	owner.indexes[source] = index

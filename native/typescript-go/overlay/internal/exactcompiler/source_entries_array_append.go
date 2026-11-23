@@ -8,15 +8,31 @@ import (
 // visitEnumeratedAppendValue retains a possible appended member origin for
 // value enumeration of a confined local array's selected element.
 func (q *sourceValueQuery) visitEnumeratedAppendValue(origin *ast.Node, bindings sourceValueBindings, result *accessorCandidates, visit func(sourceValue)) {
-	reader := q.entriesIndexRead(origin)
-	if reader == nil {
+	input := q.owner.standardEntriesArgument(q.reading)
+	if input == nil {
 		return
 	}
-	push := q.confinedEntriesAppend(origin, result)
-	if push == nil || q.active[push] {
+	index := q.owner.index(ast.GetSourceFileOfNode(origin))
+	plan := index.entriesAppendPlans[q.reading]
+	if index.incomplete || plan.origin != origin || plan.declaration != q.initializing ||
+		input != plan.operand {
+		reader := q.entriesIndexRead(origin, input)
+		if reader == nil {
+			return
+		}
+		push := confinedEntriesAppend(origin, &index, q.owner.checker, func(use *ast.Node) bool {
+			return q.charge(result, use)
+		})
+		if push == nil || q.active[push] {
+			return
+		}
+		plan.push = push
+		plan.entries, plan.step, plan.child = entriesAppendSuppliers(origin, reader, push, q.reading, &index, q.owner.checker)
+	}
+	push, entries, step, child := plan.push, plan.entries, plan.step, plan.child
+	if q.active[push] {
 		return
 	}
-	entries, step, child := q.entriesAppendSuppliers(origin, reader, push)
 	if len(entries) == 0 {
 		return
 	}
@@ -31,14 +47,13 @@ func (q *sourceValueQuery) visitEnumeratedAppendValue(origin *ast.Node, bindings
 	})
 }
 
-func (q *sourceValueQuery) confinedEntriesAppend(origin *ast.Node, result *accessorCandidates) *ast.Node {
+func confinedEntriesAppend(origin *ast.Node, index *sourceValueIndex, c *checker.Checker, charge func(*ast.Node) bool) *ast.Node {
 	d := origin.Parent
 	if d == nil || !ast.IsVariableDeclaration(d) || d.Initializer() != origin || !ast.IsIdentifier(d.Name()) || d.Parent.Flags&ast.NodeFlagsConst == 0 {
 		return nil
 	}
 	owner := enclosingCallableNode(d)
-	symbol := q.owner.checker.GetSymbolAtLocation(d.Name())
-	index := q.owner.index(ast.GetSourceFileOfNode(origin))
+	symbol := c.GetSymbolAtLocation(d.Name())
 	if owner == nil || symbol == nil || index.incomplete || index.normalDynamicScope || index.privateUses == nil ||
 		!index.privateUses.complete || len(index.privateUses.unresolved[d.Name().Text()]) != 0 {
 		return nil
@@ -46,7 +61,7 @@ func (q *sourceValueQuery) confinedEntriesAppend(origin *ast.Node, result *acces
 	var appendCall *ast.Node
 	for _, use := range index.privateUses.uses[ast.GetSymbolId(symbol)] {
 		member := use.node.Parent
-		if member == nil || !q.charge(result, use.node) || !ast.IsAccessExpression(member) || member.Expression() != use.node ||
+		if member == nil || charge != nil && !charge(use.node) || !ast.IsAccessExpression(member) || member.Expression() != use.node ||
 			!owner.Contains(member) {
 			return nil
 		}
@@ -105,11 +120,7 @@ func (q *sourceValueQuery) projectEntriesAppendOperand(call, push *ast.Node, bin
 
 // entriesIndexRead preserves the original indexed acquisition for an entries
 // operand, including a const that saves that exact element before enumeration.
-func (q *sourceValueQuery) entriesIndexRead(array *ast.Node) *ast.Node {
-	input := q.owner.standardEntriesArgument(q.reading)
-	if input == nil {
-		return nil
-	}
+func (q *sourceValueQuery) entriesIndexRead(array, input *ast.Node) *ast.Node {
 	c := q.owner.checker
 	expression := unwrapSourceCallableReference(input)
 	if expression == nil || !ast.IsIdentifier(expression) || q.initializing == nil || !ast.IsVariableDeclaration(q.initializing) ||
@@ -132,11 +143,79 @@ func (q *sourceValueQuery) entriesIndexRead(array *ast.Node) *ast.Node {
 	return expression
 }
 
+// sourceEntriesAppendPlan contains only generation-owned lexical links.
+type sourceEntriesAppendPlan struct {
+	origin, declaration, operand, push, step *ast.Node
+	entries                                  []*ast.Node
+	child                                    *ast.Symbol
+}
+
+func entriesAppendLoopCandidate(call *ast.Node) bool {
+	parent, method := call.Parent, call.Expression()
+	if parent == nil || !ast.IsForOfStatement(parent) || parent.AsForInOrOfStatement().Expression != call ||
+		!ast.IsPropertyAccessExpression(method) || method.Name().Text() != "entries" ||
+		!ast.IsIdentifier(method.Expression()) || method.Expression().Text() != "Object" {
+		return false
+	}
+	outer := parent.Parent
+	if outer == nil || !ast.IsBlock(outer) || outer.Parent == nil || !ast.IsForStatement(outer.Parent) ||
+		outer.Parent.AsForStatement().Statement != outer {
+		return false
+	}
+	statements := outer.AsBlock().Statements.Nodes
+	return len(statements) != 0 && statements[len(statements)-1] == parent
+}
+
+// indexEntriesAppendPlan closes forward references against the completed
+// private-use inventory. The original reader still authenticates Entries.
+func (owner *sourceValueOwner) indexEntriesAppendPlan(index *sourceValueIndex, read *ast.Node) {
+	if index.objectEntriesWritten || index.normalDynamicScope {
+		return
+	}
+	args := callArguments(read)
+	if len(args) != 1 || !ast.IsIdentifier(args[0]) {
+		return
+	}
+	c := owner.checker
+	binding := c.GetSymbolAtLocation(args[0])
+	if binding == nil || binding.ValueDeclaration == nil || !ast.IsVariableDeclaration(binding.ValueDeclaration) {
+		return
+	}
+	declaration := binding.ValueDeclaration
+	if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return
+	}
+	reader := unwrapSourceCallableReference(declaration.Initializer())
+	if reader == nil || !ast.IsElementAccessExpression(reader) || !ast.IsIdentifier(reader.Expression()) {
+		return
+	}
+	receiver := c.GetSymbolAtLocation(reader.Expression())
+	indexType := c.GetTypeAtLocation(reader.AsElementAccessExpression().ArgumentExpression)
+	if receiver == nil || receiver.ValueDeclaration == nil || !ast.IsVariableDeclaration(receiver.ValueDeclaration) ||
+		indexType == nil || indexType.Flags()&checker.TypeFlagsNumberLike == 0 {
+		return
+	}
+	origin := receiver.ValueDeclaration.Initializer()
+	if origin == nil || !ast.IsArrayLiteralExpression(origin) || ast.GetSourceFileOfNode(origin) != ast.GetSourceFileOfNode(read) {
+		return
+	}
+	plan := sourceEntriesAppendPlan{origin: origin, declaration: declaration, operand: args[0]}
+	plan.push = confinedEntriesAppend(origin, index, c, nil)
+	if plan.push != nil {
+		plan.entries, plan.step, plan.child = entriesAppendSuppliers(origin, reader, plan.push, read, index, c)
+	}
+	// This exact reader can reuse declined and seed-only outcomes as well.
+	// Neither outcome closes another binding or source acquisition.
+	if index.entriesAppendPlans == nil {
+		index.entriesAppendPlans = make(map[*ast.Node]sourceEntriesAppendPlan)
+	}
+	index.entriesAppendPlans[read] = plan
+}
+
 // entriesAppendSuppliers keeps only the actual lexical invocations of the
 // confined writer. A later use must take its operand from this exact loop's
 // yielded value and be able to reach a subsequent indexed read.
-func (q *sourceValueQuery) entriesAppendSuppliers(origin, reader, push *ast.Node) (entries []*ast.Node, step *ast.Node, value *ast.Symbol) {
-	read := q.reading
+func entriesAppendSuppliers(origin, reader, push, read *ast.Node, index *sourceValueIndex, c *checker.Checker) (entries []*ast.Node, step *ast.Node, value *ast.Symbol) {
 	if read.Parent == nil || !ast.IsForOfStatement(read.Parent) || read.Parent.AsForInOrOfStatement().Expression != read {
 		return nil, nil, nil
 	}
@@ -153,7 +232,6 @@ func (q *sourceValueQuery) entriesAppendSuppliers(origin, reader, push *ast.Node
 		enclosingCallableNode(writer) != owner || len(writer.Parameters()) != 1 {
 		return nil, nil, nil
 	}
-	c := q.owner.checker
 	formal := writer.Parameters()[0]
 	operand := restrictedInvocationArguments(push.AsCallExpression())[0]
 	if formal.Name() == nil || !ast.IsIdentifier(formal.Name()) || formal.Initializer() != nil ||
@@ -169,7 +247,6 @@ func (q *sourceValueQuery) entriesAppendSuppliers(origin, reader, push *ast.Node
 	}
 	symbol := c.GetSymbolAtLocation(writer.Parent.Name())
 	child := c.GetSymbolAtLocation(binding.Name())
-	index := q.owner.index(ast.GetSourceFileOfNode(read))
 	if symbol == nil || child == nil || index.incomplete || index.normalDynamicScope || index.privateUses == nil ||
 		!index.privateUses.complete || len(index.privateUses.unresolved[writer.Parent.Name().Text()]) != 0 {
 		return nil, nil, nil
@@ -199,7 +276,7 @@ func (q *sourceValueQuery) entriesAppendSuppliers(origin, reader, push *ast.Node
 		return entries, nil, nil
 	}
 	statements := outer.AsBlock().Statements.Nodes
-	if len(statements) == 0 || statements[len(statements)-1] != loop || !q.entriesAppendIndexLoop(outer.Parent, reader) {
+	if len(statements) == 0 || statements[len(statements)-1] != loop || !entriesAppendIndexLoop(outer.Parent, reader, index.privateUses, c) {
 		return entries, nil, nil
 	}
 	return entries, step, child
@@ -208,8 +285,7 @@ func (q *sourceValueQuery) entriesAppendSuppliers(origin, reader, push *ast.Node
 // A retained element is an input to a later original read only when the
 // enclosing counted loop can continue through appended elements. Refuse
 // other index writers and loops with a fixed or unrelated bound.
-func (q *sourceValueQuery) entriesAppendIndexLoop(loop, reader *ast.Node) bool {
-	c := q.owner.checker
+func entriesAppendIndexLoop(loop, reader *ast.Node, uses *sourcePrivateUses, c *checker.Checker) bool {
 	selection := reader.AsElementAccessExpression()
 	if !ast.IsIdentifier(selection.ArgumentExpression) {
 		return false
@@ -241,7 +317,6 @@ func (q *sourceValueQuery) entriesAppendIndexLoop(loop, reader *ast.Node) bool {
 	if length.Name().Text() != "length" || !ast.IsIdentifier(length.Expression) || c.GetSymbolAtLocation(length.Expression) != target {
 		return false
 	}
-	uses := q.owner.index(ast.GetSourceFileOfNode(loop)).privateUses
 	if uses == nil || !uses.complete {
 		return false
 	}
