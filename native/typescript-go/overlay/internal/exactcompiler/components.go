@@ -26,6 +26,7 @@ type componentCandidate struct {
 	node                                   *ast.Node
 	exported                               bool
 	discovered, moduleLevel, uppercaseName bool
+	protocolKnown, protocolMember          bool
 	signals                                []string
 }
 
@@ -587,7 +588,7 @@ func componentSignalsWithReceiver(candidate componentCandidate, sourceFile *ast.
 	}
 	if componentCandidateIsModuleLevel(candidate) &&
 		(typedReceiver || annotation == nil) &&
-		containsComponentProtocolCall(candidate.node) {
+		candidateHasProtocolMember(candidate) {
 		signals = append(signals, "component-protocol")
 	}
 	if candidate.hasUppercaseName() {
@@ -632,19 +633,27 @@ func containsJSX(node *ast.Node) bool {
 		ast.IsJsxFragment(node) || node.ForEachChild(containsJSX)
 }
 
+func candidateHasProtocolMember(candidate componentCandidate) bool {
+	if candidate.protocolKnown {
+		return candidate.protocolMember
+	}
+	return containsComponentProtocolCall(candidate.node)
+}
+
 func containsComponentProtocolCall(node *ast.Node) bool {
-	if node == nil {
+	return node != nil && (directComponentProtocolMember(node) || node.ForEachChild(containsComponentProtocolCall))
+}
+
+func directComponentProtocolMember(node *ast.Node) bool {
+	if node == nil || !ast.IsPropertyAccessExpression(node) {
 		return false
 	}
-	if ast.IsPropertyAccessExpression(node) {
-		member := node.AsPropertyAccessExpression()
-		if member.Expression != nil && member.Expression.Kind == ast.KindThisKeyword && member.Name() != nil {
-			if _, supported := componentProtocolCalls[member.Name().Text()]; supported {
-				return true
-			}
-		}
+	member := node.AsPropertyAccessExpression()
+	if member.Expression == nil || member.Expression.Kind != ast.KindThisKeyword || member.Name() == nil {
+		return false
 	}
-	return node.ForEachChild(containsComponentProtocolCall)
+	_, supported := componentProtocolCalls[member.Name().Text()]
+	return supported
 }
 
 func walkNode(node *ast.Node, visit func(*ast.Node) bool) {

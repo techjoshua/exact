@@ -16,12 +16,13 @@ func planJSXAttributeSyntax(sourceFile *ast.SourceFile, candidates *[]componentC
 	source := sourceFile.Text()
 	edits := []sourceEdit{}
 	native := !usesForeignJSXRuntime(sourceFile)
+	var protocolOwner int
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if native {
 			edits = append(edits, standardNativePropCasing(sourceFile, node)...)
 		}
 		if candidates != nil && len(edits) == 0 {
-			*candidates = appendRawComponentCandidate(*candidates, node)
+			*candidates = appendNormalizationCandidate(*candidates, node, &protocolOwner)
 		}
 		if !ast.IsJsxSpreadAttribute(node) {
 			return true

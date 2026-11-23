@@ -47,7 +47,7 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 		// the repaired tree when JSX normalization changed the source.
 		result.apply(jsxEdits)
 		sourceFile = parseNormalizationSource(fileName, result.text)
-		candidates = rawComponentCandidates(sourceFile)
+		candidates = rawNormalizationCandidates(sourceFile)
 	} else if ast.IsJsonSourceFile(sourceFile) {
 		// The JSX pass skips candidate capture for JSON. Preserve the
 		// render planner's lexical classification on that tree.
@@ -62,7 +62,7 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 		durable, microTargets = nil, nil
 		result.apply(edits)
 		sourceFile = parseNormalizationSource(fileName, result.text)
-		durable, microTargets = normalizationComponentCandidates(sourceFile, rawComponentCandidates(sourceFile))
+		durable, microTargets = normalizationComponentCandidates(sourceFile, rawNormalizationCandidates(sourceFile))
 	}
 	if len(canonicalEdits) != 0 {
 		refreshCandidates(canonicalEdits)
@@ -91,6 +91,49 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 	}
 	result.apply(computationEdits)
 	return result, nil
+}
+
+// rawNormalizationCandidates records facts on the replacement parse's existing discovery walk.
+func rawNormalizationCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	var candidates []componentCandidate
+	var protocolOwner int
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		candidates = appendNormalizationCandidate(candidates, node, &protocolOwner)
+		return true
+	})
+	return candidates
+}
+
+// appendNormalizationCandidate records protocol presence only for module
+// candidates, whose callable subtrees cannot nest. An initializer row is
+// discovered before any children of its variable declaration. A positive
+// occurrence therefore confirms actual ancestry before marking that row.
+// A completed discovery walk certifies the remaining negative rows.
+func appendNormalizationCandidate(candidates []componentCandidate, node *ast.Node, protocolOwner *int) []componentCandidate {
+	switch node.Kind {
+	case ast.KindFunctionDeclaration, ast.KindVariableDeclaration:
+		previous := len(candidates)
+		candidates = appendRawComponentCandidate(candidates, node)
+		if len(candidates) != previous && candidates[previous].moduleLevel {
+			candidates[previous].protocolKnown = true
+			*protocolOwner = previous + 1
+		}
+	case ast.KindThisKeyword:
+		if *protocolOwner == 0 {
+			return candidates
+		}
+		candidate := &candidates[*protocolOwner-1]
+		if candidate.protocolMember || !directComponentProtocolMember(node.Parent) {
+			return candidates
+		}
+		for ancestor := node.Parent; ancestor != nil; ancestor = ancestor.Parent {
+			if ancestor == candidate.node {
+				candidate.protocolMember = true
+				break
+			}
+		}
+	}
+	return candidates
 }
 
 // normalizationComponentCandidates keeps lexical render targets available even
