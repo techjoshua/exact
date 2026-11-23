@@ -228,7 +228,8 @@ func callableReturnsCallable(
 	}
 	seen[name] = struct{}{}
 	defer delete(seen, name)
-	for _, returned := range directCallableReturns(callable) {
+	returns := directCallableReturns(callable)
+	for _, returned := range returns {
 		expression := unwrapRenderExpression(returned)
 		if expression == nil ||
 			(!ast.IsArrowFunction(expression) &&
@@ -237,7 +238,7 @@ func callableReturnsCallable(
 			return false
 		}
 	}
-	return len(directCallableReturns(callable)) != 0
+	return len(returns) != 0
 }
 
 func planComponentComputations(
