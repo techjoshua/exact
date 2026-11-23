@@ -51,9 +51,12 @@ func (q *sourceValueQuery) retainDefinitionSavedGetSelection(call *ast.Node, bin
 	if !q.dependenciesOnly || q.inputs != nil || q.operation != nil || len(bindings) != 0 || len(q.creators) != 0 || call == nil || !ast.IsCallExpression(call) || call.AsCallExpression().QuestionDotToken != nil {
 		return false
 	}
-	owner := enclosingCallableNode(call)
 	callee := unwrapSourceCallableReference(call.Expression())
-	if owner == nil || q.effectOwner != owner || callee == nil || !ast.IsIdentifier(callee) {
+	if callee == nil || !ast.IsIdentifier(callee) {
+		return false
+	}
+	owner := enclosingCallableNode(call)
+	if owner == nil || q.effectOwner != owner {
 		return false
 	}
 	symbol := q.owner.checker.GetSymbolAtLocation(callee)
