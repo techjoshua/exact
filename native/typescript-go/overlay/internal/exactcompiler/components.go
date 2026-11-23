@@ -314,11 +314,17 @@ func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 // reject them. Only module-level definitions can receive stable, target-local artifact contracts;
 // setup-local PascalCase view arrows are handled separately as lexical micro-components.
 func durableComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
-	return filterDurableComponentCandidates(rawComponentCandidates(sourceFile), sourceFile)
+	candidates := rawComponentCandidates(sourceFile)
+	return filterDurableComponentCandidates(candidates, sourceFile, lexicalMicroComponentTargets(candidates, sourceFile))
 }
 
-func filterDurableComponentCandidates(candidates []componentCandidate, sourceFile *ast.SourceFile) []componentCandidate {
-	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
+// filterDurableComponentCandidates consumes lexical ownership from the same
+// tree as candidates so callers can also use that classification for render work.
+func filterDurableComponentCandidates(
+	candidates []componentCandidate,
+	sourceFile *ast.SourceFile,
+	microTargets map[*ast.Node]componentCandidate,
+) []componentCandidate {
 	filtered := make([]componentCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		_, isMicro := microTargets[candidate.node]

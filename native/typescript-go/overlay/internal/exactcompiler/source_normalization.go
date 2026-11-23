@@ -41,46 +41,49 @@ type setupAssignmentExecution struct {
 func normalizeAuthoredSource(fileName string, source string) (normalizedSource, error) {
 	result := newNormalizedSource(source)
 	sourceFile := parseNormalizationSource(fileName, result.text)
-	// All planners read syntax. Reparse only when the next planner needs
-	// to see edits made by an earlier planner.
-	applyAndParse := func(edits []sourceEdit) {
-		if len(edits) != 0 {
-			result.apply(edits)
-			sourceFile = parseNormalizationSource(fileName, result.text)
-		}
-	}
 	var candidates []componentCandidate
 	if jsxEdits := planJSXAttributeSyntax(sourceFile, &candidates); len(jsxEdits) != 0 {
 		// Recovery can change both node shape and spans, so collect from
 		// the repaired tree when JSX normalization changed the source.
-		applyAndParse(jsxEdits)
-		if !ast.IsJsonSourceFile(sourceFile) {
-			candidates = rawComponentCandidates(sourceFile)
-		}
+		result.apply(jsxEdits)
+		sourceFile = parseNormalizationSource(fileName, result.text)
+		candidates = rawComponentCandidates(sourceFile)
+	} else if ast.IsJsonSourceFile(sourceFile) {
+		// The JSX pass skips candidate capture for JSON. Preserve the
+		// render planner's lexical classification on that tree.
+		candidates = rawComponentCandidates(sourceFile)
 	}
-	durable := filterDurableComponentCandidates(candidates, sourceFile)
+	durable, microTargets := normalizationComponentCandidates(sourceFile, candidates)
 	canonicalEdits := planCanonicalComponentReturns(sourceFile, candidates, durable)
 	candidates = nil
+
+	// Candidate nodes and their lexical owners belong to this parse only.
+	refreshCandidates := func(edits []sourceEdit) {
+		durable, microTargets = nil, nil
+		result.apply(edits)
+		sourceFile = parseNormalizationSource(fileName, result.text)
+		durable, microTargets = normalizationComponentCandidates(sourceFile, rawComponentCandidates(sourceFile))
+	}
 	if len(canonicalEdits) != 0 {
-		durable = nil
-		applyAndParse(canonicalEdits)
-		durable = componentCandidates(sourceFile)
+		refreshCandidates(canonicalEdits)
 	}
 	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(sourceFile, durable)
-	durable = nil
 	if err != nil {
 		return normalizedSource{}, err
 	}
-	applyAndParse(propsEdits)
-	for {
-		destructuringEdits, err := planComponentStateDestructuring(sourceFile)
+	for edits := propsEdits; ; {
+		if len(edits) != 0 {
+			refreshCandidates(edits)
+		}
+		renderCallables := normalizationRenderCallables(sourceFile, durable, microTargets)
+		durable, microTargets = nil, nil
+		edits, err = planComponentStateDestructuring(sourceFile, renderCallables)
 		if err != nil {
 			return normalizedSource{}, err
 		}
-		if len(destructuringEdits) == 0 {
+		if len(edits) == 0 {
 			break
 		}
-		applyAndParse(destructuringEdits)
 	}
 	computationEdits, err := planComponentComputations(sourceFile, suppliedPropsRoots)
 	if err != nil {
@@ -88,6 +91,19 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 	}
 	result.apply(computationEdits)
 	return result, nil
+}
+
+// normalizationComponentCandidates keeps lexical render targets available even
+// on trees for which componentCandidates suppresses durable candidates.
+func normalizationComponentCandidates(
+	sourceFile *ast.SourceFile,
+	candidates []componentCandidate,
+) ([]componentCandidate, map[*ast.Node]componentCandidate) {
+	microTargets := lexicalMicroComponentTargets(candidates, sourceFile)
+	if ast.IsJsonSourceFile(sourceFile) {
+		return nil, microTargets
+	}
+	return filterDurableComponentCandidates(candidates, sourceFile, microTargets), microTargets
 }
 
 // planCanonicalComponentReturns keeps direct-return component syntax as an

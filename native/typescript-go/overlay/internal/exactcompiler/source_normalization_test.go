@@ -287,6 +287,15 @@ func TestNormalizeAuthoredSourceRejectsDestructuringWritesInRender(t *testing.T)
 				};
 			}
 		`,
+		"micro-component after normalization edits": `
+			function Selection(this: Component<{ selected: number }>, { value }: { value: number }) {
+				const Output = () => {
+					[this.state.selected] = load();
+					return <output {value} />;
+				};
+				return <Output />;
+			}
+		`,
 		"micro-component": `
 			function Selection(this: Component<{ selected: number }>) {
 				const Output = () => {

@@ -14,11 +14,13 @@ type destructuredStateBinding struct {
 	temporary string
 }
 
-func planComponentStateDestructuring(sourceFile *ast.SourceFile) ([]sourceEdit, error) {
+func planComponentStateDestructuring(
+	sourceFile *ast.SourceFile,
+	renderCallables map[*ast.Node]struct{},
+) ([]sourceEdit, error) {
 	edits := []sourceEdit{}
 	suspensions := destructuringSuspension{}
 	rewritten := map[string]struct{}{}
-	renderCallables := normalizationRenderCallables(sourceFile)
 	if err := validateRenderDestructuring(
 		sourceFile,
 		renderCallables,
@@ -169,13 +171,16 @@ func planComponentStateDestructuring(sourceFile *ast.SourceFile) ([]sourceEdit, 
 	return suspensions.edits(sourceFile, edits), nil
 }
 
-func normalizationRenderCallables(sourceFile *ast.SourceFile) map[*ast.Node]struct{} {
-	candidates := rawComponentCandidates(sourceFile)
+func normalizationRenderCallables(
+	sourceFile *ast.SourceFile,
+	durable []componentCandidate,
+	microTargets map[*ast.Node]componentCandidate,
+) map[*ast.Node]struct{} {
 	result := make(map[*ast.Node]struct{})
-	for target := range lexicalMicroComponentTargets(candidates, sourceFile) {
+	for target := range microTargets {
 		result[target] = struct{}{}
 	}
-	for _, candidate := range componentCandidates(sourceFile) {
+	for _, candidate := range durable {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
