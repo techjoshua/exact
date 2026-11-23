@@ -335,6 +335,12 @@ export function TasksPage(this: Component<{}>) {
 					setup and update it inside the task.
 				</p>
 				<p>
+					If you reassign a local initialized with <code>this.getContext(Token)</code>, a server
+					task that uses that local captures its current value at dispatch. The value must
+					support ordinary task transport. If an authored method cannot cross that boundary, call
+					it on its owning target and pass its result as a task argument.
+				</p>
+				<p>
 					Apply the same rule to inherited getters and methods. If a task reads a getter or
 					calls a method that uses <code>window</code>, keep that operation on the client.
 				</p>

@@ -196,6 +196,7 @@ func taskReactiveDependencies(
 	typeChecker *checker.Checker,
 	diagnostics []string,
 	excluded []taskCaptureRange,
+	contextWrites *taskContextBindingWrites,
 ) ([]string, []string) {
 	byStart := make(map[int]ReactiveBinding)
 	for _, binding := range bindings {
@@ -209,11 +210,7 @@ func taskReactiveDependencies(
 		if spanInsideTaskCapture(node.Pos(), node.End(), excluded) {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
-			isStaticPropertyName(node) {
-			return true
-		}
-		symbol := typeChecker.GetSymbolAtLocation(node)
+		symbol := taskLexicalReferenceSymbol(node, typeChecker)
 		if symbol == nil {
 			return true
 		}
@@ -225,6 +222,11 @@ func taskReactiveDependencies(
 			binding, exists := byStart[name.Pos()]
 			if !exists {
 				continue
+			}
+			if binding.Provenance == "context" && contextWrites.replacedOutside(symbol, work) {
+				// The setup keeps its context read. Task inputs use the evaluated
+				// binding, whose later writes do not change the token's value.
+				break
 			}
 			if name.Pos() >= work.Pos() && name.End() <= work.End() {
 				// A binding declared by the task body (including a nested event
@@ -307,6 +309,28 @@ func (facts *taskSourceWorkFacts) collectBodyFacts(
 
 // isStaticPropertyName excludes property labels from value-reference analysis. A computed
 // binding key remains an expression whose reads must participate in dependency tracking.
+// taskLexicalReference recognizes shorthand's value role while excluding
+// ordinary property and declaration names.
+func taskLexicalReference(node *ast.Node) (reference, shorthand bool) {
+	if !ast.IsIdentifier(node) {
+		return false, false
+	}
+	shorthand = node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node
+	return shorthand || !ast.IsDeclarationName(node) && !isStaticPropertyName(node), shorthand
+}
+
+// taskLexicalReferenceSymbol resolves the binding read or written by task work.
+func taskLexicalReferenceSymbol(node *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
+	reference, shorthand := taskLexicalReference(node)
+	if !reference {
+		return nil
+	}
+	if shorthand {
+		return typeChecker.GetShorthandAssignmentValueSymbol(node.Parent)
+	}
+	return typeChecker.GetSymbolAtLocation(node)
+}
+
 func isStaticPropertyName(node *ast.Node) bool {
 	if node.Parent == nil {
 		return false

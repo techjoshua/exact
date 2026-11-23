@@ -40,7 +40,7 @@ func continuationExecutorMetadata(
 	factory := emitContext.Factory
 	workByID := continuationWorkByID(componentFunction, continuations)
 	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations, emitContext, imports.boundTaskSetup)
-	aliases := componentContextAliases(componentFunction)
+	aliases := componentContextAliases(componentFunction, emitContext)
 	stateType := continuationExecutorStateType(factory, componentFunction)
 	typeParameters := continuationExecutorTypeParameters(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
@@ -150,7 +150,6 @@ func continuationExecutor(
 			helperReferences[fmt.Sprintf("%d:%d", reference.Start, reference.Length)] = capture.bindingName
 		}
 	}
-	authoredWork := work
 	work = projectInvokedTaskCaptures(factory, work, continuation, activation)
 
 	passesReceiver := false
@@ -159,7 +158,8 @@ func continuationExecutor(
 		func(node *ast.Node) *ast.Node {
 			// Reconstructed helpers consume raw activation values and state paths.
 			// Preserve reference identity even when prior lowering wrapped a read in get().
-			if name, exists := helperReferences[nodeSpanKey(node)]; exists {
+			// A shorthand property shares its span with its name. Preserve the property node.
+			if name, exists := helperReferences[nodeSpanKey(node)]; exists && !ast.IsShorthandPropertyAssignment(node) {
 				return factory.NewIdentifier(name)
 			}
 
@@ -320,14 +320,8 @@ func continuationExecutor(
 		ast.NodeFlagsNone,
 	)
 	aliasStatements := []*ast.Node{}
-	referencedNames := continuationReferencedNames(authoredWork)
-	for _, dependency := range taskDependencies {
-		for name := range continuationReferencedNames(dependency) {
-			referencedNames[name] = struct{}{}
-		}
-	}
 	for _, alias := range aliases {
-		if _, referenced := referencedNames[alias.Name]; !referenced {
+		if !continuation.contextAliases[alias.Declaration] {
 			continue
 		}
 		value := continuationContextValue(
@@ -342,11 +336,7 @@ func continuationExecutor(
 		}
 		aliasStatements = append(
 			aliasStatements,
-			constStatement(
-				factory,
-				factory.NewIdentifier(alias.Name),
-				value,
-			),
+			continuationBindingStatement(factory, factory.NewIdentifier(alias.Name), value, alias.Mutable),
 		)
 	}
 	// Rewriting dependencies can expose another use of the executor receiver.
@@ -385,7 +375,7 @@ func continuationExecutor(
 		if capture.typeNode != nil {
 			value = factory.NewAsExpression(value, capture.typeNode)
 		}
-		statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+		statements = append(statements, continuationBindingStatement(factory, factory.NewIdentifier(capture.bindingName), value, capture.mutable))
 	}
 	index := continuation.helperCaptureOffset
 	for _, capture := range continuation.helperCaptures {
@@ -397,7 +387,7 @@ func continuationExecutor(
 			if capture.typeNode != nil {
 				value = factory.NewAsExpression(value, capture.typeNode)
 			}
-			statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+			statements = append(statements, continuationBindingStatement(factory, factory.NewIdentifier(capture.bindingName), value, capture.mutable))
 		} else {
 			appendCapture(capture, index)
 			index++
@@ -491,13 +481,22 @@ func constStatement(
 	name *ast.Node,
 	value *ast.Node,
 ) *ast.Node {
+	return continuationBindingStatement(factory, name, value, false)
+}
+
+// The executor owns a fresh lexical cell when authored work can assign it.
+func continuationBindingStatement(factory *printer.NodeFactory, name, value *ast.Node, mutable bool) *ast.Node {
+	flags := ast.NodeFlagsConst
+	if mutable {
+		flags = ast.NodeFlagsLet
+	}
 	return factory.NewVariableStatement(
 		nil,
 		factory.NewVariableDeclarationList(
 			factory.NewNodeList([]*ast.Node{
 				factory.NewVariableDeclaration(name, nil, nil, value),
 			}),
-			ast.NodeFlagsConst,
+			flags,
 		),
 	)
 }

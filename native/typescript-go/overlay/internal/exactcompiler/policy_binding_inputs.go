@@ -55,25 +55,45 @@ func policySubjectAllowsPublicSelection(subject PolicySubject) bool {
 	return !subject.publicSelectionBlocked && (subject.Source == "import" || subject.typeDerivedAggregate)
 }
 
+// policyAliasWrite records the lexical destination separately from its policy
+// input. Only ordinary assignments supply a right-hand-side policy input.
+type policyAliasWrite struct {
+	target *ast.Node
+	value  *ast.Node
+}
+
 // Index replacement writes once so alias-origin checks do not rescan the source for every binding.
-func policyAliasWrites(source *ast.SourceFile, c *checker.Checker) map[ast.SymbolId][]*ast.Node {
-	writes := make(map[ast.SymbolId][]*ast.Node)
+func policyAliasWrites(source *ast.SourceFile, c *checker.Checker) map[ast.SymbolId][]policyAliasWrite {
+	writes := make(map[ast.SymbolId][]policyAliasWrite)
 	add := func(target, value *ast.Node) {
-		if symbol := c.GetSymbolAtLocation(target); symbol != nil {
+		symbol := c.GetSymbolAtLocation(target)
+		if target.Parent != nil && ast.IsShorthandPropertyAssignment(target.Parent) {
+			symbol = c.GetShorthandAssignmentValueSymbol(target.Parent)
+		}
+		if symbol != nil {
 			id := ast.GetSymbolId(symbol)
-			writes[id] = append(writes[id], value)
+			writes[id] = append(writes[id], policyAliasWrite{target, value})
 		}
 	}
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
 		var target, value *ast.Node
-		if ast.IsBinaryExpression(node) && ast.IsAssignmentOperator(node.AsBinaryExpression().OperatorToken.Kind) {
+		switch {
+		case ast.IsBinaryExpression(node) && ast.IsAssignmentOperator(node.AsBinaryExpression().OperatorToken.Kind):
 			target, value = node.AsBinaryExpression().Left, node.AsBinaryExpression().Right
-		} else if ast.IsForOfStatement(node) || ast.IsForInStatement(node) {
+		case ast.IsForOfStatement(node) || ast.IsForInStatement(node):
 			target = node.AsForInOrOfStatement().Initializer
-		} else {
+		case ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node):
+			plan := planMutationOperation(node)
+			if plan.kind == mutationPrefix || plan.kind == mutationPostfix {
+				if target := unwrapSourceCallableReference(plan.target); ast.IsIdentifier(target) {
+					add(target, nil)
+				}
+			}
+			return true
+		default:
 			return true
 		}
-		target = unwrapRenderExpression(target)
+		target = unwrapSourceCallableReference(target)
 		if ast.IsIdentifier(target) {
 			add(target, value)
 		}
@@ -87,8 +107,9 @@ func policyAliasWrites(source *ast.SourceFile, c *checker.Checker) map[ast.Symbo
 	return writes
 }
 
-func policyAliasWritesAllowPublicSelection(writes []*ast.Node, c *checker.Checker, subjects policySubjects) bool {
-	for _, value := range writes {
+func policyAliasWritesAllowPublicSelection(writes []policyAliasWrite, c *checker.Checker, subjects policySubjects) bool {
+	for _, write := range writes {
+		value := write.value
 		if value == nil || !policyInputsAllowPublicSelection(policyInputsForNode(value, c, subjects)) {
 			return false
 		}

@@ -11,7 +11,8 @@ import (
 func projectContinuationCaptureReferences(factory *printer.NodeFactory, source *ast.Node, references map[string]string) *ast.Node {
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
-		if name, exists := references[nodeSpanKey(node)]; exists {
+		// A shorthand property shares its span with its name. Preserve the property node.
+		if name, exists := references[nodeSpanKey(node)]; exists && !ast.IsShorthandPropertyAssignment(node) {
 			return factory.NewIdentifier(name)
 		}
 		return visitor.VisitEachChild(node)

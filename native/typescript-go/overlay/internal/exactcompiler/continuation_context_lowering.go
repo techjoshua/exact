@@ -8,14 +8,16 @@ import (
 )
 
 type continuationContextAlias struct {
-	Name      string
-	Token     *ast.Node
-	TokenName string
+	Name        string
+	Token       *ast.Node
+	TokenName   string
+	Mutable     bool
+	Declaration *ast.Node
 }
 
 // componentContextAliases finds setup-scope aliases whose values must be
 // reconstructed rather than closing over a component instance on the server.
-func componentContextAliases(component *ast.Node) []continuationContextAlias {
+func componentContextAliases(component *ast.Node, emit *printer.EmitContext) []continuationContextAlias {
 	body := component.Body()
 	if body == nil || !ast.IsBlock(body) {
 		return nil
@@ -40,9 +42,11 @@ func componentContextAliases(component *ast.Node) []continuationContextAlias {
 				continue
 			}
 			aliases = append(aliases, continuationContextAlias{
-				Name:      name.Text(),
-				Token:     token,
-				TokenName: tokenName,
+				Name:        name.Text(),
+				Token:       token,
+				TokenName:   tokenName,
+				Mutable:     node.Parent.Flags&ast.NodeFlagsConst == 0,
+				Declaration: emit.MostOriginal(node),
 			})
 		}
 	}
@@ -190,8 +194,7 @@ func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 		if node == nil {
 			return
 		}
-		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
-			!isStaticPropertyName(node) {
+		if reference, _ := taskLexicalReference(node); reference {
 			if _, local := declared[node.Text()]; !local &&
 				!strings.HasPrefix(node.Text(), "__exact") {
 				referenced[node.Text()] = struct{}{}

@@ -139,6 +139,7 @@ func createContinuationContracts(
 		continuations = append(continuations, Continuation{
 			classDefinitions:    task.classDefinitions,
 			helperCaptures:      task.helperCaptures,
+			contextAliases:      task.contextAliases,
 			helperCaptureOffset: helperOffset,
 			ID:                  task.ID,
 			Kind:                "task",
@@ -200,11 +201,12 @@ func createContinuationContracts(
 		for _, capture := range operation.captures {
 			dependencies = append(dependencies, TaskDependency{Index: len(dependencies), Source: capture.source, Path: capture.path})
 		}
-		helperCaptures, classes := invokedTaskReconstruction(tasks, operation.ID)
+		helperCaptures, classes, contextAliases := invokedTaskReconstruction(tasks, operation.ID)
 		continuations = append(continuations, Continuation{
 			classDefinitions: classes,
 			captures:         operation.captures,
 			helperCaptures:   helperCaptures,
+			contextAliases:   contextAliases,
 			ID:               operation.ID,
 			Kind:             "task",
 			ComponentID:      component.ID,

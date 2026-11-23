@@ -101,6 +101,7 @@ func collectTasks(
 	if len(sharedFacts) != 0 {
 		facts = sharedFacts[0]
 	}
+	contextWrites := taskContextBindingWrites{source: sourceFile, checker: typeChecker}
 	var tasks []Task
 	workFacts := make(map[*ast.Node]taskSourceWorkFacts)
 	taskScopes := make(map[*ast.Node]bool)
@@ -305,6 +306,7 @@ func collectTasks(
 				typeChecker,
 				task.Diagnostics,
 				append(append([]taskCaptureRange{}, captureRanges...), snapshotReads...),
+				&contextWrites,
 			)
 			task.localReads = taskLocalReadRanges(work, candidate.name, stateReads, stateWrites)
 			task.localReads = append(task.localReads, snapshotReads...)
@@ -344,7 +346,7 @@ func collectTasks(
 				task.Writes = uniqueStateEffects(
 					append(task.Writes, componentStateEffects(callable.StateWrites)...),
 				)
-				task.Contexts = taskBodyContextEffects(work, sourceFile, typeChecker, callables)
+				task.Contexts = taskBodyContextEffects(work, sourceFile, typeChecker, callables, &contextWrites)
 				task.EffectSources = taskBodyEffectSources(
 					&task, work,
 					callable.EffectSources,
@@ -403,7 +405,7 @@ func collectTasks(
 				}
 			}
 			task.classDefinitions = classes
-			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts, classes)
+			task.helperCaptures, task.contextAliases = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts, classes, &contextWrites)
 			if task.RequestedPlacement == "server" && task.BrowserEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,

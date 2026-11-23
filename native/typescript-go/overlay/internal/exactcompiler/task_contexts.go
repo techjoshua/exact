@@ -9,7 +9,7 @@ import (
 
 // taskBodyContextEffects separates executor lookup authority from captured
 // defaults. Ordinary called helpers contribute their transitive context effects.
-func taskBodyContextEffects(work *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, callables callableAnalysis) []ContextEffect {
+func taskBodyContextEffects(work *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, callables callableAnalysis, writes *taskContextBindingWrites) []ContextEffect {
 	result := []ContextEffect{}
 	called := make(map[*ast.Node][]ContextEffect)
 	for index := range callables.facts {
@@ -35,8 +35,9 @@ func taskBodyContextEffects(work *ast.Node, source *ast.SourceFile, typeChecker 
 		if ast.IsFunctionLike(node) {
 			return false
 		}
-		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) && !isStaticPropertyName(node) && !ast.IsPartOfTypeNode(node) {
-			if effect, exists := contextBindingReferenceEffect(typeChecker.GetSymbolAtLocation(node), source, typeChecker); exists {
+		if ast.IsIdentifier(node) && !ast.IsPartOfTypeNode(node) {
+			symbol := taskLexicalReferenceSymbol(node, typeChecker)
+			if effect, exists := contextBindingReferenceEffect(symbol, source, typeChecker); exists && !writes.replacedOutside(symbol, work) {
 				result = append(result, effect)
 			}
 		}
@@ -66,4 +67,27 @@ func taskBodyContextEffects(work *ast.Node, source *ast.SourceFile, typeChecker 
 		}
 	}
 	return result
+}
+
+// taskContextBindingWrites borrows or builds checked syntax for one source task
+// collection. An executor-local write does not supply a replacement from setup.
+type taskContextBindingWrites struct {
+	source  *ast.SourceFile
+	checker *checker.Checker
+	writes  map[ast.SymbolId][]policyAliasWrite
+}
+
+func (inventory *taskContextBindingWrites) replacedOutside(symbol *ast.Symbol, work *ast.Node) bool {
+	if ast.GetSourceFileOfNode(symbol.ValueDeclaration) != inventory.source {
+		return false
+	}
+	if inventory.writes == nil {
+		inventory.writes = policyAliasWrites(inventory.source, inventory.checker)
+	}
+	for _, write := range inventory.writes[ast.GetSymbolId(symbol)] {
+		if write.target.Pos() < work.Pos() || write.target.End() > work.End() {
+			return true
+		}
+	}
+	return false
 }

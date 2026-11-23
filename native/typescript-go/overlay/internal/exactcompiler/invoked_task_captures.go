@@ -10,6 +10,7 @@ import (
 // State and context have their own transport contracts and are deliberately excluded here.
 type invokedTaskCapture struct {
 	snapshot    bool
+	mutable     bool // Reconstructed lexical binding can be assigned by executor work.
 	statePath   []string
 	references  []SourceSpan
 	bindingName string
@@ -115,7 +116,8 @@ func projectInvokedTaskCaptures(factory *printer.NodeFactory, work *ast.Node, co
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
 		for index, capture := range continuation.captures {
-			if node.Pos() == capture.expression.Pos() && node.End() == capture.expression.End() {
+			// Named captures are rewritten to their executor-local bindings.
+			if capture.bindingName == "" && node.Pos() == capture.expression.Pos() && node.End() == capture.expression.End() {
 				value := factory.NewElementAccessExpression(
 					factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("dependencies"), ast.NodeFlagsNone), nil,
 					contractNumber(factory, len(continuation.Invocation.Arguments)+index), ast.NodeFlagsNone)

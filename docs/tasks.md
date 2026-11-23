@@ -700,6 +700,12 @@ executor. Shared context writes use the task owner's context bindings in direct 
 invocations. Establish the shared provider during component setup so descendants observe its
 updates throughout the owner's lifetime.
 
+If a component reassigns a local binding initialized with a context lookup, a server task
+that closes over the binding captures its current value at dispatch. The setup lookup still
+uses its context provider. Assignments inside the reconstructed executor update its local
+binding for that run. Captured values follow ordinary task transport. Call an authored method
+on its owning target and pass the resulting data when the method itself cannot cross the boundary.
+
 Checking and executable targets preserve the callable's defaulted and required parameters,
 including object and tuple binding patterns. Direct SSR resolves omitted defaults through the
 same capture plan. Within one task, a read after its own assignment consumes that local value

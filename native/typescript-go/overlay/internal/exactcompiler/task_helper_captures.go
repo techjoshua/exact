@@ -11,8 +11,9 @@ import (
 // helpers and setup snapshots used directly by task work. Values cross as
 // execution inputs without replaying initializers.
 // Symbol identity preserves block shadowing and recursive helper graphs.
-func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts, classes []*ast.Node) []invokedTaskCapture {
+func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding, facts *sourceAnalysisFacts, classes []*ast.Node, contextWrites *taskContextBindingWrites) ([]invokedTaskCapture, map[*ast.Node]bool) {
 	result := []invokedTaskCapture{}
+	var contextAliases map[*ast.Node]bool
 	var aliases *componentStateAliases
 	seen := map[ast.SymbolId]uint8{}
 	captured := map[ast.SymbolId]int{}
@@ -27,10 +28,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			if ast.IsPartOfTypeNode(node) {
 				return false
 			}
-			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
-				return true
-			}
-			symbol := typeChecker.GetSymbolAtLocation(node)
+			symbol := taskLexicalReferenceSymbol(node, typeChecker)
 			if symbol == nil || symbol.ValueDeclaration == nil {
 				return true
 			}
@@ -58,9 +56,21 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			bindingProvenance := provenance[declaration.Name().Pos()]
 			setupSnapshot := bindingProvenance == "snapshot" && ast.IsVariableDeclaration(declaration) &&
 				declaration.Parent.Flags&ast.NodeFlagsConst != 0
-			// Reconstructed executors lose setup scope. Reuse the evaluated snapshot
-			// and proven state receivers without duplicating ordinary task inputs.
-			if !helper && !setupSnapshot {
+			contextBinding := bindingProvenance == "context"
+			if !contextBinding && ast.IsVariableDeclaration(declaration) {
+				contextBinding = continuationContextLookup(unwrapRenderExpression(declaration.Initializer())) != nil
+			}
+			replacedContext := contextBinding && contextWrites.replacedOutside(symbol, work)
+			if contextBinding && !replacedContext {
+				if contextAliases == nil {
+					contextAliases = make(map[*ast.Node]bool)
+				}
+				contextAliases[declaration] = true
+				return true
+			}
+			// Reconstructed executors lose setup scope. Capture an evaluated
+			// replacement, setup snapshot or state receiver through the existing plan.
+			if !helper && !setupSnapshot && !replacedContext {
 				if aliases == nil {
 					value := sourceStateAliases(componentCandidate{node: component}, typeChecker, facts)
 					aliases = &value
@@ -76,20 +86,14 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				result[index].references = append(result[index].references, reference)
 				return true
 			}
-			var initializer *ast.Node
-			if ast.IsVariableDeclaration(declaration) {
-				initializer = unwrapRenderExpression(declaration.AsVariableDeclaration().Initializer)
-			}
-			if continuationContextLookup(initializer) != nil || bindingProvenance == "context" {
-				return true
-			}
 			captured[id] = len(result)
 			typeNode := authoredTaskCaptureType(node, typeChecker)
 			if typeNode != nil && !portableTaskCaptureType(typeNode) {
 				typeNode = nil
 			}
 			capture := invokedTaskCapture{snapshot: snapshot, references: []SourceSpan{reference}, expression: node, typeNode: typeNode, source: "derived", path: declaration.Name().Text(), bindingName: declaration.Name().Text()}
-			if !setupSnapshot && (!helper || bindingProvenance == "state" || bindingProvenance == "derived") {
+			capture.mutable = replacedContext
+			if !replacedContext && !setupSnapshot && (!helper || bindingProvenance == "state" || bindingProvenance == "derived") {
 				if aliases == nil {
 					value := sourceStateAliases(componentCandidate{node: component}, typeChecker, facts)
 					aliases = &value
@@ -107,7 +111,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 	for _, class := range classes {
 		visit(class, true, false)
 	}
-	return result
+	return result, contextAliases
 }
 
 // taskHelperDependencies keeps preparation and executor argument ordering in one
@@ -131,18 +135,18 @@ func (lowering *jsxLowering) taskHelperDependencies(task Task, offset int) []nat
 
 // invokedTaskReconstruction retains state aliases and the same current class plan for an invoked executor.
 // Non-state captures already belong to the operation's activation inputs.
-func invokedTaskReconstruction(tasks []Task, id string) ([]invokedTaskCapture, []*ast.Node) {
-	result := []invokedTaskCapture{}
-	var classes []*ast.Node
+func invokedTaskReconstruction(tasks []Task, id string) ([]invokedTaskCapture, []*ast.Node, map[*ast.Node]bool) {
 	for _, task := range tasks {
-		if task.ID == id {
-			classes = task.classDefinitions
-			for _, capture := range task.helperCaptures {
-				if capture.source == "state" {
-					result = append(result, capture)
-				}
+		if task.ID != id {
+			continue
+		}
+		var result []invokedTaskCapture
+		for _, capture := range task.helperCaptures {
+			if capture.source == "state" {
+				result = append(result, capture)
 			}
 		}
+		return result, task.classDefinitions, task.contextAliases
 	}
-	return result, classes
+	return nil, nil, nil
 }

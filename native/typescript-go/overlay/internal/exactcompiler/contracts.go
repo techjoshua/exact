@@ -628,6 +628,7 @@ type Task struct {
 	classDefinitions        []*ast.Node
 	activationSource        *taskActivationSource // Private original source description; never a runtime/graph loan.
 	helperCaptures          []invokedTaskCapture
+	contextAliases          map[*ast.Node]bool // Stable setup aliases selected by lexical declaration.
 	localReads              []taskCaptureRange
 	potentialLocalReads     []taskCaptureRange
 	localization            bool
@@ -709,6 +710,7 @@ type ContinuationOwnership struct {
 type Continuation struct {
 	classDefinitions    []*ast.Node // Private same-extraction class plan from the actual task.
 	helperCaptures      []invokedTaskCapture
+	contextAliases      map[*ast.Node]bool // Stable setup aliases selected by lexical declaration.
 	helperCaptureOffset int
 	localization        bool
 	captures            []invokedTaskCapture
