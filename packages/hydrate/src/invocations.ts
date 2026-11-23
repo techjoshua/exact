@@ -1,6 +1,7 @@
 import { responseResourceBudget, responseGraphLimits } from './response-resources.js';
 import type { ResponseLimits } from './response/json.js';
-import { encodeReactiveProtocolValue, logFrameworkEvent } from '@exactjs/core';
+import { logFrameworkEvent } from '@exactjs/core';
+import { encodeInvocationProtocolValue } from '@exactjs/reactive/framework/protocol';
 import {
 	attachExactObservationOwner,
 	readExactObservationOwner,
@@ -30,7 +31,11 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 }
 
 /** Encoded submission owned by one pending operation. It contains no original live receivers. */
-export type PreparedExactState = Readonly<{ encoded: unknown; valueDepth: number }>;
+export type PreparedExactState = Readonly<{
+	encoded: unknown;
+	valueDepth: number;
+	transportError?: TypeError;
+}>;
 
 /** Internal submission path inserts already encoded state exactly once at its real envelope depth. */
 export async function invokePreparedExact(
@@ -276,13 +281,14 @@ function encodeRequest(
 			envelope = copy;
 		}
 	}
-	const encoded = encodeReactiveProtocolValue(envelope) as Record<string, unknown>;
+	const encoded = encodeInvocationProtocolValue(envelope) as Record<string, unknown>;
 	const insert = (
 		target: Record<string, unknown>,
 		state: PreparedExactState | undefined,
 		depth: number
 	) => {
 		if (!state) return;
+		if (state.transportError) throw state.transportError;
 		if (state.valueDepth + depth > 100) throw new TypeError('Encoded state exceeds request depth');
 		target.state = state.encoded;
 	};

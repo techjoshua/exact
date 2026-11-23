@@ -20,6 +20,28 @@ export function encodeReactiveProtocolValue(
 	);
 }
 
+/** Encodes a request before JSON serialization can omit function-valued data. */
+export function encodeInvocationProtocolValue(value: unknown): unknown {
+	let error: TypeError | undefined;
+	const encoded = encodeReactiveProtocolValueInternal(
+		value,
+		(collection) => listKeyExtractors.get(collection)?.key,
+		undefined,
+		(source) => {
+			error ??= invocationValueError(source);
+		}
+	);
+	if (error) throw error;
+	return encoded;
+}
+
+/** Reports a function at the actual value sampled by an invocation encoder. */
+export function invocationValueError(value: unknown): TypeError | undefined {
+	if (typeof value === 'function')
+		return new TypeError('Cannot send a function in an eXact invocation request');
+	return undefined;
+}
+
 /** Wraps encoded array items when their validated source owns compiler-registered list keys. */
 export function encodeValidatedReactiveCollection(source: unknown[], items: unknown[]): unknown {
 	source = unwrap(source);

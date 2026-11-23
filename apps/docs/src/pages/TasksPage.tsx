@@ -317,9 +317,11 @@ export function TasksPage(this: Component<{}>) {
 					even if the server ignores that parameter. To run client code when the task finishes,
 					await its result and call your function locally. A server task can read a data prop such
 					as <code>props.title</code>. If a prop supplies a callback, run it on the client and pass
-					its data. If a task returns an object with a custom <code>then</code> getter or method,
-					that code must also be able to run on the task’s target, even when the caller ignores
-					the result.
+					its data. The browser rejects functions nested in task arguments or state sent with the
+					request. If the browser groups several operations into one request, an invalid function
+					value rejects every operation in that batch before dispatch. If a task returns an object
+					with a custom <code>then</code> getter or method, that code must also be able to run on
+					the task’s target, even when the caller ignores the result.
 				</p>
 				<p>
 					A server task can pass a captured prop to a helper and assign the result to

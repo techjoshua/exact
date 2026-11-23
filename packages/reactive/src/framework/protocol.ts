@@ -1,5 +1,6 @@
 export {
 	decodeReactiveProtocolValue,
+	encodeInvocationProtocolValue,
 	encodeReactiveProtocolValue,
 	encodeValidatedReactiveCollection
 } from '../protocol.js';

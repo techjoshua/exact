@@ -2,7 +2,11 @@ import { publishBatch } from '../internal/deps.js';
 import { reactive } from '../reactive.js';
 import { unwrap } from '../internal/values.js';
 import { reactiveObjects } from '../framework/objects.js';
-import { encodeArraySubmissionValue, decodeReactiveProtocolValue } from '../protocol.js';
+import {
+	encodeArraySubmissionValue,
+	decodeReactiveProtocolValue,
+	invocationValueError
+} from '../protocol.js';
 
 /** A baseline occurrence run or a sparse inserted span. No run consumes an occurrence twice. */
 export type ArrayPart =
@@ -59,7 +63,10 @@ export type ArrayServerBinding = Readonly<{
 	parse: typeof parseArrayNetMutation;
 }>;
 
-/** Samples correspondence with the actual codec values. Caller retains it until apply or discard. */
+/**
+ * Samples correspondence with the actual codec values. Caller retains it until apply or discard.
+ * The request owner handles a transport error after grouping the sampled submission with its batch.
+ */
 export function captureArraySubmission(
 	selected: unknown,
 	roots: readonly SelectedArrayRoot[],
@@ -68,6 +75,7 @@ export function captureArraySubmission(
 	encodedState: unknown;
 	correspondence: ArrayCorrespondence;
 	valueDepth: number;
+	transportError?: TypeError;
 	release(): void;
 } {
 	const captured = new Map<
@@ -75,9 +83,14 @@ export function captureArraySubmission(
 		{ source: unknown[]; values: unknown[]; occurrences: Map<number, unknown> }
 	>();
 	const originals = new Map<string, unknown>();
+	let transportError: TypeError | undefined;
 	const encoded = encodeArraySubmissionValue(
 		selected,
-		(source, _encoded, path) => originals.set(JSON.stringify(path), source),
+		(source, _encoded, path) => {
+			originals.set(JSON.stringify(path), source);
+			// Finish sampling in source order. The owning request rejects the whole batch.
+			transportError ??= invocationValueError(source);
+		},
 		options
 	);
 	const decoded: unknown = decodeReactiveProtocolValue(encoded.encoded, options);
@@ -109,6 +122,7 @@ export function captureArraySubmission(
 		encodedState: encoded.encoded,
 		correspondence,
 		valueDepth: encoded.valueDepth,
+		transportError,
 		release: () => correspondence.release()
 	};
 }

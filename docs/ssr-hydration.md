@@ -1279,7 +1279,11 @@ hooks remain independent authoritative checks.
 Compiler-approved `Map` and `Set` state uses tagged entries and is restored as
 real collections; continuation changes travel as ordered entry or membership
 deltas. Functions, DOM nodes, unsupported class instances, `Date`, cycles,
-server contexts, and secret-qualified values are rejected.
+server contexts, and secret-qualified values are rejected. The browser rejects a function in a
+server task request before sending it, including methods on argument objects and functions in
+state selected for transport. Evaluate authored callbacks on their owning target and send the
+resulting data. A function in any active operation rejects the entire outgoing batch, including
+operations with valid inputs.
 Several fields may refer to the same supported object or collection. Validation counts each
 serialized occurrence against the resource policy and rejects references to active ancestors as
 cycles. Continuation output warns above omitted resource thresholds and rejects explicit

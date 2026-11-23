@@ -71,7 +71,13 @@ export function captureContinuationSubmission(
 				}
 			: {}),
 		...(capture && selectedState !== undefined
-			? { preparedState: { encoded: capture.encodedState, valueDepth: capture.valueDepth } }
+			? {
+					preparedState: {
+						encoded: capture.encodedState,
+						valueDepth: capture.valueDepth,
+						transportError: capture.transportError
+					}
+				}
 			: {}),
 		release() {
 			capture?.release();
