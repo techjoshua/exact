@@ -792,7 +792,7 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, inputs *s
 	}
 	// Projection and initializer sealing can also contribute uncertainty to
 	// refused-callee recovery, even when no nested Call consumes the scope.
-	if len(nodes) == 0 && !memberWriterInputsNeedResolution(bindings) {
+	if len(nodes) == 0 && !q.memberWriterInputsNeedResolution(body, bindings) {
 		return
 	}
 	actuals := q.memberWriterActualValues(body, call, bindings, result)
@@ -837,13 +837,32 @@ func (q *sourceValueQuery) memberWriterBodyCalls(body, call *ast.Node, inputs *s
 	})
 }
 
-// memberWriterInputsNeedResolution reports whether preparing otherwise unused
-// bindings could consult a member or resolve a captured initializer.
-func memberWriterInputsNeedResolution(bindings sourceValueBindings) bool {
+// memberWriterInputsNeedResolution detects work observable even when no nested
+// Call consumes a scope. Scope sealing visits every binding, but argument
+// projection visits only formals owned by the selected body.
+func (q *sourceValueQuery) memberWriterInputsNeedResolution(body *ast.Node, bindings sourceValueBindings) bool {
+	hasPath := false
 	for _, terms := range bindings {
 		for _, term := range terms {
-			if len(term.path) != 0 || term.initializerUse != nil {
+			if term.initializerUse != nil {
 				return true
+			}
+			hasPath = hasPath || len(term.path) != 0
+		}
+	}
+	if !hasPath {
+		return false
+	}
+	for _, parameter := range body.Parameters() {
+		for _, name := range bindingIdentifiers(parameter.Name()) {
+			symbol := q.owner.checker.GetSymbolAtLocation(name)
+			if symbol == nil {
+				continue
+			}
+			for _, term := range bindings[ast.GetSymbolId(symbol)] {
+				if len(term.path) != 0 {
+					return true
+				}
 			}
 		}
 	}
