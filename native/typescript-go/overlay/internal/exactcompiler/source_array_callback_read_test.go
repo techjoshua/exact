@@ -126,3 +126,38 @@ export function Page(this: Component<{step:number}>) {
 		}
 	}
 }
+
+// Direct return confinement retains the work of producing the array and
+// invoking its authored predicate.
+func TestReturnedArrayEveryRetainsSourceEffects(t *testing.T) {
+	config := timeSemanticConfig(t)
+	root := filepath.Dir(config)
+	entry := filepath.Join(root, "returned-array-every.tsx")
+	for _, row := range []struct{ name, returned, predicate string }{
+		{"receiver", "[document.title.length]", "n >= 0"},
+		{"predicate", "[1]", "n >= document.title.length"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			source := `import {type Component} from '@exactjs/core';
+function numbers():number[]{return ` + row.returned + `;}
+export function Page(this:Component<{}>){
+ const result=this.reactive(()=>numbers().every(n=>` + row.predicate + `));
+ return()=> <button>{result.get()?'yes':'no'}</button>;
+}`
+			session := NewSession()
+			setup := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config,
+				Sources: []ProjectSource{{ID: entry, Source: source}}})
+			if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
+				t.Fatal(setup.Error, setup.Diagnostics)
+			}
+			response := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config,
+				Source: source, Target: TargetServer, Diagnostics: "semantic", ServerComponents: true})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+				t.Fatal(response.Error, response.Diagnostics)
+			}
+			if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "client" {
+				t.Fatalf("lost the %s browser effect: %#v", row.name, response.Analysis.Components)
+			}
+		})
+	}
+}

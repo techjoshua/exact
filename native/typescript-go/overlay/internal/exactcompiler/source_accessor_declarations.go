@@ -719,15 +719,26 @@ func (query *sourceValueQuery) collectAccessorsAtGet(receiver *ast.Node, path []
 		}
 		if ast.IsArrayLiteralExpression(value) {
 			result.sourceOwned = true
-			// Only the original callee traversal can descend straight from the
-			// selected member to its literal. Alias and result projections
-			// have a different root or an additional visitor entry.
+			// A fresh-member selection belongs to this original callee Get.
+			// An alias or a later saved-result read cannot borrow this proof.
 			call := query.initializing
-			freshMember := mode == accessorAcquire && query.dependenciesOnly && get == nil && producer == nil &&
+			originalCallee := mode == accessorAcquire && query.dependenciesOnly && get == nil && producer == nil &&
 				len(alternatives) == 0 && len(path) == 0 && name == "" && len(projection) == 1 &&
-				len(seen) == 2 && seen[0].node == receiver && receiver == query.protectedMember &&
+				len(seen) != 0 && receiver != nil && seen[0].node == receiver && receiver == query.protectedMember &&
 				call != nil && ast.IsCallExpression(call) && query.active[call] && call.Expression() == receiver &&
-				ast.IsPropertyAccessExpression(receiver) && receiver.Expression() == value
+				ast.IsPropertyAccessExpression(receiver)
+			freshMember := originalCallee && len(seen) == 2 && receiver.Expression() == value
+			// The selected direct return exposes no reference to the anonymous
+			// array before the Get. Receiver evaluation and the predicate's
+			// invocation keep their existing owners.
+			if originalCallee && projection[0] == "every" && len(seen) == 3 &&
+				!ast.IsOptionalChain(call) && receiver.Expression() == seen[1].node && ast.IsCallExpression(seen[1].node) &&
+				value.Parent != nil && ast.IsReturnStatement(value.Parent) && value.Parent.AsReturnStatement().Expression == value {
+				factory := enclosingCallableNode(value)
+				creator := query.creators[factory]
+				freshMember = envelopeSynchronousFunction(factory) && query.returning == value &&
+					creator.invocation == seen[1].node && creator.returning == value
+			}
 			if freshMember {
 				elements := value.AsArrayLiteralExpression().Elements.Nodes
 				spreadMap := projection[0] == "map" && len(elements) == 1 && ast.IsSpreadElement(elements[0])

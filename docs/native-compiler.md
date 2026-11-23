@@ -1366,6 +1366,9 @@ The original named property access supplies its checker-resolved symbol when
 available. Unresolved symbols use the receiver-type lookup. Both paths check the
 member declarations before recognizing a standard operation.
 Evaluating the elements and invoking an authored callback still contribute effects.
+An immediate `every` lookup can use the same proof when the selected synchronous
+call returns a dense array literal directly. The receiver call and predicate keep
+their original evaluation and effects.
 A method read through a saved array can observe intervening replacements.
 For a direct `Object.entries` call on an object literal or a const initialized
 with one, the fresh result owns its entry slots. Placement accounts for input
