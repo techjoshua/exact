@@ -1897,6 +1897,29 @@ with source, selection or configuration invalidation, reset and disposal. No pub
 persistent capture protocol or runtime observer is introduced.
 The existing private-entry path below does not establish those properties for adjacent TypeScript and JavaScript implementations.
 
+### Writer discovery for a local Map
+
+A discarded call to standard `Map.set` can skip writer-input discovery when
+the source index establishes a fresh zero-argument Map whose local binding is
+used only by that call and by the allocation owner's final return. A local
+synchronous arrow may contain the call when all of the arrow's uses are direct
+calls within that owner or recursive calls within the arrow. Aliases, receiver
+substitutions, authored member replacements, and escaped closures use ordinary
+analysis. The compiler reuses the source proof within its checker generation.
+
+The original call still evaluates the receiver and key, performs the Map
+write, and stores the value with its identity intact. A getter used to compute
+the key can run authored code. A stored callable runs when later code retrieves
+and invokes it.
+
+On the Intl client workload at `d87a0fca7`, the 100,000-event observer prefix
+recorded 2,418 explicit retirements at the same writer, read, and call site.
+Stock recorded 2,418 preparations and 2,418 acquisitions each for the callee,
+key, and value there. The candidate recorded zero of those four legacy events.
+Both uninstrumented requests reached the 120-second deadline on the original
+37-input workload. The scoped counts establish removed work at the observed
+site. Completed target output and end-to-end latency remain unmeasured.
+
 ### Related defect families and repair boundaries
 
 State lowering preserves two contracts: the framework's reactive ownership and the authored

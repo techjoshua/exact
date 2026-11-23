@@ -1052,6 +1052,12 @@ For an immediately awaited standard `Promise.resolve` with a checked scalar inpu
 
 For a direct one-argument membership call on a fresh dense array literal, the array member owner can select the standard `includes` method without searching for writes through aliases. Element and argument evaluation remain ordinary; the helper need not predict which element matches. The index conversion for a second argument can invoke authored work. See the [native compiler reference](native-compiler.md) for the supported form.
 
+Writer discovery can use the [local Map source proof](native-compiler.md#writer-discovery-for-a-local-map)
+for a discarded standard `Map.set` call on a confined allocation. The lexical
+proof belongs to the existing source index. It closes only the question of
+whether this call can invoke a writer through its key or value. The original
+argument, storage, and later retrieval effects keep their existing owners.
+
 #### Proposed shared recognition seam for coordinator adjudication
 
 The smallest shared owner is the existing standard-entry/value acquisition path in `source_native_members.go`, with operation identity represented by `sourceNativeValue`. Reuse `standardLibraryValue`, `standardLibraryCallOwner` in `derived_builtin_operations.go` and `nativeReceiverMemberSymbol` for declaration recognition. These helpers supply declaration candidates, not runtime operation identity or receiver admission. Reuse acquired source origins and current authored replacement selection to identify the selected function/property. Then apply that identified algorithm to the invocation's actual receiver through existing semantic/effect owners. Do not introduce a name-based whitelist, independent interference engine or second algorithm summary system.

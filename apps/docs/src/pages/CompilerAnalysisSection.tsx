@@ -150,6 +150,12 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				binding, the diagnostic can point to that binding in the helper.
 			</p>
 			<p>
+				A standard <code>Map.set</code> on a fresh local Map stores values without invoking
+				them. The compiler can skip looking for a writer callback when it can trace the Map
+				from creation to return without another use. A getter used to compute the key still
+				runs. A stored callable can run when later code retrieves and invokes it.
+			</p>
+			<p>
 				You can populate a private module-level <code>WeakMap</code> created with no
 				constructor arguments using <code>map.set(key, value)</code>. When a component
 				renders an entry with <code>map.get(key)</code>, JavaScript matches the key by

@@ -8,6 +8,8 @@ type sourcePrivateUse struct{ node, region *ast.Node }
 // sourcePrivateUses is generation-owned syntax/checker coverage, not activation.
 // One index traversal fills it. A proof never contains a live query/view/frame.
 type sourcePrivateUses struct {
+	// The call's proven receiver symbol is source-owned. Zero caches a declined proof.
+	closedMapSetCalls map[*ast.Node]ast.SymbolId
 	complete, refused bool
 	// work counts this producer's AST/metadata steps. Checker calls are opaque
 	// units recorded separately. Existing indexWork owns both generation costs.
