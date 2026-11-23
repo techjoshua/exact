@@ -55,3 +55,69 @@ export {};`
 		})
 	}
 }
+
+// A later call cannot alter the original acquisition, while an early
+// invocation through a cyclic dependency may still supply the replacement.
+func TestFrozenModuleArrayBindingOrder(t *testing.T) {
+	config := timeSemanticConfig(t)
+	root := filepath.Dir(config)
+	entry := filepath.Join(root, "page.tsx")
+	const page = `import {type Component} from '@exactjs/core';
+import {read} from './reader.js';
+export function Page(this: Component<{step:number}>) {
+ this.state.step=1;
+ const text=this.reactive(()=>read(this.state.step));
+ return ()=> <button onClick={()=>this.state.step++}>{text.get()}</button>;
+}`
+	const installer = `export function install() {
+ const freeze = Object.freeze;
+ Object.freeze = ((input: string[]) => {
+   if (Array.isArray(input) && input[0] === 'one') {
+     Object.freeze = freeze;
+     return {map(callback:(x:string)=>string){ void document.title; return input.map(callback); }};
+   }
+   return freeze(input);
+ }) as unknown as typeof Object.freeze;
+}`
+	for _, row := range []struct{ name, reader, provider, early, placement string }{
+		{"later", `import { keys } from './provider.js';
+import { install } from './install.js';
+export function read(step:number) {
+
+ const list=keys.map(item=>item+':'+step);
+ install();
+ return list.join(',');
+}`, `import {install} from './install.js';
+const raw=['one','two'];
+export const keys=Object.freeze(raw);
+install();`, `export {};`, "unknown"},
+		{"cyclic prior call", `import { keys } from './provider.js';
+import { install } from './install.js';
+export function read(step:number) {
+ if(step===0){ install(); return ''; }
+ const list=keys.map(item=>item+':'+step);
+
+ return list.join(',');
+}`, `import './early.js';
+const raw=['one','two'];
+export const keys=Object.freeze(raw);`, `import {read} from './reader.js'; read(0);`, "client"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			session := NewSession()
+			setup := session.Execute(Request{Kind: "synchronize", Root: root, ConfigFile: config, Sources: []ProjectSource{
+				{ID: entry, Source: page}, {ID: filepath.Join(root, "install.ts"), Source: installer},
+				{ID: filepath.Join(root, "reader.ts"), Source: row.reader}, {ID: filepath.Join(root, "provider.ts"), Source: row.provider},
+				{ID: filepath.Join(root, "early.ts"), Source: row.early},
+			}})
+			if setup.Error != "" || hasErrorDiagnostic(setup.Diagnostics) {
+				t.Fatal(setup.Error, setup.Diagnostics)
+			}
+			response := session.Execute(Request{Kind: "compile", ID: entry, Root: root, ConfigFile: config,
+				Source: page, Target: TargetServer, Diagnostics: "semantic", ServerComponents: true})
+			if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" ||
+				len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != row.placement {
+				t.Fatal(response.Error, response.Diagnostics, response.Analysis.Components)
+			}
+		})
+	}
+}

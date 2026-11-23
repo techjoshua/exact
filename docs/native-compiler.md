@@ -1375,6 +1375,10 @@ a computed assignment with a fixed template prefix can be excluded from
 writer input recovery if it cannot produce `freeze` or a structural member
 key. The original assignment still owns key coercion and setter effects.
 A key that can select `freeze` remains eligible for writer matching.
+For a direct imported const initialized by `Object.freeze`, a callable that
+must read the binding before making a call cannot enter that call while the
+initializer is still acquiring its method. Earlier calls and independently
+reached imported code remain eligible, including through import cycles.
 For a direct `Object.entries` call on an object literal or a const initialized
 with one, the fresh result owns its entry slots. Placement accounts for input
 getters during enumeration and the callback’s work. An identity arrow

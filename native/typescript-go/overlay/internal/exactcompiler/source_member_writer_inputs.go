@@ -7,8 +7,11 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // query-local. Its scope is copied, never a normal input frame or identity proof.
 type sourceMemberWriterReadCut struct {
 	operation, use *ast.Node
-	scope          acquiredCallableScope
-	saved          *sourceMemberWriterScopeEntries
+	// A direct read of the initialized module binding must complete before
+	// subsequent statements in this callable can enter a writer.
+	initializerRead, initializerUseStatement *ast.Node
+	scope                                    acquiredCallableScope
+	saved                                    *sourceMemberWriterScopeEntries
 	// afterArguments supplies MAY ordering only for the issuing native array
 	// index Get. Receiver acquisition retains its earlier, original source value.
 	afterArguments *sourceArrayIndexMay
@@ -63,7 +66,69 @@ func (q *sourceValueQuery) memberWriterReadCut(reference *sourceGetReference, bi
 	if len(actual) == 1 && actual[0] != nil && q.arrayIndexMayAtGet(actual[0], actual[0].receiver.node, []string{"*"}, "", accessorAcquire) && operation == actual[0].operation && use == operation {
 		cut.afterArguments = actual[0].arrayIndexMay
 	}
+	if len(actual) == 1 && actual[0] != nil {
+		cut.initializerRead, cut.initializerUseStatement = q.memberInitializerReadStatement(actual[0], use)
+	}
 	return cut
+}
+
+// memberInitializerReadStatement locates a direct, unconditional use of the
+// original initializer's binding. An ESM import reads the same lexical cell,
+// including in a cycle. Until the const initializer completes, this Get
+// throws, so later statements in the callable cannot reach a writer. Earlier
+// calls and writers reached in other callables keep their own ordering.
+func (q *sourceValueQuery) memberInitializerReadStatement(get *sourceGetInputs, read *ast.Node) (call, statement *ast.Node) {
+	init := q.initializing
+	native := get.receiver.native
+	member := q.protectedMember
+	if read == nil || init == nil || get.operation != read || native == nil || native.kind != sourceNativeObjectConstructor ||
+		!ast.IsCallExpression(init) || ast.IsOptionalChain(init) || member == nil || !ast.IsPropertyAccessExpression(member) ||
+		init.Expression() != member || member.Name().Text() != "freeze" || native.acquired != member.Expression() {
+		return nil, nil
+	}
+	binding := init.Parent
+	if !runtimeModuleEvaluation(binding) || !ast.IsVariableDeclaration(binding) || binding.Initializer() != init ||
+		!ast.IsIdentifier(binding.Name()) || binding.Parent.Flags&ast.NodeFlagsConst == 0 {
+		return nil, nil
+	}
+	call = read
+	if ast.IsPropertyAccessExpression(read) {
+		call = read.Parent
+	}
+	if call == nil || !ast.IsCallExpression(call) || ast.IsOptionalChain(call) || !ast.IsPropertyAccessExpression(call.Expression()) ||
+		(read != call && read != call.Expression()) || !ast.IsIdentifier(call.Expression().Expression()) {
+		return nil, nil
+	}
+	decl := call.Parent
+	if !ast.IsVariableDeclaration(decl) || decl.Initializer() != call || !ast.IsIdentifier(decl.Name()) {
+		return nil, nil
+	}
+	list := decl.Parent
+	statement = list.Parent
+	if !ast.IsVariableStatement(statement) || statement.Parent == nil || !ast.IsBlock(statement.Parent) ||
+		statement.Parent.Parent == nil || !envelopeSynchronousFunction(statement.Parent.Parent) ||
+		statement.Parent.Parent.Body() != statement.Parent {
+		return nil, nil
+	}
+	receiver := call.Expression().Expression()
+	checker := q.owner.checker
+	symbol := checker.GetSymbolAtLocation(receiver)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 || len(symbol.Declarations) != 1 || !ast.IsImportSpecifier(symbol.Declarations[0]) {
+		return nil, nil
+	}
+	selected := checker.GetAliasedSymbol(symbol)
+	if selected == nil || selected.ValueDeclaration != binding {
+		return nil, nil
+	}
+	// A path remapped to different executable source cannot lend its
+	// checker declaration's initialization order. Direct named imports
+	// carry the selected runtime edge without assuming re-export order.
+	edge := symbol.Declarations[0].Parent.Parent.Parent
+	source, available := q.operationDependency(edge, &accessorCandidates{})
+	if !available || source != ast.GetSourceFileOfNode(binding) {
+		return nil, nil
+	}
+	return call, statement
 }
 
 // evaluationScope supplies detached writable maps only when the original
@@ -165,7 +230,9 @@ func (q *sourceValueQuery) memberWriterInputs(left *ast.Node, bindings sourceVal
 	var alternatives []sourceMemberWriterInput
 	var collect func(*ast.Node, sourceValueBindings)
 	collect = func(call *ast.Node, bindings sourceValueBindings) {
-		if q.stagedMapInvocationFollows(call) || q.executable.coreOpaqueAllocation(call) {
+		if q.stagedMapInvocationFollows(call) || q.executable.coreOpaqueAllocation(call) ||
+			cut != nil && cut.initializerRead != nil && (call == cut.initializerRead ||
+				call.Pos() >= cut.initializerUseStatement.End() && enclosingCallableNode(call) == cut.initializerUseStatement.Parent.Parent) {
 			return
 		}
 		trace := progressWriterBegin(q, call, writer)

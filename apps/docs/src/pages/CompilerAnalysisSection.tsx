@@ -127,7 +127,9 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				method, calling that result also carries the method's own environment requirements. Reading
 				the getter alone does not invoke the returned method. Portable built-in methods keep their
 				declaration ownership through optional calls, and their callbacks retain their own
-				environment requirements. In <code>makeValues().every(check)</code>, the compiler accounts
+				environment requirements. Calls that require an imported value run after its initializer.
+				An imported module can run earlier code before the value is initialized, including in
+				an import cycle. In <code>makeValues().every(check)</code>, the compiler accounts
 				for the work in <code>makeValues</code> and in <code>check</code> when the helper returns
 				a fresh array directly. For example, <code>Object.entries(input).map(pair =&gt; pair)</code>
 				runs any getters it reads while enumerating <code>input</code>, so a getter that reads
