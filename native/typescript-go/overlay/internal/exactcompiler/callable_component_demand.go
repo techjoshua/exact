@@ -18,8 +18,6 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 	for i, f := range facts {
 		modules[f.sourceFile] = append(modules[f.sourceFile], i)
 	}
-	renderSources := make(map[*ast.SourceFile]bool)
-	renderBodies := make(map[*ast.Node][]*ast.Node)
 	var pending []int
 	add := func(i int) {
 		if !demand[i] {
@@ -131,16 +129,12 @@ func componentCallableDemand(collection *projectCallableCollection, requested ..
 			continue
 		}
 		_, componentReturn := owner.values.components[f.node]
-		if componentReturn && !renderSources[f.sourceFile] {
-			renderSources[f.sourceFile] = true
-			for _, render := range projectComponentRenders(owner.project, f.sourceFile) {
-				if !render.micro && render.callable != render.component.node {
-					renderBodies[render.component.node] = append(renderBodies[render.component.node], render.callable)
+		if componentReturn {
+			for _, render := range projectSetupRenders(owner.project, f.sourceFile, f.node) {
+				if render.callable != f.node {
+					demandReference(render.callable, accessorInvoke)
 				}
 			}
-		}
-		for _, render := range renderBodies[f.node] {
-			demandReference(render, accessorInvoke)
 		}
 		summary := owner.values.summary(f.node)
 		possibleEvent := owner.values.index(f.sourceFile).possibleEventConstructor

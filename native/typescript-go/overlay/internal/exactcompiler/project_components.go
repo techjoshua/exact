@@ -1054,18 +1054,54 @@ func projectComponentCandidates(project *projectState, sourceFile *ast.SourceFil
 	return candidates
 }
 
-// projectComponentRenders shares the source-local render definitions with body
-// selection, diagnostics, placement and emission for the same source generation.
-func projectComponentRenders(project *projectState, source *ast.SourceFile) []componentRender {
-	if rows, found := project.componentRenders[source]; found {
-		return rows
+type sourceComponentRenders struct {
+	rows    []componentRender
+	bySetup map[*ast.Node][2]int
+}
+
+// projectComponentRenderSource keeps the resolved rows and each setup's span
+// in one source-generation cache. Micro rows are appended outside those spans.
+func projectComponentRenderSource(project *projectState, source *ast.SourceFile) sourceComponentRenders {
+	if renders, found := project.componentRenders[source]; found {
+		return renders
 	}
 	if project.componentRenders == nil {
-		project.componentRenders = make(map[*ast.SourceFile][]componentRender)
+		project.componentRenders = make(map[*ast.SourceFile]sourceComponentRenders)
 	}
 	rows := resolveComponentRenders(source)
-	project.componentRenders[source] = rows
-	return rows
+	renders := sourceComponentRenders{rows: rows}
+	project.componentRenders[source] = renders
+	return renders
+}
+
+func projectComponentRenders(project *projectState, source *ast.SourceFile) []componentRender {
+	return projectComponentRenderSource(project, source).rows
+}
+
+func projectSetupRenders(project *projectState, source *ast.SourceFile, setup *ast.Node) []componentRender {
+	renders := projectComponentRenderSource(project, source)
+	// Some consumers need only the ordered render rows. Build the setup
+	// spans on the first setup lookup and share them with body demand.
+	if renders.bySetup == nil && len(renders.rows) != 0 && !renders.rows[0].micro {
+		rows := renders.rows
+		var bySetup map[*ast.Node][2]int
+		for start := 0; start < len(rows) && !rows[start].micro; {
+			setup := rows[start].component.node
+			end := start + 1
+			for end < len(rows) && !rows[end].micro && rows[end].component.node == setup {
+				end++
+			}
+			if bySetup == nil {
+				bySetup = make(map[*ast.Node][2]int)
+			}
+			bySetup[setup] = [2]int{start, end}
+			start = end
+		}
+		renders.bySetup = bySetup
+		project.componentRenders[source] = renders
+	}
+	bounds := renders.bySetup[setup]
+	return renders.rows[bounds[0]:bounds[1]]
 }
 
 func projectComponentNodeIDs(project *projectState, sourceFile *ast.SourceFile) map[*ast.Node]string {

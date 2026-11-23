@@ -373,7 +373,8 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 		}
 		return nil, possible
 	}
-	if !query.sourceReflectiveMemberCandidate(origin, projection, name, node, mode, result, actualGet, cut) {
+	eligible, descriptorCall := query.sourceReflectiveMemberCandidate(origin, projection, name, node, mode, result, actualGet, cut)
+	if !eligible {
 		return nil, false
 	}
 	setupPrototypeWriter := query.freshDescriptorSetupPrototypeWriter(node, actualGet)
@@ -402,7 +403,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	}
 	var values []sourceValue
 	possible := false
-	if query.componentRenderDescriptorWriter(node, origin, actualGet, cut, mode, bindings) {
+	if descriptorCall && query.componentRenderDescriptorWriter(node, origin, actualGet, cut, mode, bindings) {
 		// The setup/render relation supplies only a possible getter edge. Ordinary
 		// rows below remain responsible for values, opacity and disjointness.
 		part := accessorCandidates{}
@@ -471,7 +472,7 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 // installation on its component-local allocation. Framework selection supplies
 // the render identity even when no authored Call invokes the component.
 func (q *sourceValueQuery) componentRenderDescriptorWriter(writer, origin *ast.Node, get *sourceGetInputs, cut *sourceMemberWriterReadCut, mode accessorTraversal, bindings sourceValueBindings) bool {
-	if mode != accessorRead && mode != accessorAcquire || get == nil || get.operation == nil || cut == nil || cut.operation != get.operation || cut.use != get.operation || q.executable == nil || q.executable.project == nil || !q.descriptorWriterCall(writer.AsCallExpression()) {
+	if mode != accessorRead && mode != accessorAcquire || get == nil || get.operation == nil || cut == nil || cut.operation != get.operation || cut.use != get.operation || q.executable == nil || q.executable.project == nil {
 		return false
 	}
 	setup := enclosingCallableNode(writer)
@@ -482,12 +483,21 @@ func (q *sourceValueQuery) componentRenderDescriptorWriter(writer, origin *ast.N
 	if reader == nil || reader != q.effectOwner || reader == setup {
 		return false
 	}
+	// A direct single value property cannot supply this synthetic getter edge.
+	// The original descriptor conversion and ordinary writer rows still run.
+	descriptor := restrictedInvocationArguments(writer.AsCallExpression())[2]
+	if ast.IsObjectLiteralExpression(descriptor) {
+		fields := descriptor.AsObjectLiteralExpression().Properties.Nodes
+		if len(fields) == 1 && ast.IsPropertyAssignment(fields[0]) && callableNameText(fields[0].Name()) == "value" {
+			return false
+		}
+	}
 	// An immediate Call already carries the helper's effects into its caller.
 	// Keep the getter edge on the original Get inside that helper.
-	renders := projectComponentRenders(q.executable.project, ast.GetSourceFileOfNode(setup))
+	renders := projectSetupRenders(q.executable.project, ast.GetSourceFileOfNode(setup), setup)
 	for render := reader; render != nil && render != setup; {
 		for _, selected := range renders {
-			if !selected.micro && selected.component.node == setup && selected.callable == render &&
+			if selected.callable == render &&
 				writer.End() <= selected.returned.Pos() && !q.componentSetupReturnExcludesWriter(writer, selected.returned, bindings) {
 				possible, _ := q.reachable(writer, bindings)
 				return possible
@@ -559,33 +569,34 @@ func (q *sourceValueQuery) returnedReceiverReflectiveWriter(operation, origin *a
 }
 
 // sourceReflectiveMemberCandidate is shared by early source publication and
-// the original recovering consumer. It performs no binding or value recovery.
-func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, result *accessorCandidates, actualGet *sourceGetInputs, cut *sourceMemberWriterReadCut) bool {
+// the original recovering consumer. An admitted native mutation may be a
+// non-descriptor writer. This check performs no binding or value recovery.
+func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, result *accessorCandidates, actualGet *sourceGetInputs, cut *sourceMemberWriterReadCut) (eligible, descriptorCall bool) {
 	// These exclusions do not depend on writer inputs. Apply the existing
 	// operation gate before acquiring those inputs can reopen the native member
 	// currently being selected. The normal consumer retains its own same gate.
 	if cut.followsCalleeGet(query, actualGet, node, result) {
-		return false
+		return false, false
 	}
 	call := node.AsCallExpression()
-	descriptorCall := query.descriptorWriterCall(call)
+	descriptorCall = query.descriptorWriterCall(call)
 	native := actualGet != nil && actualGet.receiver.native != nil
 	// The nominal write to a fresh target cannot change this descriptor.
 	// Its argument and field readers still own preceding effects.
 	if descriptorCall && actualGet != nil && actualGet.operation == node && runtimeModuleEvaluation(query.effectOwner) && query.liveStagedFieldMemberSource(actualGet) {
 		if disjointDefinitionLiteralTarget(node, origin) || query.stagedFieldGet.freshCreateTarget != nil && origin == actualGet.receiver.node {
-			return false
+			return false, false
 		}
 	}
 	if query.active[node] || !descriptorCall && (!native || !query.owner.reflectiveMutation(call.Expression)) {
-		return false
+		return false, false
 	}
 	// A definition on a fresh literal changes that object alone. The
 	// original descriptor Call still owns its Get and argument effects.
 	if native && (actualGet.receiver.native.kind == sourceNativeGlobalObject || actualGet.receiver.native.kind == sourceNativeObjectConstructor) && call.Arguments != nil && len(call.Arguments.Nodes) >= 2 && query.ordinaryLiteralInput(call.Arguments.Nodes[0]) {
 		receiver, method := restrictedInvocationMember(call.Expression, query.owner.checker)
 		if descriptorCall || method == "defineProperties" && ast.IsIdentifier(receiver) && receiver.Text() == "Object" && standardLibraryCallRoot(call.Expression, query.owner.checker) {
-			return false
+			return false, false
 		}
 	}
 	if descriptorCall {
@@ -598,17 +609,17 @@ func (query *sourceValueQuery) sourceReflectiveMemberCandidate(origin *ast.Node,
 		if mode == accessorAcquire && name == "" && len(projection) == 1 && (actualGet == nil || actualGet.symbol == nil) && ast.IsIdentifier(call.Arguments.Nodes[1]) {
 			index, indexed := query.owner.indexes[ast.GetSourceFileOfNode(node)]
 			if indexed && !index.incomplete && !index.normalDynamicScope && query.symbolKeyDisjointFromName(call.Arguments.Nodes[1], key) {
-				return false
+				return false, false
 			}
 		}
 		selected := sourceLiteralMemberName(unwrapSourceCallableReference(call.Arguments.Nodes[1]))
 		if selected != "" && (!sourceGetKeyMayMatch(selected, key, query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode)) || actualGet != nil && actualGet.symbol != nil) {
 			// A literal key cannot depend on writer inputs. Exclude it before
 			// acquiring those inputs reenters this unrelated member lookup.
-			return false
+			return false, false
 		}
 	}
-	return true
+	return true, descriptorCall
 }
 
 // reflectiveTargetValues demands only a source return relationship. The target

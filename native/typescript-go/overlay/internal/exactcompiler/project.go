@@ -38,7 +38,7 @@ type projectState struct {
 	callableCache       *projectCallableCache
 	componentCache      map[*ast.SourceFile][]Component
 	componentFacts      map[*ast.SourceFile][]Component
-	componentRenders    map[*ast.SourceFile][]componentRender
+	componentRenders    map[*ast.SourceFile]sourceComponentRenders
 	componentCandidates map[*ast.SourceFile][]componentCandidate
 	componentNodeIDs    map[*ast.SourceFile]map[*ast.Node]string
 	componentLinks      map[*ast.Node]projectComponentLinkFacts

@@ -383,7 +383,7 @@ func (q *sourceValueQuery) prepareStagedMemberSources(get *sourceGetInputs, cut 
 				b.seen[call] = true
 				continue
 			}
-			if q.sourceReflectiveMemberCandidate(origin, projection, name, call, mode, result, get, cut) {
+			if eligible, _ := q.sourceReflectiveMemberCandidate(origin, projection, name, call, mode, result, get, cut); eligible {
 				q.observeStagedMemberCandidate(get, cut, origin, call, true)
 			}
 			if !q.liveStagedMemberSource(b, get, cut) {
