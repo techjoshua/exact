@@ -305,8 +305,7 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 		}
 		if ast.IsPropertyAccessExpression(child) || ast.IsElementAccessExpression(child) || ast.IsCallExpression(child) || ast.IsNewExpression(child) || ast.IsTaggedTemplateExpression(child) || ast.IsSpreadAssignment(child) || ast.IsVariableDeclaration(child) || ast.IsAssignmentExpression(child, false) || ast.IsDeleteExpression(child) || ast.IsPrefixUnaryExpression(child) || ast.IsPostfixUnaryExpression(child) {
 			summary.nodes = append(summary.nodes, child)
-			demand, dependent := describeNormalOperand(child)
-			executable = !dependent || !demand.pattern
+			executable = !ast.IsBinaryExpression(child) || !normalObjectAssignmentTarget(child.AsBinaryExpression().Left)
 		}
 		appendDemand(sourceNormalDemand{node: child, visitOnly: !executable})
 		return true

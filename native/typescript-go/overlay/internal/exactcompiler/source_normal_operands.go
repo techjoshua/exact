@@ -22,6 +22,11 @@ type sourceNormalBinding struct {
 	observed    sourceResultObservation
 }
 
+// normalObjectAssignmentTarget identifies the object pattern handled by the normal operand.
+func normalObjectAssignmentTarget(left *ast.Node) bool {
+	return ast.IsObjectLiteralExpression(left) && nativeAssignmentTargetRole(left) == nativeAssignmentPattern
+}
+
 func describeNormalOperand(node *ast.Node) (sourceNormalOperand, bool) {
 	demand := sourceNormalOperand{node: node}
 	if ast.IsAwaitExpression(node) {
@@ -31,7 +36,7 @@ func describeNormalOperand(node *ast.Node) (sourceNormalOperand, bool) {
 	if ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
 		binary := node.AsBinaryExpression()
 		demand.value = binary.Right
-		if ast.IsObjectLiteralExpression(binary.Left) && nativeAssignmentTargetRole(binary.Left) == nativeAssignmentPattern {
+		if normalObjectAssignmentTarget(binary.Left) {
 			demand.pattern = true
 			return demand, true
 		}
