@@ -61,6 +61,9 @@ func fieldFallbackFulfilled(caller, target *callableFacts, edge CallEdge, source
 // deduplication. Forwarded demands can never be discharged transitively.
 func fieldSourceIdentity(source EnvironmentEffectSource) string {
 	relative := relativeInvokedSourceIdentity(source) + relativeCoercionIdentity(source) + relativeFieldMutationIdentity(source.relativeMutation)
+	if source.orderedSetupDescriptor {
+		relative += ":ordered-descriptor"
+	}
 	if source.fieldOrigin == nil {
 		return relative + callSourceIdentity(source) + descriptorSourceIdentity(source)
 	}
@@ -112,4 +115,5 @@ func clearEnvironmentSourceProvenance(source *EnvironmentEffectSource) {
 	source.componentReactiveField = false
 	source.descriptorOrigin = nil
 	source.descriptorForwarded = false
+	source.orderedSetupDescriptor = false
 }

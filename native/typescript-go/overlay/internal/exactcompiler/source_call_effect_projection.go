@@ -6,8 +6,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // target identity, value/DATA, BODY, currentness or APPLIED authority. Canonical
 // callable/state/context/dependency/ownership summaries remain unchanged.
 type callableCallEffects struct {
-	Effect        string
-	EffectSources []EnvironmentEffectSource
+	Effect                 string
+	EffectSources          []EnvironmentEffectSource
+	orderedSetupDescriptor bool
 }
 
 // appendCallableEdgeEffectSources is the canonical target-to-caller transfer.
@@ -34,6 +35,7 @@ func appendProjectedCallableEdgeEffects(into, sources []EnvironmentEffectSource,
 			continue
 		}
 		transferred := source
+		transferred.orderedSetupDescriptor = edge.orderedSetupDescriptor
 		transferred.componentReactiveField = false
 		operation := caller.callExpressions[edge.ID]
 		if operation == nil {
@@ -78,6 +80,7 @@ func projectedCallableEffectsForCall(analysis callableAnalysis, source *ast.Sour
 	var effects []EnvironmentEffectSource
 	current := callableSourceProjectionCurrent(analysis, source)
 	resolved, unresolved := false, false
+	orderedSetupDescriptor := false
 	for i := range analysis.facts {
 		caller := &analysis.facts[i]
 		if caller.sourceFile != source {
@@ -125,6 +128,8 @@ func projectedCallableEffectsForCall(analysis callableAnalysis, source *ast.Sour
 			}
 			target := &analysis.facts[targetIndex]
 			if current {
+				orderedSetupDescriptor = orderedSetupDescriptor || direct &&
+					orderedSetupDescriptorCall(operation, caller.node, target, nil, analysis.owner)
 				effects = appendCallableEdgeEffectSources(effects, caller, target, edge, analysis.owner)
 			} else {
 				effects = append(effects, target.summary.EffectSources...)
@@ -142,5 +147,5 @@ func projectedCallableEffectsForCall(analysis callableAnalysis, source *ast.Sour
 		effects = append(effects, gap)
 	}
 	effects = uniqueEnvironmentSources(effects)
-	return callableCallEffects{Effect: environmentEffectFor(effects), EffectSources: effects}, true
+	return callableCallEffects{Effect: environmentEffectFor(effects), EffectSources: effects, orderedSetupDescriptor: orderedSetupDescriptor}, true
 }

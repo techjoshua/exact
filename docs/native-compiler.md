@@ -4052,6 +4052,18 @@ The later component can select a stored callable from the descriptor's own
 `value` field after an unrelated eager getter with no mutation syntax. The
 descriptor conversion still owns that getter's effects.
 
+For a discarded standard `Object.defineProperty({}, key, descriptor)` with
+a literal key and a fresh descriptor containing ordinary named data fields,
+component placement retains possible inherited conversion getters. A synchronous
+local helper records those effects in its own summary, and a staged call carries
+them into setup. A reachable setup write to the shared Object prototype can affect a later instance
+in the same realm. Setup order and mutually exclusive prop branches within one
+instance do not rule out that effect. An own `enumerable` data field shadows the first
+lookup after descriptor initialization. Later reads can still reach inherited
+getters when an earlier getter deletes an own field. The original operation
+evaluates the initializers and invokes getters with the descriptor as their
+receiver.
+
 At a selected standard `Object.defineProperties` call with a fresh literal
 target and a single own descriptor-map entry, the original operation retains
 the map getter and the getter on a recognized descriptor field. The same

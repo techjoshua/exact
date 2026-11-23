@@ -103,14 +103,20 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		if owner == nil || owner.IsDeclarationFile {
 			continue
 		}
+		operation := contribution.operation
+		orderedDescriptor := contribution.orderedSetupDescriptor && operation == node && enclosingCallableNode(operation) == fact.node
+		if orderedDescriptor {
+			fact.orderedSetupDescriptor = true
+		}
 		key := contribution
 		key.receivers = nil
+		key.orderedSetupDescriptor = false
 		bindings := contribution.receiverBindings(fact.node)
 		if index, exists := seen[key]; exists {
 			fact.summary.Calls[index].ReceiverBindings = joinSourceReceiverBindings(fact.summary.Calls[index].ReceiverBindings, bindings)
+			fact.summary.Calls[index].orderedSetupDescriptor = fact.summary.Calls[index].orderedSetupDescriptor || orderedDescriptor
 			continue
 		}
-		operation := contribution.operation
 		if operation == nil {
 			operation = node
 		}
@@ -120,6 +126,7 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 		}
 		targetID := fmt.Sprintf("callable:%s:%d", owner.FileName(), declaration.Pos())
 		edge := CallEdge{ID: sourceAccessorEffectEdgeID(fact.summary.ID, operationSource.FileName(), operation.Pos(), targetID, contribution.use), Name: strings.TrimSpace(sourceText(operationSource, operation)), Resolved: true, TargetID: targetID}
+		edge.orderedSetupDescriptor = orderedDescriptor
 		if contribution.arrayMapCall != nil {
 			edge.arrayMapCall = contribution.arrayMapCall
 			edge.arrayMapBody = declaration
@@ -140,6 +147,7 @@ func appendAccessorTargets(fact *callableFacts, node *ast.Node, candidates acces
 			// receiver alternatives and retain the actual existing edge index.
 			seen[key] = prior
 			fact.summary.Calls[prior].ReceiverBindings = joinSourceReceiverBindings(fact.summary.Calls[prior].ReceiverBindings, bindings)
+			fact.summary.Calls[prior].orderedSetupDescriptor = fact.summary.Calls[prior].orderedSetupDescriptor || orderedDescriptor
 			if edge.arrayMapCall != nil {
 				fact.summary.Calls[prior].arrayMapCall = edge.arrayMapCall
 				fact.summary.Calls[prior].arrayMapBody = edge.arrayMapBody
@@ -257,18 +265,23 @@ func appendOpaqueAccessorEffect(fact *callableFacts, candidates accessorCandidat
 	fact.thenReferences = append(fact.thenReferences, candidates.thenReferences...)
 	fact.thenIncomplete = fact.thenIncomplete || candidates.thenIncomplete
 	if candidates.opaque {
-		description := "accessor provenance incomplete"
-		if candidates.cause != nil {
-			if source := ast.GetSourceFileOfNode(candidates.cause); source != nil {
-				description = fmt.Sprintf("%s at %s:%d", description, source.FileName(), candidates.cause.Pos())
-			}
-		}
-		effect := environmentSource("unknown", description, fact.summary.Name)
-		effect.Opaque = true
-		effect.provenanceIncomplete = true
-		effect = sourceDefaultPhaseEffect(effect, candidates.cause, fact.node)
+		effect := opaqueAccessorEnvironmentEffect(fact.summary.Name, fact.node, candidates.cause)
 		fact.summary.DirectEffectSources = append(fact.summary.DirectEffectSources, effect)
 	}
+}
+
+// opaqueAccessorEnvironmentEffect retains uncertainty at its original source
+// phase, including the declaration's default-input boundary when applicable.
+func opaqueAccessorEnvironmentEffect(name string, owner, cause *ast.Node) EnvironmentEffectSource {
+	description := "accessor provenance incomplete"
+	if cause != nil {
+		if source := ast.GetSourceFileOfNode(cause); source != nil {
+			description = fmt.Sprintf("%s at %s:%d", description, source.FileName(), cause.Pos())
+		}
+	}
+	effect := environmentSource("unknown", description, name)
+	effect.Opaque, effect.provenanceIncomplete = true, true
+	return sourceDefaultPhaseEffect(effect, cause, owner)
 }
 
 // accessorReceiver resolves source spelling while keeping dynamic keys conservative.
@@ -363,6 +376,15 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 	if !query.sourceReflectiveMemberCandidate(origin, projection, name, node, mode, result, actualGet, cut) {
 		return nil, false
 	}
+	setupPrototypeWriter := query.freshDescriptorSetupPrototypeWriter(node, actualGet)
+	if setupPrototypeWriter {
+		// A shared prototype write may survive an earlier setup, even if the
+		// current setup takes a different branch. Exclude independently dead
+		// code without borrowing the reader's invocation-specific bindings.
+		if possible, _ := query.reachable(node, nil); !possible {
+			return nil, false
+		}
+	}
 	if query.moduleWriterExcluded(node, actualGet, cut) {
 		return nil, false
 	}
@@ -392,7 +414,14 @@ func (query *sourceValueQuery) reflectiveMemberValuesAtGet(origin *ast.Node, pro
 			}
 		}
 	}
-	rows := query.memberWriterInputs(node, bindings, result, cut)
+	var rows []sourceMemberWriterInput
+	if setupPrototypeWriter {
+		// A previous setup may have installed the getter. Keep its original
+		// lexical references without substituting this reader's activation.
+		rows = []sourceMemberWriterInput{{setupPrototypeWriter: true}}
+	} else {
+		rows = query.memberWriterInputs(node, bindings, result, cut)
+	}
 	if input, selected := query.returnedReceiverReflectiveWriter(node, origin, mode, bindings, result); selected {
 		rows = append(rows, input)
 	}
@@ -662,7 +691,7 @@ func (query *sourceValueQuery) reflectiveTargetValues(values []sourceValue, bind
 
 func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, projection []string, name string, node *ast.Node, mode accessorTraversal, bindings sourceValueBindings, result *accessorCandidates, actualGet *sourceGetInputs, input *sourceMemberWriterInput, receiverScope *acquiredCallableScope) (*ast.Node, bool) {
 	native := actualGet != nil && actualGet.receiver.native != nil
-	if !query.charge(result, node) || query.active[node] || !native && query.afterRead(node) {
+	if !query.charge(result, node) || query.active[node] || !native && query.afterRead(node) && (input == nil || !input.setupPrototypeWriter) {
 		return nil, false
 	}
 	call := node.AsCallExpression()
@@ -730,18 +759,23 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 	if !possible {
 		return nil, false
 	}
-	matching := false
+	setupPrototype := input != nil && input.setupPrototypeWriter
+	matching := setupPrototype
 	temporary := accessorCandidates{}
 	prototype := false
 	var values []sourceValue
-	if input != nil && input.copyTarget != nil {
+	switch {
+	case setupPrototype:
+		// The indexed row already authenticated the standard Object prototype.
+		// Target acquisition belongs to the writer's original operation.
+	case input != nil && input.copyTarget != nil:
 		values = []sourceValue{*input.copyTarget}
-	} else {
+	default:
 		values = query.occurrenceOrigins(args[0], node, origin, bindings, &temporary)
 	}
 	var conditionalTargets map[int]sourceStagedReflectiveTargetTransfer
 	pendingTarget := false
-	if input != nil && input.copyTarget == nil {
+	if input != nil && input.copyTarget == nil && !setupPrototype {
 		keyExcluded := false
 		values, conditionalTargets, pendingTarget, keyExcluded = query.reflectiveTargetValues(values, bindings, &temporary, node)
 		if keyExcluded {
@@ -781,6 +815,8 @@ func (query *sourceValueQuery) reflectiveMemberValueInScope(origin *ast.Node, pr
 		}
 		if native {
 			same = query.nativeReceiverMatches(value, actualGet.descriptorReceiver())
+		} else if actualGet != nil && actualGet.freshDescriptorEffects {
+			same = same || freshDescriptorObjectPrototype(value, query.owner.checker)
 		}
 		matching = matching || same
 		prototype = prototype || sourceFunctionPrototype(value, query.owner.checker) && query.sourceCallableImplementation(origin, result) || query.arrayIndexMayAtGet(actualGet, origin, projection, name, mode) && sourceArrayPrototype(value, query.owner.checker)

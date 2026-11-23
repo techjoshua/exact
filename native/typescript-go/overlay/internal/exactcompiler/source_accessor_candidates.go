@@ -21,6 +21,7 @@ type sourceCallableEffect struct {
 	arrayMapCall *ast.Node // Original acquired Array.map MAY callback parent; no execution rights.
 	use          *ast.Node // Original contextual EFFECT parent only; operation identity remains separate.
 
+	orderedSetupDescriptor bool // Fresh descriptor conversion at its original synchronous Call.
 	operation, declaration *ast.Node
 	receivers              *sourceEffectReceivers
 }

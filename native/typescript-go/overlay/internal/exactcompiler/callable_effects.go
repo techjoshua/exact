@@ -79,6 +79,7 @@ type callableFacts struct {
 	callExpressions   map[string]*ast.Node
 	contextReferences map[string]*ast.Node
 
+	orderedSetupDescriptor bool // An original descriptor conversion retains an authored Get.
 	opaqueModuleInvocation bool // Original module Call lost runtime selection or its execution effects.
 }
 

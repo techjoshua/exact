@@ -584,10 +584,11 @@ func functionTaskActivation(
 		return nil, nil, false
 	}
 	var work *ast.Node
+	var target *callableFacts
 	for index := range callables.facts {
 		fact := &callables.facts[index]
 		if fact.summary.ID == summary.ID {
-			work = fact.node
+			work, target = fact.node, fact
 			break
 		}
 	}
@@ -603,7 +604,9 @@ func functionTaskActivation(
 		sourceFile,
 		taskPolicyBindings,
 	)
-	if !nested && !explicit && (setupCallConsumesSynchronousResult(node) || immediateContextProviderCall(call, work, component.node, typeChecker)) {
+	if !nested && !explicit && (setupCallConsumesSynchronousResult(node) ||
+		immediateContextProviderCall(call, work, component.node, typeChecker) ||
+		orderedSetupDescriptorCall(node, component.node, target, symbol, callables.owner) && !looksLikeTaskPolicy(work, sourceFile)) {
 		return nil, nil, false
 	}
 	classified := explicit || looksLikeTaskPolicy(work, sourceFile) ||

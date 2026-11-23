@@ -121,6 +121,8 @@ func (q *sourceValueQuery) memberWriterRead(get *sourceGetInputs, cut *sourceMem
 // sourceMemberWriterInput retains one original Call's symbolic source bindings.
 // It is query-local projection data, never a normal frame or completed Call.
 type sourceMemberWriterInput struct {
+	setupPrototypeWriter bool // The shared prototype may have been written in an earlier setup.
+
 	renderGetEffects bool                            // Possible setup descriptor contributes only getter dependencies of the selected render.
 	copyTarget       *sourceValue                    // Exact selected copy alternative for the original writer.
 	componentSource  *sourceComponentAssignmentInput // Ephemeral same-definition MAY relation, never an invocation/normal input.

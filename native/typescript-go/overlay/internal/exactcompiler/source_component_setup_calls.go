@@ -176,7 +176,46 @@ func (prepared preparedSetupCalls) project(effects callableCallEffects, componen
 		}
 	}
 	if retained != nil {
-		return callableCallEffects{Effect: environmentEffectFor(retained), EffectSources: retained}
+		effects.Effect, effects.EffectSources = environmentEffectFor(retained), retained
+		return effects
 	}
 	return effects
+}
+
+// orderedSetupDescriptorCall relates a known descriptor Get to the direct,
+// synchronous setup helper that owns it. The selected local definition and
+// existing write index preserve lexical identity. The decision grants no
+// invocation or binder authority.
+func orderedSetupDescriptorCall(call *ast.Node, component *ast.Node, target *callableFacts, symbol *ast.Symbol, owner *executableBodyOwner) bool {
+	if !target.orderedSetupDescriptor || owner == nil || owner.values == nil ||
+		call.AsCallExpression().QuestionDotToken != nil || !ast.IsIdentifier(call.Expression()) ||
+		!ast.IsFunctionDeclaration(target.node) || enclosingCallableNode(target.node) != component ||
+		enclosingCallableNode(call) != component || !envelopeSynchronousFunction(target.node) {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(call)
+	if !callableSourceProjectionCurrent(callableAnalysis{owner: owner}, source) {
+		return false
+	}
+	if symbol == nil {
+		symbol = owner.checker.GetSymbolAtLocation(call.Expression())
+	}
+	if symbol == nil || symbol.ValueDeclaration != target.node || len(symbol.Declarations) != 1 {
+		return false
+	}
+	// Only eligibility introduced by this conversion keeps the call in setup.
+	// Independent sources continue through the existing task classification.
+	if len(componentStateEffects(target.summary.StateWrites)) != 0 || len(target.summary.Contexts) != 0 {
+		return false
+	}
+	for _, effect := range target.summary.EffectSources {
+		if !effect.orderedSetupDescriptor {
+			switch effect.Environment {
+			case "browser", "server", "unknown":
+				return false
+			}
+		}
+	}
+	index := owner.values.index(source)
+	return !index.incomplete && !index.normalDynamicScope && len(index.bindings[ast.GetSymbolId(symbol)]) == 0
 }

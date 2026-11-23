@@ -11,6 +11,14 @@ export function ServerRenderingLesson() {
 				stays in place while hydration adopts the DOM. Live client inputs drive subsequent updates.
 			</p>
 			<p>
+				A direct call from setup to a synchronous local helper can affect where the component
+				runs. For example, defining a property on a fresh object can invoke an inherited getter
+				on the descriptor. A getter installed on a shared prototype can still run during a later
+				instance’s setup. When that getter needs browser APIs during synchronous setup, the
+				server sends a client boundary for the component. A getter that runs inside a client
+				task runs as part of that task.
+			</p>
+			<p>
 				When a blocking server task updates component state, the first HTML includes those changes
 				after the task succeeds. Later changes still use the same task. Selecting another product loads its data and updates
 				the existing component. Independent tasks can start while earlier tasks are waiting, subject

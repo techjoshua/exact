@@ -35,7 +35,7 @@ func sameOperationInvocation(a, b sourceStagedOperationInvocation) bool {
 }
 
 func sameOperationEffect(a, b EnvironmentEffectSource) bool {
-	return a.Environment == b.Environment && a.Description == b.Description && slices.Equal(a.Path, b.Path) && a.Opaque == b.Opaque && a.provenanceIncomplete == b.provenanceIncomplete && a.relativeInput == b.relativeInput && sameRelativeFieldMutation(a.relativeMutation, b.relativeMutation) && sameRelativeCoercion(a.relativeCoercion, b.relativeCoercion) && a.callOrigin == b.callOrigin && a.callForwarded == b.callForwarded && a.fieldOrigin == b.fieldOrigin && a.fieldForwarded == b.fieldForwarded && a.componentReactiveField == b.componentReactiveField && a.descriptorOrigin == b.descriptorOrigin && a.descriptorForwarded == b.descriptorForwarded
+	return a.Environment == b.Environment && a.Description == b.Description && slices.Equal(a.Path, b.Path) && a.Opaque == b.Opaque && a.provenanceIncomplete == b.provenanceIncomplete && a.relativeInput == b.relativeInput && sameRelativeFieldMutation(a.relativeMutation, b.relativeMutation) && sameRelativeCoercion(a.relativeCoercion, b.relativeCoercion) && a.callOrigin == b.callOrigin && a.callForwarded == b.callForwarded && a.fieldOrigin == b.fieldOrigin && a.fieldForwarded == b.fieldForwarded && a.componentReactiveField == b.componentReactiveField && a.descriptorOrigin == b.descriptorOrigin && a.descriptorForwarded == b.descriptorForwarded && a.orderedSetupDescriptor == b.orderedSetupDescriptor
 }
 
 func operationPrefix[T any](prefix, all []T, equal func(T, T) bool) bool {

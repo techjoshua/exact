@@ -214,8 +214,8 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 	}
 	mergeAccessorCandidates(&result, prepared.base.candidates())
 	query.publishPendingMemberSelection(node, bindings, prepared)
-	if descriptor := query.discardedFreshDataDescriptor(node, prepared, &result); descriptor != nil {
-		query.retainFreshDescriptorReads(node, descriptor, bindings, &result)
+	if descriptor, ownEnumerable := query.discardedFreshDataDescriptor(node, prepared, &result); descriptor != nil {
+		query.retainFreshDescriptorReads(node, descriptor, ownEnumerable, bindings, &result)
 		complete = true
 		result.invocationOwned, result.replacedInvocation = true, true
 		return result

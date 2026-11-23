@@ -9,55 +9,112 @@ import (
 // fresh target. Its descriptor reads retain authored lookup effects without
 // requiring a normal conversion or mutation record. The eager walk evaluates
 // the original callee and all operands.
-func (q *sourceValueQuery) discardedFreshDataDescriptor(node *ast.Node, prepared sourcePreparedInvocation, result *accessorCandidates) *ast.Node {
+func (q *sourceValueQuery) discardedFreshDataDescriptor(node *ast.Node, prepared sourcePreparedInvocation, result *accessorCandidates) (*ast.Node, bool) {
 	if !q.dependenciesOnly || q.operation != nil || q.sourceEffects.issuer != q ||
-		q.dependencyUse != node || q.reading != node {
-		return nil
+		q.reading != node || q.dependencyUse != node {
+		return nil, false
 	}
 	acquired := prepared.acquired
 	if result.opaque || result.selected || acquired.opaque || acquired.receiverIncomplete ||
 		acquired.valueIncomplete || len(acquired.values) != 1 {
-		return nil
+		return nil, false
 	}
 	native := acquired.values[0].native
 	// The acquired standard alternative supplies the algorithm. Missing
 	// external reference history does not imply a custom implementation.
 	if native == nil || native.kind != sourceNativeObjectDefineProperty {
-		return nil
+		return nil, false
 	}
 	call := node.AsCallExpression()
 	_, method := sourceLiteralMemberReference(call.Expression)
 	args := restrictedInvocationArguments(call)
 	if method != "defineProperty" || call.QuestionDotToken != nil || len(args) != 3 || q.invocationValueConsumed(node, result) {
-		return nil
+		return nil, false
 	}
 	target := unwrapSourceCallableReference(args[0])
 	descriptor := unwrapSourceCallableReference(args[2])
 	if !ast.IsObjectLiteralExpression(target) || len(target.AsObjectLiteralExpression().Properties.Nodes) != 0 ||
 		!sourceMemberKey(args[1]).resolved || !ast.IsObjectLiteralExpression(descriptor) {
-		return nil
+		return nil, false
 	}
+	ownEnumerable := false
 	for _, field := range descriptor.AsObjectLiteralExpression().Properties.Nodes {
 		if !q.charge(result, field) || !ast.IsPropertyAssignment(field) ||
 			ast.IsComputedPropertyName(field.Name()) || callableNameText(field.Name()) == "__proto__" {
-			return nil
+			return nil, false
 		}
+		ownEnumerable = ownEnumerable || callableNameText(field.Name()) == "enumerable"
 	}
-	return descriptor
+	return descriptor, ownEnumerable
 }
 
 // retainFreshDescriptorReads retains the original conversion's possible inherited
 // getters through the usual source member reader. Both objects are ordinary,
 // and only placement consumes this Call, so Has and value output need no frame.
-func (q *sourceValueQuery) retainFreshDescriptorReads(call, descriptor *ast.Node, bindings sourceValueBindings, result *accessorCandidates) {
-	for _, key := range reflectiveDescriptorKeys {
+func (q *sourceValueQuery) retainFreshDescriptorReads(call, descriptor *ast.Node, ownEnumerable bool, bindings sourceValueBindings, result *accessorCandidates) {
+	keys := reflectiveDescriptorKeys[:]
+	if ownEnumerable {
+		// No inherited Get can run before the first conversion field.
+		keys = keys[1:]
+	}
+	for _, key := range keys {
 		if !q.charge(result, call) {
 			return
 		}
 		get := &sourceGetInputs{operation: call, receiver: sourceValue{node: descriptor}, propertyKey: key, freshDescriptorEffects: true}
 		field := q.accessorsAtGet(descriptor, []string{key}, "", accessorRead, bindings, nil, get)
+		if field.opaque {
+			// This uncertainty belongs to conversion, separate from the eager
+			// callee and operand evaluations outside these individual reads.
+			var name string
+			if q.effectOwner != nil && ast.IsFunctionLike(q.effectOwner) {
+				name = callableNameText(q.effectOwner.Name())
+			}
+			effect := opaqueAccessorEnvironmentEffect(name, q.effectOwner, field.cause)
+			field.environmentEffects = append(field.environmentEffects, effect)
+			field.opaque = false
+		}
+		for i := range field.environmentEffects {
+			field.environmentEffects[i].orderedSetupDescriptor = true
+		}
 		q.publishDescriptorMayEffects(field, result)
 	}
+}
+
+// freshDescriptorSetupPrototypeWriter recognizes an indexed writer to the
+// shared prototype in this component definition. A local helper's own Effects
+// summary can retain that writer's getter even when an earlier instance
+// installed it, independently of the current caller cut or branch.
+func (q *sourceValueQuery) freshDescriptorSetupPrototypeWriter(writer *ast.Node, get *sourceGetInputs) bool {
+	if get == nil || !get.freshDescriptorEffects || get.operation != q.dependencyUse {
+		return false
+	}
+	setup := enclosingCallableNode(writer)
+	if _, component := q.owner.components[setup]; !component {
+		return false
+	}
+	reader := enclosingCallableNode(get.operation)
+	if reader != setup && (reader == nil || !ast.IsFunctionDeclaration(reader) ||
+		enclosingCallableNode(reader) != setup || !envelopeSynchronousFunction(reader)) {
+		return false
+	}
+	args := restrictedInvocationArguments(writer.AsCallExpression())
+	if len(args) != 3 || ast.IsSpreadElement(args[0]) {
+		return false
+	}
+	target, key := sourceLiteralMemberReference(args[0])
+	return key == "prototype" && ast.IsIdentifier(target) && target.Text() == "Object" &&
+		standardLibraryCallRoot(target, q.owner.checker)
+}
+
+// The ordinary descriptor literal inherits the standard Object prototype.
+// An acquired prototype alternative can contribute a getter even when other
+// target alternatives or prior writes still leave the field uncertain.
+func freshDescriptorObjectPrototype(value sourceValue, c *checker.Checker) bool {
+	if value.native != nil && value.native.kind == sourceNativeObjectPrototype && len(value.path) == 0 {
+		return true
+	}
+	return sourceFunctionPrototype(value, c) && value.node != nil && ast.IsIdentifier(value.node) && value.node.Text() == "Object"
 }
 
 // definePropertiesCallEffects retains getter dependencies for standard property

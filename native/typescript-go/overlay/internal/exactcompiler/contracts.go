@@ -514,10 +514,12 @@ type EnvironmentEffectSource struct {
 	componentReactiveField bool // Forwarded once to the component that owns the reactive producer.
 	descriptorOrigin       *sourceDescriptorEffectOrigin
 	descriptorForwarded    bool
+	orderedSetupDescriptor bool // Contributed by this callable’s original fresh descriptor conversion.
 }
 
 // CallEdge describes one statically resolved or unresolved callable dependency.
 type CallEdge struct {
+	orderedSetupDescriptor    bool      // Implicit Get of the callable’s original fresh descriptor.
 	componentReactiveProducer bool      // This edge invokes a lexically owned component reactive producer.
 	arrayMapCall              *ast.Node // Original source-native callback EFFECT parent, never invocation authority.
 	arrayMapBody              *ast.Node // Exact acquired callback declaration paired with arrayMapCall and TargetID.

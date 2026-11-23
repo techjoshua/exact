@@ -442,6 +442,7 @@ func (query *sourceValueQuery) consumeGetInputs(body *ast.Node, get *sourceGetIn
 		inputs.properties = query.inputs.properties
 	}
 	result.retainCallableEffect(get.operation, body)
+	result.effects[len(result.effects)-1].orderedSetupDescriptor = get.freshDescriptorEffects
 	consume(inputs)
 }
 

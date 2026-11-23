@@ -312,10 +312,9 @@ func analyzeComponents(
 					}
 					switch target.Effect {
 					case "browser":
-						// An effect-only setup call can be omitted while the server emits
-						// markup and replayed by client activation. A consumed result can
-						// influence setup/render data and therefore remains client-resident.
-						if setupCallConsumesSynchronousResult(node) {
+						// Synchronous setup that supplies a value or an ordered
+						// descriptor conversion remains part of client rendering.
+						if target.orderedSetupDescriptor || setupCallConsumesSynchronousResult(node) {
 							clientEffects = true
 						} else {
 							clientTaskEffects = true

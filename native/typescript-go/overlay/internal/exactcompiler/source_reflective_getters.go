@@ -30,7 +30,7 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 			// Arrows retain lexical this through the shared Get input owner.
 			var operation *ast.Node
 			receiver := sourceValue{}
-			if actualGet != nil && actualGet.originalReflectRead && actualGet.propertyKey == key {
+			if actualGet != nil && (actualGet.originalReflectRead || actualGet.freshDescriptorEffects) && actualGet.propertyKey == key {
 				operation, receiver = actualGet.operation, actualGet.receiver
 			} else if actualGet != nil && actualGet.operation != nil && (ast.IsPropertyAccessExpression(actualGet.operation) || ast.IsElementAccessExpression(actualGet.operation)) {
 				_, observedKey := accessorReceiver(actualGet.operation)
@@ -38,7 +38,15 @@ func (query *sourceValueQuery) reflectiveSourceGet(expression, definition *ast.N
 					operation, receiver = actualGet.operation, actualGet.receiver
 				}
 			}
-			observed := query.acquireGetResult(body, &sourceGetInputs{operation: operation, receiver: receiver}, scope, result)
+			get := &sourceGetInputs{operation: operation, receiver: receiver}
+			if actualGet != nil && actualGet.freshDescriptorEffects && actualGet.propertyKey == key {
+				// The discarded fresh definition needs the actual receiver and body
+				// effects. No consumer acquires this descriptor field's value.
+				get.freshDescriptorEffects = true
+				query.executeGetEffects(body, get, scope, result)
+				return
+			}
+			observed := query.acquireGetResult(body, get, scope, result)
 			result.valueIncomplete = result.valueIncomplete || observed.incomplete
 			for _, returned := range observed.values {
 				term, captured := returned.value, returned.scope
