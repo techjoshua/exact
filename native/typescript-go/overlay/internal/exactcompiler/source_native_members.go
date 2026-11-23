@@ -28,13 +28,14 @@ const (
 	sourceNativeSymbolConstructorExposure
 	sourceNativeSymbolForExposure
 	sourceNativeObjectCreateExposure
-	sourceNativeObjectPrototype                // Original standard constructor slot, not ordinary member integrity.
-	sourceNativeObjectCreate                   // Scoped one-argument source algorithm, not exposure-only evidence.
-	sourceNativeObjectDefineProperties         // Ordered map algorithm category, not strong descriptor conversion.
-	sourceNativeSymbolConstructor              // Scoped original Symbol algorithm selection, distinct from exposure probing.
-	sourceNativeSymbolFor                      // Conditional standard algorithm, not primitive/result readiness.
-	sourceNativeDefaultHasInstance             // Conditional original Function.prototype protocol, never output.
-	sourceNativeWeakMapPrototype               // Original standard prototype slot Effects, not instance/result identity.
+	sourceNativeObjectPrototype        // Original standard constructor slot, not ordinary member integrity.
+	sourceNativeObjectCreate           // Scoped one-argument source algorithm, not exposure-only evidence.
+	sourceNativeObjectDefineProperties // Ordered map algorithm category, not strong descriptor conversion.
+	sourceNativeSymbolConstructor      // Scoped original Symbol algorithm selection, distinct from exposure probing.
+	sourceNativeSymbolFor              // Conditional standard algorithm, not primitive/result readiness.
+	sourceNativeDefaultHasInstance     // Conditional original Function.prototype protocol, never output.
+	sourceNativeWeakMapPrototype       // Original standard prototype slot Effects, not instance/result identity.
+	sourceNativeObjectHasOwn
 	sourceNativeObjectGetOwnPropertyDescriptor // Selected Object retrieval, not a raw descriptor/result object.
 	sourceNativeReflectGet                     // Selected property read, without a normal output receipt.
 	sourceNativeObjectAssign                   // Selected original copy target, scoped to reflective writer source projection.
@@ -131,7 +132,7 @@ func (query *sourceValueQuery) nativeEntryRoot(symbol *ast.Symbol, fromGlobal bo
 		if entry.kind == sourceNativeReflectObject && len(path) > offset && (path[offset] == "get" || query.dependenciesOnly && path[offset] == "apply") {
 			return global, entry.kind
 		}
-		if entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1))) {
+		if entry.kind == sourceNativePossibleProxyConstructor || entry.kind == sourceNativeWeakMapConstructor || entry.kind == sourceNativePromiseConstructor || len(path) > offset && (entry.kind == sourceNativeFunctionConstructor && path[offset] == "prototype" || entry.kind != sourceNativeFunctionConstructor && (path[offset] == "defineProperty" || entry.kind == sourceNativeObjectConstructor && (path[offset] == "freeze" || query.sourceEffects.hasOwn != nil && path[offset] == "hasOwn" || path[offset] == "defineProperties" || path[offset] == "getOwnPropertyDescriptor" || query.stagedCreateAcquisition() && path[offset] == "create" || query.stagedTargetAcquisition() && path[offset] == "prototype" && len(path) == offset+1))) {
 			return global, entry.kind
 		}
 	}
@@ -276,6 +277,12 @@ func (query *sourceValueQuery) nativeMemberSeed(value sourceValue, key string, s
 						kind = sourceNativeReflectApply
 					}
 					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: kind, acquired: value.native.acquired}}, true
+				}
+			}
+			if key == "hasOwn" && query.sourceEffects.hasOwn != nil && value.native.kind == sourceNativeObjectConstructor {
+				member := query.owner.checker.GetPropertyOfType(query.owner.checker.GetTypeOfSymbol(global), key)
+				if member != nil && member.ValueDeclaration != nil && standardLibrarySource(ast.GetSourceFileOfNode(member.ValueDeclaration)) {
+					return value.node, sourceValue{node: member.ValueDeclaration, native: &sourceNativeValue{kind: sourceNativeObjectHasOwn, acquired: value.native.acquired}}, true
 				}
 			}
 			memberName := "defineProperty"

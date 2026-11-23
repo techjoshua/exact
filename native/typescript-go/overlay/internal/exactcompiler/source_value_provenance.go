@@ -328,7 +328,7 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 	}, func(fold sourceNormalFold) {
 		owner.summaryWork += 1 + len(fold.children)
 		appendDemand(sourceNormalDemand{node: fold.node, fold: &fold})
-	}, func(node *ast.Node) bool {
+	}, nil, func(node *ast.Node) bool {
 		entry := index.normalOccurrences[node]
 		return node == erasedPolicy || entry != nil && entry.structural
 	})

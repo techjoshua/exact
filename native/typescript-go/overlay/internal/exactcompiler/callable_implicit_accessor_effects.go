@@ -7,17 +7,19 @@ import (
 
 // appendImplicitAccessorEffects models the ordinary operations that read an object's values
 // without a property-access expression. Enumeration of keys alone does not invoke getters.
-func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) {
+func appendImplicitAccessorEffects(fact *callableFacts, node *ast.Node, targets map[*ast.Node]int, source *ast.SourceFile, typeChecker *checker.Checker, bindings map[ast.SymbolId]*ast.Node, owner *executableBodyOwner, work *callableEffectWork, facts []callableFacts) (selectedProxy *ast.Node) {
 	if work != nil && fact.normalInputs == nil && len(bindings) == 0 && ast.IsNewExpression(node) {
 		if consumer, known := work.memberNodes[fact.node]; known && work.stageConstructionEffects(facts, consumer, node, owner) {
 			return
 		}
 	}
 	visitImplicitAccessors(node, typeChecker, bindings, owner, fact.node, fact.nativeCalls, func(candidates accessorCandidates) {
+		selectedProxy = candidates.selectedProxy
 		appendOpaqueAccessorEffect(fact, candidates)
 		appendSourceValueWrites(fact, candidates, typeChecker)
 		appendAccessorTargets(fact, node, candidates, targets, source)
 	}, fact.normalInputs)
+	return
 }
 
 // visitImplicitAccessors shares value-reading operations with eager module placement.
@@ -65,7 +67,9 @@ func visitImplicitAccessors(node *ast.Node, typeChecker *checker.Checker, bindin
 	if ast.IsNewExpression(node) {
 		query.standardConstructionSource = node // original reached descent only
 		query.retainThenOperation(node, nil, &result)
-		mergeAccessorCandidates(&result, query.invocation(node, nil))
+		construction := query.invocation(node, nil)
+		mergeAccessorCandidates(&result, construction)
+		result.selectedProxy = construction.selectedProxy
 	}
 	bound := make(sourceValueBindings)
 	for id, value := range bindings {

@@ -33,6 +33,7 @@ type sourceAccessorMutation struct {
 }
 
 type accessorCandidates struct {
+	selectedProxy           *ast.Node                            // Original implicit construction only; never joined across candidate merges.
 	installedMemberReadings []sourceInstalledMemberRequirement   // detached original Get-to-field handoff
 	installedCallSelections []sourceInstalledCallSelectionSource // detached actual callee source descriptions
 	installedMemberPending  []sourceInstalledMemberPending       // exact compiler-owned phase requirement, not opacity

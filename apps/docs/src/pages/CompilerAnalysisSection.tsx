@@ -184,6 +184,13 @@ export function CompilerAnalysisSection(this: Component<{}>) {
 				intact.
 			</p>
 			<p>
+				Checking a key with <code>Object.hasOwn</code> can run a proxy’s
+				<code>getOwnPropertyDescriptor</code> method. If that method reads browser state,
+				even a component that discards the boolean result can require client placement.
+				If the handler replaces its own method, mark the component <code>@exact client</code>
+				when the replacement needs the browser. The compiler can miss that later call.
+			</p>
+			<p>
 				Placement includes work performed when a module loads, such as class static fields, static
 				blocks and computed member names. A browser read in a static field still requires the
 				browser. Instance field initializers and method bodies are considered when construction or

@@ -204,6 +204,14 @@ func (query *sourceValueQuery) consumeInvocation(node *ast.Node, bindings source
 		endPendingMemberPreparation(&memberPreparation, true)
 		mergeAccessorCandidates(&result, effects)
 	}
+	if query.sourceEffects.hasOwn != nil && query.sourceEffects.hasOwnCall == node && query.sourceEffects.issuer == query {
+		for _, value := range prepared.acquired.values {
+			if value.native != nil && value.native.kind == sourceNativeObjectHasOwn {
+				query.sourceEffects.hasOwn.selected = node
+				break
+			}
+		}
+	}
 	mergeAccessorCandidates(&result, prepared.base.candidates())
 	query.publishPendingMemberSelection(node, bindings, prepared)
 	if descriptor := query.discardedFreshDataDescriptor(node, prepared, &result); descriptor != nil {

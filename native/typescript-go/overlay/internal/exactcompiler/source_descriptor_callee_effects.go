@@ -7,6 +7,8 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // event can account integrity metadata through its already-owned Get request.
 // Callbacks and events stay within the original traversal.
 type sourceEffectsObserver struct {
+	hasOwn      *sourceHasOwnWalk
+	hasOwnCall  *ast.Node
 	issuer      *sourceValueQuery
 	body        func(sourceBodyEffectsObservation)
 	callee      func(*sourceCalleeEffectsObservation) bool

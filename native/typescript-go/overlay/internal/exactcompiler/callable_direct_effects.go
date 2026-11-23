@@ -125,6 +125,7 @@ func collectDirectCallableEffects(
 	}
 	localIndex := owner.values.index(sourceFile)
 	possibleEvent := localIndex.possibleEventConstructor
+	hasOwn := sourceHasOwnWalk{checker: typeChecker, regions: localIndex.operationRegions, uses: localIndex.privateUses, dynamic: localIndex.incomplete || localIndex.normalDynamicScope}
 	consumeNode := func(node *ast.Node) bool {
 		recordMutationWriterTemplate(fact, node, owner)
 		recordOriginalMutationBodyOperation(fact, node, owner)
@@ -328,7 +329,7 @@ func collectDirectCallableEffects(
 				appendAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, accessorWork, facts, &getterWrites)
 			}
 			if demand, dependent := describeNormalOperand(node); !dependent || !demand.pattern {
-				appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
+				hasOwn.construction = appendImplicitAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, nil, owner, accessorWork, facts)
 			}
 		}
 		if !ast.IsCallExpression(node) {
@@ -529,7 +530,12 @@ func collectDirectCallableEffects(
 		// still visits its key and inline callback creation. Keep edge selection
 		// and callback placement on their existing owners below.
 		if fact.normalInputs != nil || !ordinaryComponentLifecycleCall(node, typeChecker, owner) && (protocol || !directInvocationLeaf(call, typeChecker)) {
-			invocation = appendArgumentAccessorEffects(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition)
+			observer := sourceEffectsObserver{}
+			if hasOwn.traps != nil && hasOwn.traps[node] != nil && ast.IsPropertyAccessExpression(call.Expression) && call.Expression.Name().Text() == "hasOwn" {
+				observer.hasOwn = &hasOwn
+				observer.hasOwnCall = node
+			}
+			invocation = appendArgumentAccessorEffectsObserved(fact, node, nodeTargets, sourceFile, typeChecker, owner, definition, observer)
 		}
 		fact.nativeCalls = append(fact.nativeCalls, invocation.nativeCalls...)
 		fact.normalCalls = append(fact.normalCalls, invocation.normalCalls...)
@@ -636,7 +642,10 @@ func collectDirectCallableEffects(
 	} else {
 		// Ordinary effect demands use the recursive source walk. Exact output
 		// schedules are invoked only by their named refinement consumers.
-		walkCallableNormal(fact.node, consumeNode, nil)
+		hasOwn.reached = func(call, trap *ast.Node) {
+			appendAccessorTargets(fact, call, accessorCandidates{effects: []sourceCallableEffect{{operation: call, declaration: trap}}}, nodeTargets, sourceFile)
+		}
+		walkCallableNormalWithFolds(fact.node, consumeNode, nil, nil, nil, &hasOwn)
 	}
 	finishOriginalMutationBodyPopulation(fact, owner, precisionRequested)
 	appendReturnSettlementEffects(fact, nodeTargets, sourceFile, typeChecker, owner, componentTask)
@@ -959,12 +968,12 @@ func walkCallableNormal(root *ast.Node, visit func(*ast.Node) bool, operand func
 	if len(phases) == 1 {
 		phase = phases[0]
 	}
-	walkCallableNormalWithFolds(root, visit, operand, phase, nil)
+	walkCallableNormalWithFolds(root, visit, operand, phase, nil, nil)
 }
 
 // walkCallableNormalWithFolds supplies immutable syntax folds alongside the
 // existing normal effect callbacks. Deferred edges do not supply body events.
-func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), structural ...func(*ast.Node) bool) {
+func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, operand func(sourceNormalOperand), phase func(sourceNormalPhase), fold func(sourceNormalFold), hasOwn *sourceHasOwnWalk, structural ...func(*ast.Node) bool) {
 	describeOperand := func(node *ast.Node) (sourceNormalOperand, bool) {
 		if operand == nil {
 			return sourceNormalOperand{}, false
@@ -1122,6 +1131,22 @@ func walkCallableNormalWithFolds(root *ast.Node, visit func(*ast.Node) bool, ope
 				}
 			}
 			return
+		}
+		if hasOwn != nil && (hasOwn.selected == node || hasOwn.construction == node) {
+			selection := hasOwn.selectOperation(node)
+			if selection.operation != nil {
+				// Both supported operations evaluate every direct child here.
+				node.ForEachChild(func(child *ast.Node) bool {
+					descend(child)
+					selection.receive(child, hasOwn)
+					return false
+				})
+				selection.finish(hasOwn)
+				if dependent {
+					operand(demand)
+				}
+				return
+			}
 		}
 		node.ForEachChild(func(child *ast.Node) bool {
 			if sourceMemberOperationOwnsChild(node, child) && node != root {

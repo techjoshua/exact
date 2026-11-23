@@ -136,6 +136,9 @@ func (q *sourceValueQuery) selectSourceConstructionReference(reference, site *as
 		selected.acquired = selectionProjection(part)
 		mergeAccessorCandidates(result, part)
 		for _, v := range part.values {
+			if q.standardConstructionSource == site && q.reading == site && v.native != nil && v.native.kind == sourceNativePossibleProxyConstructor && len(v.path) == 0 {
+				result.selectedProxy = site
+			}
 			if v.node != nil && len(v.path) == 0 && (ast.IsClassDeclaration(v.node) || ast.IsClassExpression(v.node)) && !ast.GetSourceFileOfNode(v.node).IsDeclarationFile {
 				selected.declarations = append(selected.declarations, v.node)
 				selected.base.selected = true
