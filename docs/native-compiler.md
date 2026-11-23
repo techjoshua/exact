@@ -3219,6 +3219,13 @@ ownership. Late donor publication still uses the original result and the
 section offsets from entry. Return selection carries only the same detached
 selection and transfer rows required by its consumer.
 
+The source index records ordered direct return expressions under their lexical
+callable while it visits the authored syntax. Callable summaries reuse that
+list from a complete source index. It includes dormant expressions and has
+no selected invocation or return-completion authority. Consumers that need
+successful returns still check the original bindings and completion rules.
+The list follows the source index and is replaced with its source tree.
+
 The original member owner separately publishes its finite source-set disposition.
 Every assignment, reflective relation and open-operation protocol receives an exact
 child request before local extraction can finish. Deferred and later function writes

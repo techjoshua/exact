@@ -6,6 +6,9 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // buckets narrow candidate visits only. Dynamic roots stay in source order beside every bucket.
 type sourceValueAssignment struct{ left, right *ast.Node }
 type sourceValueIndex struct {
+	// Direct authored return expressions are lexical facts, even under a
+	// dormant branch. Execution reachability belongs to the selected input.
+	directReturns map[*ast.Node][]*ast.Node
 	normalOccurrences                       map[*ast.Node]*sourceNormalOccurrence
 	normalOrdinal                           int
 	normalExported                          map[ast.SymbolId]bool
@@ -109,12 +112,20 @@ func (owner *sourceValueOwner) index(source *ast.SourceFile) sourceValueIndex {
 	var writes []*ast.Node
 	if source != nil && !source.IsDeclarationFile {
 		traceSourceName := source.FileName() // existing index source metadata, no parent lookup
-		walkSourceIndex(source.AsNode(), false, func(node *ast.Node, erased, partOfType bool) {
+		walkSourceIndex(source.AsNode(), nil, false, func(node, callable *ast.Node, erased, partOfType bool) {
 			progressIndexSpan(traceSourceName, progressPointer(node), node.Pos(), node.End(), int(node.Kind))
 			owner.indexWork++
 			owner.indexPrivateUse(index.privateUses, node, erased)
 			owner.indexNormalOccurrence(&index, source, node, erased)
 			if !partOfType {
+				if callable != nil && ast.IsReturnStatement(node) {
+					if expression := node.AsReturnStatement().Expression; expression != nil {
+						if index.directReturns == nil {
+							index.directReturns = make(map[*ast.Node][]*ast.Node)
+						}
+						index.directReturns[callable] = append(index.directReturns[callable], expression)
+					}
+				}
 				if node.Kind == ast.KindThisKeyword {
 					region := owner.memberOperationRegion(&index, node)
 					region.receivers = append(region.receivers, node)
@@ -455,15 +466,18 @@ func (owner *sourceValueOwner) localNullRecordAllocation(root, origin *ast.Node)
 
 // walkSourceIndex carries only import/export erasure across edges. The nearest
 // statement participates in that decision before it cuts off outer ancestors.
-func walkSourceIndex(node *ast.Node, inherited bool, visit func(*ast.Node, bool, bool)) {
+func walkSourceIndex(node, callable *ast.Node, inherited bool, visit func(*ast.Node, *ast.Node, bool, bool)) {
 	partOfType := ast.IsPartOfTypeNode(node)
-	visit(node, inherited || partOfType || semanticTypeOnlyParent(node.Parent), partOfType)
+	visit(node, callable, inherited || partOfType || semanticTypeOnlyParent(node.Parent), partOfType)
 	if partOfType {
 		return
 	}
+	if ast.IsFunctionLike(node) {
+		callable = node
+	}
 	childErased := inherited && !ast.IsStatement(node) || typeOnlyImportOrExport(node)
 	node.ForEachChild(func(child *ast.Node) bool {
-		walkSourceIndex(child, childErased, visit)
+		walkSourceIndex(child, callable, childErased, visit)
 		return false
 	})
 }

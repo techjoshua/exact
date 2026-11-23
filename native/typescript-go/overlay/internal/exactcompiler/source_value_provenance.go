@@ -271,10 +271,16 @@ func (owner *sourceValueOwner) summary(node *ast.Node) sourceValueSummary {
 	if summary, ok := owner.summaries[node]; ok {
 		return summary
 	}
-	summary := sourceValueSummary{returns: directCallableReturns(node), normalSlots: make(map[*ast.Node]struct{})}
+	summary := sourceValueSummary{normalSlots: make(map[*ast.Node]struct{})}
 	erasedPolicy := owner.inertTaskPolicyParameter(node, true)
 	summary.erasedPolicy = erasedPolicy
-	index := owner.index(ast.GetSourceFileOfNode(node))
+	source := ast.GetSourceFileOfNode(node)
+	index := owner.index(source)
+	if source != nil && !source.IsDeclarationFile && !index.incomplete && ast.IsFunctionLike(node) {
+		summary.returns = index.directReturns[node]
+	} else {
+		summary.returns = directCallableReturns(node)
+	}
 	appendDemand := func(demand sourceNormalDemand) {
 		if entry := index.normalOccurrences[demand.node]; !index.incomplete && entry != nil {
 			demand.defaultKnown = true

@@ -38,7 +38,7 @@ function Page(){ return () => <span>{value(, )}</span> }`, true},
 				return !ast.IsPartOfTypeNode(node)
 			})
 			visited := 0
-			walkSourceIndex(file.AsNode(), false, func(node *ast.Node, erased, partOfType bool) {
+			walkSourceIndex(file.AsNode(), nil, false, func(node, _ *ast.Node, erased, partOfType bool) {
 				if visited >= len(expected) || node != expected[visited] || erased != semanticTypeOnly(node) || partOfType != ast.IsPartOfTypeNode(node) {
 					t.Fatalf("index diverged at visit %d, %v at %d", visited, node.Kind, node.Pos())
 				}
