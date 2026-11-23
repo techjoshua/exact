@@ -96,12 +96,16 @@ func TestSourceNativeArrayPushConsumer(t *testing.T) {
 	}
 }
 
-// Early standard selection cannot turn a pending own writer into a missing donor.
+// A component using the pending own method retains its browser effect.
 func TestSourceNativeArrayPushPendingOwnWriter(t *testing.T) {
-	const source = `function install(xs:number[]){xs.push=function custom(...values:number[]){document.title;return 0}}const xs:number[]=[];install(xs);export function invoke(){return xs.push(1)}`
-	response := NewSession().Execute(Request{Kind: "analyze", ID: "/virtual/push-own-writer.ts", Source: source, Diagnostics: "semantic"})
-	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) {
+	const source = `function install(xs:number[]){xs.push=function custom(...values:number[]){document.title;return 0}}const xs:number[]=[];install(xs);export function invoke(){return xs.push(1)}export function Page(){const value=invoke();return()=> <output>{value}</output>;}`
+	root, config := formsSourceFixture(t)
+	response := formsCompileSource(t, root, config, source, TargetServer)
+	if response.Error != "" || hasErrorDiagnostic(response.Diagnostics) || response.Code == "" {
 		t.Fatal(response.Error, response.Diagnostics)
+	}
+	if len(response.Analysis.Components) != 1 || response.Analysis.Components[0].Placement != "client" || response.Analysis.Components[0].EnvironmentEffect != "browser" {
+		t.Fatal("own writer did not require browser placement", response.Analysis.Components)
 	}
 	var caller *CallableSummary
 	for i := range response.Analysis.Callables {
